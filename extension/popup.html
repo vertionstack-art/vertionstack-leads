@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+  <title>Vertion Leads</title>
+</head>
+<body>
+  <header class="topo">
+    <div class="marca">
+      <span class="ponto"></span>
+      <div>
+        <strong>Vertion Leads</strong>
+        <small>prospector do Google Maps</small>
+      </div>
+    </div>
+    <button id="btn-config" class="icone" title="Configurações">⚙</button>
+  </header>
+
+  <div id="aviso-api" class="aviso oculto">
+    Painel não configurado. Os leads ficam salvos aqui até você apontar o endereço.
+    <button id="link-config" class="link">Configurar agora</button>
+  </div>
+
+  <section class="bloco">
+    <label class="rotulo" for="cidade">Onde procurar</label>
+    <input id="cidade" type="text" placeholder="Ex.: Belo Horizonte MG, ou Savassi BH" autocomplete="off" />
+    <p class="dica">Quanto mais específico o bairro, mais resultados o Maps entrega. Prefira varrer bairro a bairro.</p>
+  </section>
+
+  <section class="bloco">
+    <div class="linha-titulo">
+      <label class="rotulo">Tipos de comércio</label>
+      <div class="acoes-mini">
+        <button id="marcar-todos" class="link">todos</button>
+        <button id="limpar-todos" class="link">nenhum</button>
+      </div>
+    </div>
+    <div id="categorias" class="chips"></div>
+    <div class="linha-custom">
+      <input id="custom" type="text" placeholder="+ outro tipo (ex.: pet shop)" />
+      <button id="add-custom" class="btn-mini">Adicionar</button>
+    </div>
+  </section>
+
+  <section class="bloco">
+    <div class="grid2">
+      <div>
+        <label class="rotulo" for="limite">Máximo por tipo</label>
+        <input id="limite" type="number" min="5" max="300" step="5" value="40" />
+      </div>
+      <div class="switch-area">
+        <label class="switch">
+          <input id="detalhado" type="checkbox" checked />
+          <span>Verificar o site de cada um</span>
+        </label>
+        <small class="dica">
+          Abre a ficha de quem parece não ter site, para confirmar antes de você
+          gastar uma ligação. Quem já mostrou site na lista é pulado.
+        </small>
+      </div>
+    </div>
+    <p id="estimativa" class="estimativa"></p>
+  </section>
+
+  <section id="painel-progresso" class="progresso oculto">
+    <div class="barra"><div id="barra-fill"></div></div>
+    <p id="status-texto" class="status">Preparando…</p>
+    <div class="numeros">
+      <div><b id="n-encontrados">0</b><span>encontrados</span></div>
+      <div><b id="n-leads">0</b><span>sem site</span></div>
+      <div><b id="n-enviados">0</b><span>no painel</span></div>
+    </div>
+  </section>
+
+  <div id="erro" class="erro oculto"></div>
+
+  <footer class="rodape">
+    <button id="btn-iniciar" class="btn-primario">Iniciar coleta</button>
+    <button id="btn-parar" class="btn-secundario oculto">Parar</button>
+    <div class="rodape-links">
+      <button id="btn-csv" class="link">Baixar CSV</button>
+      <button id="btn-painel" class="link">Abrir painel</button>
+      <button id="btn-limpar" class="link perigo">Limpar</button>
+    </div>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

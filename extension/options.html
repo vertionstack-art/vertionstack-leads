@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Vertion Leads — Configurações</title>
+  <link rel="stylesheet" href="popup.css" />
+  <style>
+    body { width: auto; max-width: 620px; margin: 0 auto; padding: 32px 24px 60px; max-height: none; }
+    h1 { font-size: 21px; margin-bottom: 6px; letter-spacing: -0.4px; }
+    .sub { color: var(--cinza); font-size: 13px; margin-bottom: 28px; }
+    .campo { margin-bottom: 22px; }
+    .campo .rotulo { font-size: 12px; }
+    .passos { background: var(--roxo-fundo); border-radius: 10px; padding: 16px 18px; margin-top: 28px; font-size: 12.5px; line-height: 1.7; }
+    .passos b { display: block; margin-bottom: 8px; font-size: 13px; }
+    .passos ol { margin-left: 18px; }
+    .resultado { margin-top: 12px; font-size: 12.5px; padding: 10px 12px; border-radius: 8px; }
+    .resultado.ok { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .resultado.falha { background: #fef2f2; color: var(--vermelho); border: 1px solid #fecaca; }
+    .botoes { display: flex; gap: 10px; }
+    .botoes button { flex: 1; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Configurações</h1>
+  <p class="sub">Onde a extensão deve mandar os leads que encontrar.</p>
+
+  <div class="campo">
+    <label class="rotulo" for="apiUrl">Endereço do painel</label>
+    <input id="apiUrl" type="text" placeholder="https://seu-projeto.vercel.app" />
+    <p class="dica">Só o endereço principal, sem barra no final. Para testar na sua máquina use <code>http://localhost:3000</code>.</p>
+  </div>
+
+  <div class="campo">
+    <label class="rotulo" for="apiKey">Chave de acesso</label>
+    <input id="apiKey" type="text" placeholder="vl_..." />
+    <p class="dica">Essa mesma chave precisa estar cadastrada no painel, na variável <code>INGEST_TOKEN</code>. Ela impede que qualquer um mande dados pro seu painel.</p>
+  </div>
+
+  <div class="botoes">
+    <button id="salvar" class="btn-primario">Salvar</button>
+    <button id="testar" class="btn-secundario">Testar conexão</button>
+  </div>
+
+  <div id="resultado" class="resultado oculto"></div>
+
+  <div class="passos">
+    <b>Como preencher</b>
+    <ol>
+      <li>Publique o painel na Vercel e copie o endereço que ela te der.</li>
+      <li>Cole esse endereço no primeiro campo aqui.</li>
+      <li>Copie a chave do segundo campo (já veio gerada).</li>
+      <li>Na Vercel, em <em>Settings → Environment Variables</em>, crie <code>INGEST_TOKEN</code> e cole a mesma chave.</li>
+      <li>Volte aqui e clique em <em>Testar conexão</em>.</li>
+    </ol>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

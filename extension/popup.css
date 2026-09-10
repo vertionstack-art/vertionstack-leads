@@ -1,0 +1,184 @@
+:root {
+  --roxo: #7c3aed;
+  --roxo-claro: #a78bfa;
+  --roxo-fundo: #f5f3ff;
+  --preto: #0b0b0f;
+  --cinza: #6b7280;
+  --cinza-claro: #e5e7eb;
+  --branco: #ffffff;
+  --verde: #16a34a;
+  --vermelho: #dc2626;
+  --ambar: #d97706;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 380px;
+  max-height: 600px;
+  overflow-y: auto;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--preto);
+  background: var(--branco);
+}
+
+/* ---------------------------------------------------------- topo */
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--cinza-claro);
+  background: linear-gradient(135deg, #ffffff 0%, var(--roxo-fundo) 100%);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.marca { display: flex; align-items: center; gap: 10px; }
+.marca strong { display: block; font-size: 14px; letter-spacing: -0.2px; }
+.marca small { display: block; color: var(--cinza); font-size: 11px; }
+
+.ponto {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--roxo);
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.15);
+}
+
+.icone {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 16px; color: var(--cinza); padding: 4px 6px; border-radius: 6px;
+}
+.icone:hover { background: rgba(124, 58, 237, 0.1); color: var(--roxo); }
+
+/* -------------------------------------------------------- blocos */
+
+.bloco { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; }
+.grid2 { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: start; }
+
+.rotulo {
+  display: block; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  color: var(--cinza); margin-bottom: 7px;
+}
+
+.linha-titulo { display: flex; justify-content: space-between; align-items: baseline; }
+.acoes-mini { display: flex; gap: 8px; margin-bottom: 7px; }
+
+input[type="text"], input[type="number"] {
+  width: 100%; padding: 9px 11px;
+  border: 1px solid var(--cinza-claro); border-radius: 8px;
+  font-size: 13px; font-family: inherit; color: var(--preto);
+  background: var(--branco); transition: border-color .15s, box-shadow .15s;
+}
+input[type="text"]:focus, input[type="number"]:focus {
+  outline: none; border-color: var(--roxo);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.dica { font-size: 11px; color: var(--cinza); margin-top: 6px; line-height: 1.45; }
+
+/* --------------------------------------------------------- chips */
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--cinza-claro); background: var(--branco);
+  font-size: 11.5px; cursor: pointer; user-select: none;
+  transition: all .12s;
+}
+.chip:hover { border-color: var(--roxo-claro); }
+.chip.ativo {
+  background: var(--roxo); border-color: var(--roxo);
+  color: var(--branco); font-weight: 500;
+}
+.chip input { display: none; }
+
+.linha-custom { display: flex; gap: 6px; margin-top: 9px; }
+.linha-custom input { flex: 1; }
+
+.btn-mini {
+  padding: 0 12px; border-radius: 8px; border: 1px solid var(--cinza-claro);
+  background: var(--branco); font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.btn-mini:hover { border-color: var(--roxo); color: var(--roxo); }
+
+/* -------------------------------------------------------- switch */
+
+.switch-area { display: flex; flex-direction: column; gap: 2px; }
+.switch { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12.5px; font-weight: 500; }
+.switch input { width: 15px; height: 15px; accent-color: var(--roxo); cursor: pointer; }
+
+/* ----------------------------------------------------- progresso */
+
+.progresso { padding: 14px 16px; background: var(--roxo-fundo); border-bottom: 1px solid var(--cinza-claro); }
+
+.barra { height: 5px; background: #ddd6fe; border-radius: 999px; overflow: hidden; }
+#barra-fill {
+  height: 100%; width: 0%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--roxo), var(--roxo-claro));
+  transition: width .4s ease;
+}
+
+.status { font-size: 12px; color: #5b21b6; margin-top: 9px; font-weight: 500; min-height: 16px; }
+
+.numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 11px; }
+.numeros div { text-align: center; background: var(--branco); border-radius: 8px; padding: 7px 4px; }
+.numeros b { display: block; font-size: 17px; color: var(--roxo); line-height: 1.15; }
+.numeros span { font-size: 10px; color: var(--cinza); }
+
+/* ------------------------------------------------------- avisos */
+
+.aviso {
+  padding: 10px 16px; background: #fffbeb; color: #92400e;
+  font-size: 11.5px; line-height: 1.5; border-bottom: 1px solid #fde68a;
+}
+
+.erro {
+  padding: 10px 16px; background: #fef2f2; color: var(--vermelho);
+  font-size: 11.5px; line-height: 1.5; border-bottom: 1px solid #fecaca;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------- rodape */
+
+.rodape { padding: 14px 16px; position: sticky; bottom: 0; background: var(--branco); border-top: 1px solid var(--cinza-claro); }
+
+.btn-primario, .btn-secundario {
+  width: 100%; padding: 11px; border-radius: 9px; border: none;
+  font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  transition: filter .15s, transform .05s;
+}
+.btn-primario { background: var(--roxo); color: var(--branco); }
+.btn-primario:hover { filter: brightness(1.08); }
+.btn-primario:active { transform: scale(0.99); }
+.btn-primario:disabled { background: var(--cinza-claro); color: var(--cinza); cursor: not-allowed; }
+.btn-secundario { background: var(--preto); color: var(--branco); }
+.btn-secundario:hover { filter: brightness(1.4); }
+
+.rodape-links { display: flex; justify-content: space-between; margin-top: 11px; }
+
+.link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 11.5px; color: var(--roxo); font-family: inherit;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.link:hover { color: #5b21b6; }
+.link.perigo { color: var(--cinza); }
+.link.perigo:hover { color: var(--vermelho); }
+
+.oculto { display: none !important; }
+
+.estimativa {
+  margin-top: 11px;
+  padding: 8px 11px;
+  background: var(--roxo-fundo);
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: #5b21b6;
+  line-height: 1.5;
+}

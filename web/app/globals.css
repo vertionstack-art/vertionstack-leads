@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-roxo-50: #f5f3ff;
+  --color-roxo-100: #ede9fe;
+  --color-roxo-200: #ddd6fe;
+  --color-roxo-300: #c4b5fd;
+  --color-roxo-400: #a78bfa;
+  --color-roxo-500: #8b5cf6;
+  --color-roxo-600: #7c3aed;
+  --color-roxo-700: #6d28d9;
+  --color-roxo-800: #5b21b6;
+  --color-roxo-900: #4c1d95;
+
+  --color-tinta: #0b0b0f;
+  --color-tinta-70: #3f3f46;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: #fafafa;
+  color: var(--color-tinta);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* barra de rolagem discreta nas tabelas longas */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 999px; border: 2px solid #fafafa; }
+::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
