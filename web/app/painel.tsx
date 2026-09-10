@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
+import PromptModal from './prompt-modal';
 import type { WebsiteKind } from '@/lib/classify';
 
 // --------------------------------------------------------- constantes
@@ -119,6 +120,7 @@ export default function Painel({
   const [progressoVerif, setProgressoVerif] = useState<{ feitos: number; faltam: number; achados: number } | null>(null);
   const [faltamVerif, setFaltamVerif] = useState(0);
 
+  const [promptDe, setPromptDe] = useState<Lead | null>(null);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
   const [copiado, setCopiado] = useState<string | null>(null);
@@ -637,22 +639,31 @@ export default function Painel({
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        {lead.mapsUrl && (
-                          <a
-                            href={lead.mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
-                          >
-                            Maps
-                          </a>
-                        )}
                         <button
-                          onClick={() => apagar(lead.id, lead.name)}
-                          className="ml-3 text-[11.5px] text-zinc-400 hover:text-red-600"
+                          onClick={() => setPromptDe(lead)}
+                          title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
+                          className="rounded-md border border-roxo-300 bg-roxo-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
                         >
-                          apagar
+                          COPY
                         </button>
+                        <div className="mt-1.5">
+                          {lead.mapsUrl && (
+                            <a
+                              href={lead.mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
+                            >
+                              Maps
+                            </a>
+                          )}
+                          <button
+                            onClick={() => apagar(lead.id, lead.name)}
+                            className="ml-3 text-[11.5px] text-zinc-400 hover:text-red-600"
+                          >
+                            apagar
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -683,6 +694,8 @@ export default function Painel({
             <div className="px-6 py-16 text-center text-[13px] text-zinc-500">Carregando…</div>
           )}
         </div>
+
+        {promptDe && <PromptModal lead={promptDe} aoFechar={() => setPromptDe(null)} />}
 
         {/* ------------------------------------------------ paginação */}
         {total > PAGINA && (

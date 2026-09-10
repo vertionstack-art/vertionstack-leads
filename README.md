@@ -152,6 +152,31 @@ fáceis que você vai ter, porque o dono geralmente nem sabe.
 Uma nova varredura no mesmo bairro **não apaga suas anotações nem seus status** —
 ela só atualiza os dados que vieram do Google.
 
+### O botão COPY
+
+Cada lead tem um botão **COPY**. Ele abre o prompt de abordagem daquele
+comércio, pronto para colar no ChatGPT: copie, clique em **Abrir chat**, cole
+com Ctrl+V e o chat devolve briefing, três mensagens de WhatsApp, roteiro de
+ligação, as objeções mais prováveis com resposta, e uma faixa de preço.
+
+O prompt não é um modelo fixo com o nome trocado. O diagnóstico muda conforme
+o que foi encontrado, porque o argumento de venda é outro em cada caso:
+
+| Situação do lead | O ângulo que o prompt monta |
+|---|---|
+| Site fora do ar | Ele paga por algo que não abre e provavelmente não sabe |
+| Certificado vencido | O navegador afasta o cliente com aviso vermelho |
+| Só Instagram | Audiência alugada, não aparece no Google |
+| Só iFood/Doctoralia | Paga comissão e não é dono do cliente |
+| Sem site | Quem busca na região acha o concorrente |
+
+Cada um vem com um aviso de **como não estragar a conversa** — no caso do site
+fora do ar, por exemplo, chegar avisando de um problema em vez de vendendo, já
+que o dono pode ter sido abandonado por quem fez o site.
+
+A nota do Google entra no argumento: um comércio com 4,9 e 890 avaliações tem
+prova social pronta que hoje não tem onde ser mostrada.
+
 ### Trabalhando em dupla
 
 Os dois veem a mesma lista, e o painel mostra quem é quem:
