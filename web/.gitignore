@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# gerados pelo prebuild (scripts/empacotar-extensao.mjs)
+/public/vertion-leads-extensao.zip

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prebuild": "node scripts/empacotar-extensao.mjs",
+    "pack:extensao": "node scripts/empacotar-extensao.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

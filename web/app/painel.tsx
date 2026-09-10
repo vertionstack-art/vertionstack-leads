@@ -190,6 +190,12 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
 
           <div className="flex items-center gap-2">
             <a
+              href="/extensao"
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+            >
+              Extensão
+            </a>
+            <a
               href={'/api/leads/export?' + query}
               className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
             >
@@ -485,6 +491,11 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
                 {resumo.total
                   ? 'Afrouxe os filtros acima para ver mais resultados.'
                   : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
+              </p>
+              <p className="mt-4">
+                <a href="/extensao" className="text-[13px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-800">
+                  Ainda não instalou a extensão? Baixe aqui →
+                </a>
               </p>
             </div>
           )}
