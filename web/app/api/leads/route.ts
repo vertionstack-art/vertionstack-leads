@@ -9,7 +9,7 @@ import {
   type Status,
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
-import { chaveValida, podeLer, estaLogado } from '@/lib/auth';
+import { quemEnviou, podeLer, estaLogado, nomesDaEquipe } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +33,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     somenteLeads: url.searchParams.get('leads') === '1',
     comTelefone: url.searchParams.get('fone') === '1',
     siteQuebrado: url.searchParams.get('quebrado') === '1',
+    responsavel: url.searchParams.get('de') || undefined,
     limit: Number(url.searchParams.get('limit')) || 200,
     offset: Number(url.searchParams.get('offset')) || 0,
     ordem: (url.searchParams.get('ordem') as Filtros['ordem']) || 'recentes',
@@ -42,7 +43,9 @@ export function filtrosDaUrl(url: URL): Filtros {
 // ------------------------------------------------- recebe da extensão
 
 export async function POST(req: Request) {
-  if (!chaveValida(req)) {
+  // a chave também diz de quem é a extensão, para o painel mostrar quem coletou
+  const coletor = quemEnviou(req);
+  if (!coletor) {
     return NextResponse.json(
       { ok: false, erro: 'Chave inválida. Confira o INGEST_TOKEN na Vercel e a chave nas configurações da extensão.' },
       { status: 401 },
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
   }
 
   const limpos = brutos
-    .map((b) => normalizarLead(b as Record<string, unknown>))
+    .map((b) => normalizarLead(b as Record<string, unknown>, coletor))
     .filter((l): l is NonNullable<typeof l> => l !== null);
 
   // dentro do mesmo lote pode vir o mesmo comércio duas vezes
@@ -78,6 +81,7 @@ export async function POST(req: Request) {
       ...r,
       ignorados: brutos.length - unicos.length,
       persistido: temBanco,
+      coletor,
     });
   } catch (err) {
     console.error('[leads POST]', err);
@@ -97,7 +101,7 @@ export async function GET(req: Request) {
 
   try {
     const pagina = await listarLeads(filtrosDaUrl(new URL(req.url)));
-    return NextResponse.json({ ok: true, ...pagina, persistido: temBanco });
+    return NextResponse.json({ ok: true, ...pagina, persistido: temBanco, equipe: nomesDaEquipe });
   } catch (err) {
     console.error('[leads GET]', err);
     return NextResponse.json({ ok: false, erro: String((err as Error).message) }, { status: 500 });

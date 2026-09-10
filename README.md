@@ -69,17 +69,42 @@ Sem isso os leads somem quando o servidor descansa.
 3. **Connect** no projeto. A Vercel cria a variável `DATABASE_URL` sozinha.
 4. Vá em **Deployments**, clique nos três pontinhos do último e escolha **Redeploy**.
 
-### Parte 3 — Criar as duas senhas
+### Parte 3 — Criar os acessos
 
-Na Vercel, em **Settings → Environment Variables**, crie duas:
+Na Vercel, em **Settings → Environment Variables**, crie duas variáveis:
 
-| Nome | Valor | Para quê |
-|---|---|---|
-| `DASHBOARD_PASSWORD` | uma senha sua | Entrar no painel |
-| `INGEST_TOKEN` | a chave que a extensão gerou | A extensão poder enviar |
+| Nome | Para quê |
+|---|---|
+| `USUARIOS` | quem entra no painel |
+| `INGEST_TOKEN` | quais extensões podem enviar leads |
 
-A chave da extensão você pega no passo seguinte. Depois de criar as duas,
-faça **Redeploy** de novo.
+As duas usam o mesmo formato, `nome:valor`, separando pessoas por vírgula:
+
+```
+USUARIOS=lucas:umaSenhaBoa,joao:outraSenhaBoa
+INGEST_TOKEN=lucas:vl_aaaa1111...,joao:vl_bbbb2222...
+```
+
+Nomes em minúsculas, sem espaço e sem acento. As senhas você escolhe; as
+chaves são as que cada extensão gera sozinha (veja a Parte 4).
+
+**Por que cada um com a sua:** é assim que o painel sabe quem coletou cada
+comércio e quem já está cuidando dele — vocês param de ligar duas vezes para
+a mesma pizzaria. E dá para tirar o acesso de uma pessoa sem trocar o de
+todo mundo.
+
+Trabalhando sozinho, cadastre só o seu:
+
+```
+USUARIOS=lucas:umaSenhaBoa
+INGEST_TOKEN=lucas:vl_aaaa1111...
+```
+
+Depois de criar as duas, faça **Redeploy**.
+
+> O formato antigo continua funcionando: uma `DASHBOARD_PASSWORD` sozinha e
+> um `INGEST_TOKEN` sem nome viram o usuário `equipe`. Quem já tinha
+> configurado assim não precisa mexer em nada.
 
 ### Parte 4 — Instalar a extensão
 
@@ -127,6 +152,21 @@ fáceis que você vai ter, porque o dono geralmente nem sabe.
 Uma nova varredura no mesmo bairro **não apaga suas anotações nem seus status** —
 ela só atualiza os dados que vieram do Google.
 
+### Trabalhando em dupla
+
+Os dois veem a mesma lista, e o painel mostra quem é quem:
+
+- **Quem coletou** vem da chave que a extensão usou para enviar.
+- **Quem está cuidando** é quem mexeu no status por último. Aparece embaixo do
+  status como *com você* ou *com joão*.
+- O seletor **Todo mundo / Meus / Sem dono / De fulano** filtra a lista.
+
+Antes de ligar, olhe se o lead já está com alguém. Se aparecer *com joão*, ele
+chegou primeiro. Para devolver um lead para a fila, volte o status para
+**Novo** — isso solta o responsável e ele vira *sem dono* de novo.
+
+Os dois nomes saem também no CSV, nas colunas *Responsável* e *Coletado por*.
+
 ---
 
 ## Quando alguma coisa não funcionar
@@ -146,7 +186,13 @@ A Parte 2 não foi concluída, ou faltou o Redeploy depois de conectar o Neon.
 
 **A extensão diz que a chave é inválida**
 O `INGEST_TOKEN` da Vercel está diferente da chave nas configurações da
-extensão. Compare os dois com cuidado e refaça o Redeploy.
+extensão. Compare os dois com cuidado e refaça o Redeploy. Com mais de uma
+pessoa, confira também se a vírgula e os dois-pontos estão no lugar:
+`lucas:vl_aaa,joao:vl_bbb`.
+
+**"Usuário ou senha incorretos"**
+Confira o nome: ele é o que está antes dos dois-pontos em `USUARIOS`, sempre
+em minúsculas. Mudar a senha de alguém desconecta só essa pessoa.
 
 ---
 

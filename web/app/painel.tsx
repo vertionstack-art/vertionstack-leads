@@ -85,7 +85,15 @@ function Cartao({
 
 // ------------------------------------------------------------- tela
 
-export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semSenha: boolean }) {
+export default function Painel({
+  semBanco,
+  semSenha,
+  usuario,
+}: {
+  semBanco: boolean;
+  semSenha: boolean;
+  usuario: string;
+}) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
   const [resumo, setResumo] = useState<Record<string, number>>({});
@@ -102,6 +110,8 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
   const [categoria, setCategoria] = useState('');
   const [comTelefone, setComTelefone] = useState(false);
   const [siteQuebrado, setSiteQuebrado] = useState(false);
+  const [dePessoa, setDePessoa] = useState('');
+  const [equipe, setEquipe] = useState<string[]>([]);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes'>('recentes');
   const [pagina, setPagina] = useState(0);
 
@@ -128,11 +138,12 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
     if (categoria) p.set('category', categoria);
     if (comTelefone) p.set('fone', '1');
     if (siteQuebrado) p.set('quebrado', '1');
+    if (dePessoa) p.set('de', dePessoa);
     p.set('ordem', ordem);
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, ordem, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, pagina]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -146,6 +157,7 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
       setResumo(d.resumo);
       setCidades(d.cidades);
       setCategorias(d.categorias);
+      if (d.equipe) setEquipe(d.equipe);
     } catch (e) {
       setErro(String((e as Error).message));
     } finally {
@@ -237,7 +249,7 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
   // o servidor já conta as oportunidades pelo is_lead, que a verificação de
   // site também altera; a soma dos tipos ignoraria os sites que caíram
   const quentes = resumo.oportunidades ?? ((resumo.none || 0) + (resumo.social || 0) + (resumo.marketplace || 0) + (resumo.weak || 0));
-  const filtroLimpo = !buscaDebounce && !kinds.length && !statusFiltro.length && !cidade && !categoria && !comTelefone && !siteQuebrado;
+  const filtroLimpo = !buscaDebounce && !kinds.length && !statusFiltro.length && !cidade && !categoria && !comTelefone && !siteQuebrado && !dePessoa;
   const ultimaPagina = (pagina + 1) * PAGINA >= total;
 
   return (
@@ -270,6 +282,15 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
             >
               Extensão
             </a>
+            <span className="ml-1 border-l border-zinc-200 pl-3 text-xs text-zinc-500">
+              {usuario}
+              <button
+                onClick={async () => { await fetch('/api/auth', { method: 'DELETE' }); location.href = '/login'; }}
+                className="ml-2 underline underline-offset-2 hover:text-roxo-700"
+              >
+                sair
+              </button>
+            </span>
             <a
               href={'/api/leads/export?' + query}
               className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
@@ -338,7 +359,7 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
             numero={resumo.total || 0}
             rotulo="comércios mapeados"
             ativo={filtroLimpo}
-            onClick={() => { setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria(''); setComTelefone(false); setSiteQuebrado(false); setPagina(0); }}
+            onClick={() => { setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria(''); setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setPagina(0); }}
           />
           <Cartao
             numero={quentes}
@@ -405,6 +426,24 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
               />
               Só com telefone
             </label>
+
+            {equipe.length > 1 && (
+              <select
+                value={dePessoa}
+                onChange={(e) => { setDePessoa(e.target.value); setPagina(0); }}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
+                title="Quem está cuidando do lead"
+              >
+                <option value="">Todo mundo</option>
+                <option value={usuario}>Meus ({resumo['de_' + usuario] || 0})</option>
+                <option value="ninguem">Sem dono ({resumo.de_ninguem || 0})</option>
+                {equipe.filter((n) => n !== usuario).map((n) => (
+                  <option key={n} value={n}>
+                    De {n} ({resumo['de_' + n] || 0})
+                  </option>
+                ))}
+              </select>
+            )}
 
             {(resumo.site_quebrado ?? 0) > 0 && (
               <label
@@ -581,6 +620,20 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
                         >
                           {STATUS.map((s) => <option key={s.valor} value={s.valor}>{s.rotulo}</option>)}
                         </select>
+                        {lead.responsavel && (
+                          <div
+                            className={`mt-1 text-[11px] ${
+                              lead.responsavel === usuario ? 'text-roxo-700 font-medium' : 'text-amber-700'
+                            }`}
+                            title={
+                              lead.responsavel === usuario
+                                ? 'Você está cuidando deste'
+                                : `${lead.responsavel} já está cuidando deste — combine antes de ligar`
+                            }
+                          >
+                            {lead.responsavel === usuario ? 'com você' : `com ${lead.responsavel}`}
+                          </div>
+                        )}
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-3 text-right">

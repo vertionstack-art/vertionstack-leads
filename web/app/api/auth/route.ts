@@ -1,22 +1,28 @@
 import { NextResponse } from 'next/server';
-import { COOKIE, senhaConfere, tokenDeSessao, exigeSenha } from '@/lib/auth';
+import { COOKIE, entrar, exigeSenha, usuarioAtual } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+export async function GET() {
+  return NextResponse.json({ ok: true, usuario: await usuarioAtual() });
+}
+
 export async function POST(req: Request) {
-  const { senha } = (await req.json().catch(() => ({}))) as { senha?: string };
+  const { nome, senha } = (await req.json().catch(() => ({}))) as { nome?: string; senha?: string };
 
   if (!exigeSenha) {
-    return NextResponse.json({ ok: true, aviso: 'Painel sem senha configurada.' });
+    return NextResponse.json({ ok: true, usuario: 'equipe', aviso: 'Painel sem senha configurada.' });
   }
 
-  if (!senha || !(await senhaConfere(senha))) {
-    return NextResponse.json({ ok: false, erro: 'Senha incorreta.' }, { status: 401 });
+  const sessao = senha ? await entrar(nome || '', senha) : null;
+
+  if (!sessao) {
+    return NextResponse.json({ ok: false, erro: 'Usuário ou senha incorretos.' }, { status: 401 });
   }
 
-  const resp = NextResponse.json({ ok: true });
-  resp.cookies.set(COOKIE, await tokenDeSessao(), {
+  const resp = NextResponse.json({ ok: true, usuario: sessao.slice(0, sessao.lastIndexOf('.')) });
+  resp.cookies.set(COOKIE, sessao, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

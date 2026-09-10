@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { atualizarLead, apagarLead, type Status } from '@/lib/db';
-import { estaLogado } from '@/lib/auth';
+import { estaLogado, usuarioAtual } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,8 @@ const STATUS_VALIDOS: Status[] = ['novo', 'contatado', 'negociando', 'fechado', 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  if (!(await estaLogado())) {
+  const quem = await usuarioAtual();
+  if (!quem) {
     return NextResponse.json({ ok: false, erro: 'Nao autorizado.' }, { status: 401 });
   }
 
@@ -21,10 +22,14 @@ export async function PATCH(req: Request, ctx: Ctx) {
     return NextResponse.json({ ok: false, erro: 'Status invalido.' }, { status: 400 });
   }
 
-  const lead = await atualizarLead(decodeURIComponent(id), {
-    status: corpo.status as Status | undefined,
-    notes: corpo.notes !== undefined ? (corpo.notes ? String(corpo.notes).slice(0, 2000) : null) : undefined,
-  });
+  const lead = await atualizarLead(
+    decodeURIComponent(id),
+    {
+      status: corpo.status as Status | undefined,
+      notes: corpo.notes !== undefined ? (corpo.notes ? String(corpo.notes).slice(0, 2000) : null) : undefined,
+    },
+    quem,
+  );
 
   if (!lead) return NextResponse.json({ ok: false, erro: 'Lead nao encontrado.' }, { status: 404 });
   return NextResponse.json({ ok: true, lead });

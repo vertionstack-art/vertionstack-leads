@@ -48,6 +48,10 @@ export interface Lead {
   siteStatus: SiteStatus | null;
   siteDetalhe: string | null;
   siteVerificadoEm: string | null;
+  /** quem rodou a extensão que trouxe este comércio */
+  coletadoPor: string | null;
+  /** quem mexeu no status por último — é quem está cuidando do lead */
+  responsavel: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +66,8 @@ export interface Filtros {
   comTelefone?: boolean;
   /** só os que a verificação mostrou que não estão de pé */
   siteQuebrado?: boolean;
+  /** quem está cuidando: um nome, ou 'ninguem' para os sem dono */
+  responsavel?: string;
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes';
@@ -104,11 +110,14 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists site_status text`;
   await sql`alter table leads add column if not exists site_detalhe text`;
   await sql`alter table leads add column if not exists site_verificado_em timestamptz`;
+  await sql`alter table leads add column if not exists coletado_por text`;
+  await sql`alter table leads add column if not exists responsavel text`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
   await sql`create index if not exists leads_created_idx on leads (created_at desc)`;
   await sql`create index if not exists leads_site_status_idx on leads (site_status)`;
+  await sql`create index if not exists leads_responsavel_idx on leads (responsavel)`;
 
   schemaPronto = true;
 }
@@ -127,7 +136,7 @@ function normalizarId(bruto: string): string {
 }
 
 /** limpa e reclassifica o que chegou da extensão — nunca confiar no cliente */
-export function normalizarLead(cru: Record<string, unknown>): Lead | null {
+export function normalizarLead(cru: Record<string, unknown>, coletadoPor?: string | null): Lead | null {
   const nome = String(cru.name || '').trim();
   if (!nome) return null;
 
@@ -167,6 +176,8 @@ export function normalizarLead(cru: Record<string, unknown>): Lead | null {
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
+    coletadoPor: coletadoPor || null,
+    responsavel: null,
     createdAt: agora,
     updatedAt: agora,
   };
@@ -197,6 +208,8 @@ function daLinha(r: any): Lead {
     siteStatus: r.site_status,
     siteDetalhe: r.site_detalhe,
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
+    coletadoPor: r.coletado_por,
+    responsavel: r.responsavel,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -231,6 +244,8 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           siteStatus: antigo.siteStatus,
           siteDetalhe: antigo.siteDetalhe,
           siteVerificadoEm: antigo.siteVerificadoEm,
+          coletadoPor: antigo.coletadoPor || l.coletadoPor,
+          responsavel: antigo.responsavel,
           createdAt: antigo.createdAt,
         });
         atualizados++;
@@ -254,12 +269,12 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
       insert into leads (
         id, name, category, search_term, city, phone, address, website,
         website_kind, website_label, is_lead, rating, reviews, maps_url,
-        lat, lng, hours, status, updated_at
+        lat, lng, hours, status, coletado_por, updated_at
       ) values (
         ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
-        'novo', now()
+        'novo', ${l.coletadoPor}, now()
       )
       on conflict (id) do update set
         name          = excluded.name,
@@ -278,6 +293,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
         lat           = coalesce(excluded.lat, leads.lat),
         lng           = coalesce(excluded.lng, leads.lng),
         hours         = coalesce(excluded.hours, leads.hours),
+        coletado_por  = coalesce(leads.coletado_por, excluded.coletado_por),
         updated_at    = now()
     `;
   }
@@ -286,14 +302,29 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
   return { recebidos: leads.length, novos: leads.length - atualizados, atualizados };
 }
 
+/**
+ * Mexer no status ou na anotação marca a pessoa como responsável pelo lead.
+ * É assim que os dois sabem quem já pegou quem, sem precisar combinar nada
+ * — e sem ligar duas vezes para o mesmo comércio.
+ *
+ * Voltar um lead para "novo" solta o responsável: ele fica livre de novo.
+ */
 export async function atualizarLead(
   id: string,
   patch: { status?: Status; notes?: string | null },
+  quem?: string | null,
 ): Promise<Lead | null> {
+  const soltar = patch.status === 'novo';
+
   if (!sql) {
     const atual = memoria.get(id);
     if (!atual) return null;
-    const novo = { ...atual, ...patch, updatedAt: new Date().toISOString() };
+    const novo: Lead = {
+      ...atual,
+      ...patch,
+      responsavel: soltar ? null : quem || atual.responsavel,
+      updatedAt: new Date().toISOString(),
+    };
     memoria.set(id, novo);
     return novo;
   }
@@ -301,9 +332,13 @@ export async function atualizarLead(
   await garantirSchema();
   const linhas = await sql`
     update leads set
-      status     = coalesce(${patch.status ?? null}, status),
-      notes      = case when ${patch.notes !== undefined} then ${patch.notes ?? null} else notes end,
-      updated_at = now()
+      status      = coalesce(${patch.status ?? null}, status),
+      notes       = case when ${patch.notes !== undefined} then ${patch.notes ?? null} else notes end,
+      responsavel = case
+                      when ${soltar} then null
+                      else coalesce(${quem ?? null}, responsavel)
+                    end,
+      updated_at  = now()
     where id = ${id}
     returning *
   `;
@@ -404,6 +439,8 @@ function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
   if (f.somenteLeads) out = out.filter((l) => l.isLead);
   if (f.comTelefone) out = out.filter((l) => !!l.phone);
   if (f.siteQuebrado) out = out.filter((l) => !!l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus));
+  if (f.responsavel === 'ninguem') out = out.filter((l) => !l.responsavel);
+  else if (f.responsavel) out = out.filter((l) => l.responsavel === f.responsavel);
   if (f.city) out = out.filter((l) => (l.city || '').toLowerCase().includes(f.city!.toLowerCase()));
   if (f.category) out = out.filter((l) => (l.category || '').toLowerCase().includes(f.category!.toLowerCase()));
   if (f.busca) {
@@ -463,6 +500,9 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
       and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
+      and (${f.responsavel ?? null}::text is null
+           or (${f.responsavel === 'ninguem'} and responsavel is null)
+           or responsavel = ${f.responsavel ?? null})
       and (${city}::text is null or city ilike ${city})
       and (${category}::text is null or category ilike ${category})
       and (${busca}::text is null or name ilike ${busca} or address ilike ${busca}
@@ -481,6 +521,9 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
       and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
+      and (${f.responsavel ?? null}::text is null
+           or (${f.responsavel === 'ninguem'} and responsavel is null)
+           or responsavel = ${f.responsavel ?? null})
       and (${city}::text is null or city ilike ${city})
       and (${category}::text is null or category ilike ${category})
       and (${busca}::text is null or name ilike ${busca} or address ilike ${busca}
@@ -492,6 +535,9 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   // "oportunidade" segue o is_lead, que a verificação de site também altera:
   // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
   const oportunidades = await sql`select count(*)::int as n from leads where is_lead = true`;
+  const porPessoa = await sql`
+    select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads group by 1
+  `;
   const quebrados = await sql`
     select count(*)::int as n from leads where site_status = any(${SITE_QUEBRADO}::text[])
   `;
@@ -505,6 +551,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   }
   for (const r of porStatus as { status: string; n: number }[]) resumo['status_' + r.status] = r.n;
   resumo.oportunidades = (oportunidades[0] as { n: number }).n;
+  for (const r of porPessoa as { quem: string; n: number }[]) resumo['de_' + r.quem] = r.n;
   resumo.site_quebrado = (quebrados[0] as { n: number }).n;
 
   return {
@@ -528,6 +575,7 @@ function resumoDe(todos: Lead[]): Record<string, number> {
     r[l.websiteKind] = (r[l.websiteKind] || 0) + 1;
     r['status_' + l.status] = (r['status_' + l.status] || 0) + 1;
     if (l.isLead) r.oportunidades++;
+    r['de_' + (l.responsavel || 'ninguem')] = (r['de_' + (l.responsavel || 'ninguem')] || 0) + 1;
     if (l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus)) r.site_quebrado++;
   }
   return r;
