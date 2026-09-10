@@ -10,6 +10,7 @@
 
 import { neon } from '@neondatabase/serverless';
 import { classifyWebsite, type WebsiteKind } from './classify';
+import type { SiteStatus } from './verificar-site';
 
 const URL_BANCO =
   process.env.DATABASE_URL ||
@@ -43,6 +44,10 @@ export interface Lead {
   hours: string | null;
   status: Status;
   notes: string | null;
+  /** resultado da verificação do site; null enquanto ninguém verificou */
+  siteStatus: SiteStatus | null;
+  siteDetalhe: string | null;
+  siteVerificadoEm: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +60,8 @@ export interface Filtros {
   category?: string;
   somenteLeads?: boolean;
   comTelefone?: boolean;
+  /** só os que a verificação mostrou que não estão de pé */
+  siteQuebrado?: boolean;
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes';
@@ -92,10 +99,16 @@ export async function garantirSchema() {
       updated_at    timestamptz not null default now()
     )
   `;
+
+  // colunas da verificação de site, acrescentadas depois da primeira versão
+  await sql`alter table leads add column if not exists site_status text`;
+  await sql`alter table leads add column if not exists site_detalhe text`;
+  await sql`alter table leads add column if not exists site_verificado_em timestamptz`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
   await sql`create index if not exists leads_created_idx on leads (created_at desc)`;
+  await sql`create index if not exists leads_site_status_idx on leads (site_status)`;
 
   schemaPronto = true;
 }
@@ -151,6 +164,9 @@ export function normalizarLead(cru: Record<string, unknown>): Lead | null {
     hours: texto(cru.hours, 200),
     status: 'novo',
     notes: null,
+    siteStatus: null,
+    siteDetalhe: null,
+    siteVerificadoEm: null,
     createdAt: agora,
     updatedAt: agora,
   };
@@ -178,6 +194,9 @@ function daLinha(r: any): Lead {
     hours: r.hours,
     status: r.status,
     notes: r.notes,
+    siteStatus: r.site_status,
+    siteDetalhe: r.site_detalhe,
+    siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -205,7 +224,15 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
     for (const l of leads) {
       const antigo = memoria.get(l.id);
       if (antigo) {
-        memoria.set(l.id, { ...l, status: antigo.status, notes: antigo.notes, createdAt: antigo.createdAt });
+        memoria.set(l.id, {
+          ...l,
+          status: antigo.status,
+          notes: antigo.notes,
+          siteStatus: antigo.siteStatus,
+          siteDetalhe: antigo.siteDetalhe,
+          siteVerificadoEm: antigo.siteVerificadoEm,
+          createdAt: antigo.createdAt,
+        });
         atualizados++;
       } else {
         memoria.set(l.id, l);
@@ -283,6 +310,73 @@ export async function atualizarLead(
   return linhas.length ? daLinha(linhas[0]) : null;
 }
 
+/**
+ * Guarda o resultado da verificação do site.
+ *
+ * Quando a checagem mostra que o site não está de pé, o comércio volta a
+ * ser oportunidade (is_lead), porque na prática ele está sem site — mesmo
+ * tendo um endereço cadastrado no Google.
+ */
+export async function marcarVerificacao(
+  id: string,
+  v: { status: string; detalhe: string; viraLead: boolean },
+): Promise<void> {
+  if (!sql) {
+    const atual = memoria.get(id);
+    if (!atual) return;
+    memoria.set(id, {
+      ...atual,
+      siteStatus: v.status as Lead['siteStatus'],
+      siteDetalhe: v.detalhe,
+      siteVerificadoEm: new Date().toISOString(),
+      isLead: v.viraLead ? true : atual.isLead,
+      updatedAt: new Date().toISOString(),
+    });
+    return;
+  }
+
+  await garantirSchema();
+  await sql`
+    update leads set
+      site_status        = ${v.status},
+      site_detalhe       = ${v.detalhe},
+      site_verificado_em = now(),
+      is_lead            = case when ${v.viraLead} then true else is_lead end,
+      updated_at         = now()
+    where id = ${id}
+  `;
+}
+
+/** os leads que têm site cadastrado e ainda não foram verificados */
+export async function paraVerificar(limite: number): Promise<Lead[]> {
+  if (!sql) {
+    return Array.from(memoria.values())
+      .filter((l) => l.website && !l.siteStatus)
+      .slice(0, limite);
+  }
+  await garantirSchema();
+  const linhas = await sql`
+    select * from leads
+    where website is not null and website <> '' and site_status is null
+    order by created_at desc
+    limit ${limite}
+  `;
+  return (linhas as any[]).map(daLinha);
+}
+
+/** quantos ainda faltam verificar */
+export async function faltamVerificar(): Promise<number> {
+  if (!sql) {
+    return Array.from(memoria.values()).filter((l) => l.website && !l.siteStatus).length;
+  }
+  await garantirSchema();
+  const r = await sql`
+    select count(*)::int as n from leads
+    where website is not null and website <> '' and site_status is null
+  `;
+  return (r[0] as { n: number }).n;
+}
+
 export async function apagarLead(id: string): Promise<boolean> {
   if (!sql) return memoria.delete(id);
   await garantirSchema();
@@ -309,6 +403,7 @@ function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
   if (f.status?.length) out = out.filter((l) => f.status!.includes(l.status));
   if (f.somenteLeads) out = out.filter((l) => l.isLead);
   if (f.comTelefone) out = out.filter((l) => !!l.phone);
+  if (f.siteQuebrado) out = out.filter((l) => !!l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus));
   if (f.city) out = out.filter((l) => (l.city || '').toLowerCase().includes(f.city!.toLowerCase()));
   if (f.category) out = out.filter((l) => (l.category || '').toLowerCase().includes(f.category!.toLowerCase()));
   if (f.busca) {
@@ -367,6 +462,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
+      and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
       and (${city}::text is null or city ilike ${city})
       and (${category}::text is null or category ilike ${category})
       and (${busca}::text is null or name ilike ${busca} or address ilike ${busca}
@@ -384,6 +480,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
+      and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
       and (${city}::text is null or city ilike ${city})
       and (${category}::text is null or category ilike ${category})
       and (${busca}::text is null or name ilike ${busca} or address ilike ${busca}
@@ -392,6 +489,12 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
 
   const porTipo = await sql`select website_kind, count(*)::int as n from leads group by website_kind`;
   const porStatus = await sql`select status, count(*)::int as n from leads group by status`;
+  // "oportunidade" segue o is_lead, que a verificação de site também altera:
+  // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
+  const oportunidades = await sql`select count(*)::int as n from leads where is_lead = true`;
+  const quebrados = await sql`
+    select count(*)::int as n from leads where site_status = any(${SITE_QUEBRADO}::text[])
+  `;
   const cidades = await sql`select distinct city from leads where city is not null order by city limit 200`;
   const categorias = await sql`select distinct category from leads where category is not null order by category limit 300`;
 
@@ -401,6 +504,8 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
     resumo.total += r.n;
   }
   for (const r of porStatus as { status: string; n: number }[]) resumo['status_' + r.status] = r.n;
+  resumo.oportunidades = (oportunidades[0] as { n: number }).n;
+  resumo.site_quebrado = (quebrados[0] as { n: number }).n;
 
   return {
     leads: (linhas as any[]).map(daLinha),
@@ -415,11 +520,15 @@ function unicos(vals: (string | null)[]): string[] {
   return Array.from(new Set(vals.filter((v): v is string => !!v))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+const SITE_QUEBRADO = ['fora_do_ar', 'nao_encontrado', 'em_construcao', 'virou_social', 'certificado_vencido', 'sem_https'];
+
 function resumoDe(todos: Lead[]): Record<string, number> {
-  const r: Record<string, number> = { total: todos.length };
+  const r: Record<string, number> = { total: todos.length, oportunidades: 0, site_quebrado: 0 };
   for (const l of todos) {
     r[l.websiteKind] = (r[l.websiteKind] || 0) + 1;
     r['status_' + l.status] = (r['status_' + l.status] || 0) + 1;
+    if (l.isLead) r.oportunidades++;
+    if (l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus)) r.site_quebrado++;
   }
   return r;
 }

@@ -15,7 +15,7 @@ São duas peças que conversam:
 
 ## O detalhe que faz a ferramenta valer
 
-O Google Maps mente sobre site. Três armadilhas que a ferramenta resolve:
+O Google Maps mente sobre site. Quatro armadilhas que a ferramenta resolve:
 
 **1. Instagram não é site.** Muito comércio cadastra o Instagram no campo
 "Site". No Maps aparece o botãozinho e parece que já tem presença digital.
@@ -29,6 +29,13 @@ como *Website*.
 
 **3. iFood, Doctoralia e VivaReal também não são site.** São presença alugada.
 O comércio paga comissão e não tem nada que seja dele.
+
+**4. E tem site que existe só no cadastro.** Domínio vencido, página parada
+em "em construção", conta de hospedagem suspensa, endereço que virou
+redirecionamento pro Instagram. O Google continua exibindo o botão. O painel
+tem um botão **Conferir sites** que abre cada endereço e diz quais não estão
+de pé — esses voltam para a lista de oportunidades. Não custa nada: é o
+próprio painel abrindo o site.
 
 Por isso cada comércio recebe uma classificação:
 
@@ -76,15 +83,18 @@ faça **Redeploy** de novo.
 
 ### Parte 4 — Instalar a extensão
 
-1. Baixe este repositório (botão verde **Code → Download ZIP**) e descompacte.
+O próprio painel entrega a extensão e repete estas instruções: entre nele e
+clique em **Extensão**, no canto superior direito.
+
+1. Baixe o arquivo pelo botão **Baixar extensão** e descompacte num lugar
+   definitivo — se você apagar ou mover a pasta depois, o Chrome desativa a
+   extensão.
 2. No Chrome, abra `chrome://extensions`.
 3. Ligue o **Modo do desenvolvedor** (canto superior direito).
-4. Clique em **Carregar sem compactação**.
-5. Escolha a pasta **`extension`** de dentro do que você descompactou.
-6. O ícone roxo aparece na barra. Clique nele, depois na engrenagem.
-7. Cole o endereço da Vercel no primeiro campo.
-8. **Copie a chave do segundo campo** — é ela que vai no `INGEST_TOKEN` lá na Vercel.
-9. Clique em **Salvar** e depois em **Testar conexão**.
+4. Clique em **Carregar sem compactação** e escolha a pasta descompactada.
+5. O ícone roxo aparece na barra. Clique nele, depois na engrenagem.
+6. Cole o endereço do painel e a mesma chave que está no `INGEST_TOKEN`.
+7. Clique em **Salvar** e depois em **Testar conexão**.
 
 Se aparecer *"Conectado. O painel está gravando no banco de dados."*, acabou.
 
@@ -107,6 +117,12 @@ pode usar o resto do navegador normalmente.
 Ao terminar, abra o painel. Clique em **oportunidades** para ver só quem vale
 a pena, use o botão **WhatsApp** para puxar conversa, e vá marcando *Contatado*,
 *Negociando*, *Fechado*.
+
+Antes de sair ligando, clique em **Conferir N sites** no topo. O painel abre um
+por um os endereços cadastrados e marca quais estão fora do ar, vazios, sem
+HTTPS ou com certificado vencido. Quem não passa no teste volta para as
+oportunidades e aparece no filtro *Site não está de pé* — são as conversas mais
+fáceis que você vai ter, porque o dono geralmente nem sabe.
 
 Uma nova varredura no mesmo bairro **não apaga suas anotações nem seus status** —
 ela só atualiza os dados que vieram do Google.
@@ -144,8 +160,11 @@ extension/          extensão Chrome (Manifest V3)
   lib/classify.js   decide o que conta como site de verdade
 web/                painel Next.js
   app/api/leads/    recebe da extensão, lista, exporta CSV
+  app/extensao/     página de download e instalação da extensão
   lib/db.ts         Postgres (Neon), com modo memória para rodar local
   lib/classify.ts   mesma lógica do classificador, do lado do servidor
+  lib/verificar-site.ts   abre o site do lead e diz se está mesmo no ar
+  scripts/          empacota a extension/ em .zip durante o build
 ```
 
 O classificador existe nos dois lados de propósito: a extensão precisa dele
@@ -178,6 +197,19 @@ começo do `content.js`:
 
 E uma no scroll: `scrollTo({behavior:'smooth'})` não move o contêiner da
 lista. Só a atribuição direta `scrollTop = scrollHeight`.
+
+### Duas armadilhas do verificador de sites
+
+Site feito em React monta o conteúdo por JavaScript: o HTML que chega tem
+título e scripts e quase nenhum texto. Medido num site real de barbearia,
+30 KB de HTML para 77 caracteres visíveis. Julgar "página vazia" só pelo
+texto marcaria justamente os sites bem-feitos como abandonados — por isso a
+regra exige que o HTML inteiro também seja pequeno.
+
+E tempo esgotado não é o mesmo que site morto. DNS que não resolve e conexão
+recusada são conclusivos; um timeout pode ser só lentidão. O primeiro caso
+vira oportunidade, o segundo fica como *não conclusivo*, para a lista não
+encher de lead falso.
 
 ---
 

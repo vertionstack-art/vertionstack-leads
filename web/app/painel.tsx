@@ -24,6 +24,18 @@ const STATUS: { valor: Status; rotulo: string; classe: string }[] = [
 
 const PAGINA = 100;
 
+/** como cada resultado da verificação aparece na tabela */
+const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean }> = {
+  ok:             { rotulo: 'no ar',        classe: 'text-zinc-500',                         bom: true },
+  bloqueado:      { rotulo: 'não checado',  classe: 'text-zinc-400',                         bom: true },
+  sem_https:      { rotulo: 'sem HTTPS',    classe: 'text-amber-700 font-medium',            bom: false },
+  em_construcao:  { rotulo: 'site vazio',   classe: 'text-emerald-700 font-medium',          bom: false },
+  nao_encontrado: { rotulo: 'site com erro',classe: 'text-emerald-700 font-medium',          bom: false },
+  fora_do_ar:     { rotulo: 'FORA DO AR',   classe: 'text-emerald-700 font-semibold',        bom: false },
+  virou_social:   { rotulo: 'vai p/ social',classe: 'text-emerald-700 font-medium',          bom: false },
+  certificado_vencido: { rotulo: 'certificado vencido', classe: 'text-emerald-700 font-medium', bom: false },
+};
+
 // ------------------------------------------------------------- utils
 
 /** transforma "(31) 99999-9999" no formato que o WhatsApp entende */
@@ -89,8 +101,13 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
   const [cidade, setCidade] = useState('');
   const [categoria, setCategoria] = useState('');
   const [comTelefone, setComTelefone] = useState(false);
+  const [siteQuebrado, setSiteQuebrado] = useState(false);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes'>('recentes');
   const [pagina, setPagina] = useState(0);
+
+  const [verificando, setVerificando] = useState(false);
+  const [progressoVerif, setProgressoVerif] = useState<{ feitos: number; faltam: number; achados: number } | null>(null);
+  const [faltamVerif, setFaltamVerif] = useState(0);
 
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
@@ -110,11 +127,12 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
     if (cidade) p.set('city', cidade);
     if (categoria) p.set('category', categoria);
     if (comTelefone) p.set('fone', '1');
+    if (siteQuebrado) p.set('quebrado', '1');
     p.set('ordem', ordem);
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, ordem, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, ordem, pagina]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -136,6 +154,51 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
   }, [query]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  // quantos leads têm site cadastrado que ninguém conferiu ainda
+  const contarPendentes = useCallback(async () => {
+    try {
+      const r = await fetch('/api/leads/verificar', { cache: 'no-store' });
+      const d = await r.json();
+      if (d.ok) setFaltamVerif(d.faltam);
+    } catch { /* sem drama: o botão apenas não aparece */ }
+  }, []);
+
+  useEffect(() => { contarPendentes(); }, [contarPendentes]);
+
+  /**
+   * Chama a rota de verificação em rodadas até esvaziar a fila.
+   * Cada rodada checa um punhado de sites; fazer tudo numa requisição só
+   * estouraria o tempo limite da função na Vercel.
+   */
+  async function verificarSites() {
+    setVerificando(true);
+    setProgressoVerif({ feitos: 0, faltam: faltamVerif, achados: 0 });
+
+    let feitos = 0;
+    let achados = 0;
+
+    try {
+      for (let rodada = 0; rodada < 200; rodada++) {
+        const r = await fetch('/api/leads/verificar', { method: 'POST' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.erro || 'Falha ao verificar.');
+
+        feitos += d.verificados;
+        achados += d.novasOportunidades || 0;
+        setProgressoVerif({ feitos, faltam: d.faltam, achados });
+        setFaltamVerif(d.faltam);
+
+        if (!d.verificados || !d.faltam) break;
+      }
+      await carregar();
+    } catch (e) {
+      setErro(String((e as Error).message));
+    } finally {
+      setVerificando(false);
+      setTimeout(() => setProgressoVerif(null), 8000);
+    }
+  }
 
   // recarrega sozinho enquanto a extensão está mandando dados
   useEffect(() => {
@@ -171,8 +234,10 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
     setTimeout(() => setCopiado(null), 1400);
   }
 
-  const quentes = (resumo.none || 0) + (resumo.social || 0) + (resumo.marketplace || 0) + (resumo.weak || 0);
-  const filtroLimpo = !buscaDebounce && !kinds.length && !statusFiltro.length && !cidade && !categoria && !comTelefone;
+  // o servidor já conta as oportunidades pelo is_lead, que a verificação de
+  // site também altera; a soma dos tipos ignoraria os sites que caíram
+  const quentes = resumo.oportunidades ?? ((resumo.none || 0) + (resumo.social || 0) + (resumo.marketplace || 0) + (resumo.weak || 0));
+  const filtroLimpo = !buscaDebounce && !kinds.length && !statusFiltro.length && !cidade && !categoria && !comTelefone && !siteQuebrado;
   const ultimaPagina = (pagina + 1) * PAGINA >= total;
 
   return (
@@ -189,6 +254,16 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
           </div>
 
           <div className="flex items-center gap-2">
+            {(faltamVerif > 0 || verificando) && (
+              <button
+                onClick={verificarSites}
+                disabled={verificando}
+                title="Abre cada site cadastrado para ver se está mesmo no ar"
+                className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition hover:border-emerald-500 disabled:opacity-60"
+              >
+                {verificando ? 'Conferindo sites…' : `Conferir ${faltamVerif} sites`}
+              </button>
+            )}
             <a
               href="/extensao"
               className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
@@ -230,20 +305,47 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
           <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-800">{erro}</div>
         )}
 
+        {progressoVerif && (
+          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-900">
+            {verificando ? (
+              <>
+                Conferindo os sites: <b>{progressoVerif.feitos}</b> checados
+                {progressoVerif.faltam > 0 && `, ${progressoVerif.faltam} na fila`}.
+                {progressoVerif.achados > 0 && (
+                  <> Já achei <b>{progressoVerif.achados}</b> que não estão de pé.</>
+                )}
+              </>
+            ) : (
+              <>
+                Conferi <b>{progressoVerif.feitos}</b> sites.{' '}
+                {progressoVerif.achados > 0 ? (
+                  <>
+                    <b>{progressoVerif.achados}</b> não estavam no ar e viraram oportunidade — eles
+                    aparecem como <em>site fora do ar</em>, <em>site vazio</em> ou{' '}
+                    <em>vai p/ social</em> na coluna de presença digital.
+                  </>
+                ) : (
+                  'Todos estavam no ar.'
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* --------------------------------------------------- resumo */}
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Cartao
             numero={resumo.total || 0}
             rotulo="comércios mapeados"
             ativo={filtroLimpo}
-            onClick={() => { setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria(''); setComTelefone(false); setPagina(0); }}
+            onClick={() => { setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria(''); setComTelefone(false); setSiteQuebrado(false); setPagina(0); }}
           />
           <Cartao
             numero={quentes}
             rotulo="oportunidades"
             destaque
             ativo={kinds.length === 4}
-            onClick={() => { setKinds(['none', 'social', 'marketplace', 'weak']); setPagina(0); }}
+            onClick={() => { setKinds(['none', 'social', 'marketplace', 'weak']); setSiteQuebrado(false); setPagina(0); }}
           />
           {TIPOS.slice(0, 4).map((t) => (
             <Cartao
@@ -303,6 +405,21 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
               />
               Só com telefone
             </label>
+
+            {(resumo.site_quebrado ?? 0) > 0 && (
+              <label
+                className="flex cursor-pointer items-center gap-2 text-[13px] text-emerald-800"
+                title="Comércios cujo site cadastrado no Google não está de pé"
+              >
+                <input
+                  type="checkbox"
+                  checked={siteQuebrado}
+                  onChange={(e) => { setSiteQuebrado(e.target.checked); setPagina(0); }}
+                  className="h-4 w-4 accent-emerald-600"
+                />
+                Site não está de pé <span className="text-emerald-600">({resumo.site_quebrado})</span>
+              </label>
+            )}
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5 border-t border-zinc-100 pt-3">
@@ -400,6 +517,15 @@ export default function Painel({ semBanco, semSenha }: { semBanco: boolean; semS
                           >
                             {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
                           </a>
+                        )}
+                        {lead.siteStatus && SITE_STATUS[lead.siteStatus] && (
+                          <div
+                            className={`mt-1 text-[11px] ${SITE_STATUS[lead.siteStatus].classe}`}
+                            title={lead.siteDetalhe || ''}
+                          >
+                            {SITE_STATUS[lead.siteStatus].bom ? '' : '⚠ '}
+                            {SITE_STATUS[lead.siteStatus].rotulo}
+                          </div>
                         )}
                       </td>
 

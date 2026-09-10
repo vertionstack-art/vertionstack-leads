@@ -32,6 +32,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     category: url.searchParams.get('category') || undefined,
     somenteLeads: url.searchParams.get('leads') === '1',
     comTelefone: url.searchParams.get('fone') === '1',
+    siteQuebrado: url.searchParams.get('quebrado') === '1',
     limit: Number(url.searchParams.get('limit')) || 200,
     offset: Number(url.searchParams.get('offset')) || 0,
     ordem: (url.searchParams.get('ordem') as Filtros['ordem']) || 'recentes',
