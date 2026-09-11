@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal from './prompt-modal';
+import PropostaModal from './proposta-modal';
 import type { WebsiteKind } from '@/lib/classify';
 
 // --------------------------------------------------------- constantes
@@ -121,6 +122,7 @@ export default function Painel({
   const [faltamVerif, setFaltamVerif] = useState(0);
 
   const [promptDe, setPromptDe] = useState<Lead | null>(null);
+  const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
   const [copiado, setCopiado] = useState<string | null>(null);
@@ -225,7 +227,7 @@ export default function Painel({
     setPagina(0);
   }
 
-  async function salvarPatch(id: string, patch: { status?: Status; notes?: string | null }) {
+  async function salvarPatch(id: string, patch: { status?: Status; notes?: string | null; proposta?: unknown }) {
     setLeads((atual) => atual.map((l) => (l.id === id ? { ...l, ...patch } as Lead : l)));
     const r = await fetch('/api/leads/' + encodeURIComponent(id), {
       method: 'PATCH',
@@ -639,13 +641,26 @@ export default function Painel({
                       </td>
 
                       <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <button
-                          onClick={() => setPromptDe(lead)}
-                          title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
-                          className="rounded-md border border-roxo-300 bg-roxo-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
-                        >
-                          COPY
-                        </button>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => setPromptDe(lead)}
+                            title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
+                            className="rounded-md border border-roxo-300 bg-roxo-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
+                          >
+                            COPY
+                          </button>
+                          <button
+                            onClick={() => setPropostaDe(lead)}
+                            title="Monta os três planos de proposta para este lead"
+                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                              lead.proposta
+                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
+                                : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
+                            }`}
+                          >
+                            {lead.proposta ? '✓ PROPOSTA' : 'PROPOSTA'}
+                          </button>
+                        </div>
                         <div className="mt-1.5">
                           {lead.mapsUrl && (
                             <a
@@ -696,6 +711,17 @@ export default function Painel({
         </div>
 
         {promptDe && <PromptModal lead={promptDe} aoFechar={() => setPromptDe(null)} />}
+
+        {propostaDe && (
+          <PropostaModal
+            lead={propostaDe}
+            aoFechar={() => setPropostaDe(null)}
+            aoSalvar={async (proposta) => {
+              await salvarPatch(propostaDe.id, { proposta });
+              setPropostaDe(null);
+            }}
+          />
+        )}
 
         {/* ------------------------------------------------ paginação */}
         {total > PAGINA && (

@@ -52,6 +52,8 @@ export interface Lead {
   coletadoPor: string | null;
   /** quem mexeu no status por último — é quem está cuidando do lead */
   responsavel: string | null;
+  /** a simulação de proposta montada para este lead */
+  proposta: unknown | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +114,7 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists site_verificado_em timestamptz`;
   await sql`alter table leads add column if not exists coletado_por text`;
   await sql`alter table leads add column if not exists responsavel text`;
+  await sql`alter table leads add column if not exists proposta jsonb`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
@@ -178,6 +181,7 @@ export function normalizarLead(cru: Record<string, unknown>, coletadoPor?: strin
     siteVerificadoEm: null,
     coletadoPor: coletadoPor || null,
     responsavel: null,
+    proposta: null,
     createdAt: agora,
     updatedAt: agora,
   };
@@ -210,6 +214,7 @@ function daLinha(r: any): Lead {
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
+    proposta: r.proposta ?? null,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -246,6 +251,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           siteVerificadoEm: antigo.siteVerificadoEm,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
           responsavel: antigo.responsavel,
+          proposta: antigo.proposta,
           createdAt: antigo.createdAt,
         });
         atualizados++;
@@ -311,7 +317,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
  */
 export async function atualizarLead(
   id: string,
-  patch: { status?: Status; notes?: string | null },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -334,6 +340,9 @@ export async function atualizarLead(
     update leads set
       status      = coalesce(${patch.status ?? null}, status),
       notes       = case when ${patch.notes !== undefined} then ${patch.notes ?? null} else notes end,
+      proposta    = case when ${patch.proposta !== undefined}
+                         then ${patch.proposta === null ? null : JSON.stringify(patch.proposta)}::jsonb
+                         else proposta end,
       responsavel = case
                       when ${soltar} then null
                       else coalesce(${quem ?? null}, responsavel)

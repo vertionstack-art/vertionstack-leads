@@ -177,6 +177,34 @@ que o dono pode ter sido abandonado por quem fez o site.
 A nota do Google entra no argumento: um comércio com 4,9 e 890 avaliações tem
 prova social pronta que hoje não tem onde ser mostrada.
 
+### O botão PROPOSTA
+
+Ao lado do COPY, abre o simulador. Você marca o porte do cliente, como a
+empresa é registrada, e clica em cada serviço para escolher em que plano ele
+entra — **E** (Essencial), **C** (Completo) ou **P** (Premium). Os planos são
+cumulativos: o que está no Essencial aparece nos três.
+
+Do lado direito saem as três propostas, já com o valor de entrada, a
+mensalidade e **quanto sobra para você** depois dos custos. No fim, um botão
+copia tudo formatado para colar no WhatsApp do cliente.
+
+**As regras de preço que o simulador respeita:**
+
+| Regra | Valor | O que faz |
+|---|---|---|
+| Piso | R$ 387,45 | Nunca passa disso para baixo — é o custo |
+| Alvo mínimo | R$ 500 | Avisa quando o Essencial fica abaixo |
+| Teto do Premium | R$ 1.200 × porte | Corta o que estourar |
+
+O teto acompanha o porte: micro para em R$ 1.200, pequena em R$ 1.620, média
+em R$ 2.220, grande em R$ 3.120. Quando o Premium estoura, ele é cortado no
+teto e o simulador avisa — se o cliente comporta mais, o certo é subir o
+porte, não forçar a mão.
+
+O custo de cada item aparece na lista (o domínio custa R$ 45/ano e entra como
+"incluso" para o cliente). Sem esse número, é fácil fechar negócio no
+prejuízo achando que se negociou bem.
+
 ### Trabalhando em dupla
 
 Os dois veem a mesma lista, e o painel mostra quem é quem:
