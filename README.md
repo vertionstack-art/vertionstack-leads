@@ -247,6 +247,28 @@ O painel foi feito para funcionar com o telefone na mão durante a ligação.
 Em telas pequenas a tabela vira cartões, e cada lead traz os botões
 **Ligar** e **WhatsApp** em tamanho de dedo. Nada de rolagem lateral.
 
+### Quem entrou na ferramenta
+
+O botão **Acessos**, no topo do painel, abre a lista de endereços que
+bateram na porta: quantas vezes entraram, quantas erraram a senha, de que
+cidade, em qual navegador, e quando foi a última vez. Dá para bloquear um
+endereço ali mesmo — quem estiver bloqueado leva 403 no login, mesmo com a
+senha certa.
+
+Só o **dono** vê essa tela: o primeiro nome cadastrado em `USUARIOS`. Para
+trocar quem manda, inverta a ordem dos nomes na variável.
+
+O seu próprio endereço vem marcado como *você*, e o painel recusa bloqueá-lo
+— seria trancar a si mesmo do lado de fora.
+
+> **Não confie demais nisso.** Internet de casa troca de endereço quando o
+> roteador reinicia, operadora de celular põe dezenas de pessoas atrás do
+> mesmo IP (bloquear um bloqueia todas) e qualquer VPN contorna. Serve para
+> enxergar movimento estranho e cortar ruído; quem protege o painel é a senha.
+
+O registro também guarda as aberturas da proposta pelo cliente, então dá para
+ver se ele chegou a olhar antes de você ligar.
+
 ### Trabalhando em dupla
 
 Os dois veem a mesma lista, e o painel mostra quem é quem:

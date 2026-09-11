@@ -64,6 +64,20 @@ export const nomesDaEquipe = Array.from(
   new Set([...USUARIOS.map((u) => u.nome), ...COLETORES.map((c) => c.nome)]),
 ).sort();
 
+/**
+ * O dono é o primeiro nome cadastrado em USUARIOS.
+ *
+ * Alguém precisa decidir quem entra e quem é bloqueado, e num time de
+ * duas pessoas criar um sistema de papéis seria peso sem uso: quem montou
+ * o painel é quem cuida dele.
+ */
+export const dono = USUARIOS[0]?.nome || 'equipe';
+
+export async function ehDono(): Promise<boolean> {
+  const quem = await usuarioAtual();
+  return quem !== null && quem === dono;
+}
+
 /** comparação em tempo constante, para não vazar o segredo pelo tempo de resposta */
 function iguais(a: string, b: string): boolean {
   if (a.length !== b.length) return false;

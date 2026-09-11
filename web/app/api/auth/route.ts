@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { COOKIE, entrar, exigeSenha, usuarioAtual } from '@/lib/auth';
+import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,12 @@ export async function GET() {
 export async function POST(req: Request) {
   const { nome, senha } = (await req.json().catch(() => ({}))) as { nome?: string; senha?: string };
 
+  // endereço bloqueado nem chega a testar a senha
+  if (await estaBloqueado(ipDaRequisicao(req))) {
+    await registrarAcesso(req, 'login', 'bloqueado', nome || null);
+    return NextResponse.json({ ok: false, erro: 'Acesso não permitido.' }, { status: 403 });
+  }
+
   if (!exigeSenha) {
     return NextResponse.json({ ok: true, usuario: 'equipe', aviso: 'Painel sem senha configurada.' });
   }
@@ -18,8 +25,11 @@ export async function POST(req: Request) {
   const sessao = senha ? await entrar(nome || '', senha) : null;
 
   if (!sessao) {
+    await registrarAcesso(req, 'login', 'senha_errada', nome || null);
     return NextResponse.json({ ok: false, erro: 'Usuário ou senha incorretos.' }, { status: 401 });
   }
+
+  await registrarAcesso(req, 'login', 'ok', sessao.slice(0, sessao.lastIndexOf('.')));
 
   const resp = NextResponse.json({ ok: true, usuario: sessao.slice(0, sessao.lastIndexOf('.')) });
   resp.cookies.set(COOKIE, sessao, {

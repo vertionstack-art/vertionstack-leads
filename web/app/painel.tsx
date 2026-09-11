@@ -92,10 +92,12 @@ export default function Painel({
   semBanco,
   semSenha,
   usuario,
+  ehDono,
 }: {
   semBanco: boolean;
   semSenha: boolean;
   usuario: string;
+  ehDono: boolean;
 }) {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [total, setTotal] = useState(0);
@@ -287,6 +289,15 @@ export default function Painel({
             >
               Extensão
             </a>
+            {ehDono && (
+              <a
+                href="/admin"
+                title="Quem acessou a ferramenta"
+                className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
+              >
+                Acessos
+              </a>
+            )}
             <span className="ml-1 border-l border-zinc-200 pl-3 text-xs text-zinc-500">
               {usuario}
               <button

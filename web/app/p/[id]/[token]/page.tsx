@@ -1,8 +1,10 @@
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { buscarLead } from '@/lib/db';
 import { tokenConfere } from '@/lib/token-proposta';
 import { montarPropostas, moeda, type Marcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
+import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import BotaoImprimir from './imprimir';
 import './proposta.css';
 
@@ -75,6 +77,11 @@ export default async function PaginaProposta({
   const idLimpo = decodeURIComponent(id);
 
   if (!tokenConfere(idLimpo, token)) notFound();
+
+  const cabecalhos = await headers();
+  if (await estaBloqueado(ipDaRequisicao(cabecalhos))) notFound();
+  // saber que o cliente abriu a proposta vale tanto quanto saber quem entrou
+  await registrarAcesso(cabecalhos, `proposta:${idLimpo}`, 'ok');
 
   const lead = await buscarLead(idLimpo);
   if (!lead || !lead.proposta) notFound();
