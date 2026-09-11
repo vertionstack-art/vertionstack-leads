@@ -229,6 +229,18 @@ A proposta abre com uma frase diferente conforme o que foi encontrado no
 comércio. Para quem está com o site fora do ar, ela começa dizendo
 exatamente isso — vale mais que qualquer texto sobre "soluções digitais".
 
+### Quando o cliente fecha
+
+Marque, no cartão do plano, **"marcar como fechado"**. Aparece um botão verde
+**PDF do fechado** que gera um documento diferente: sem as outras opções, sem
+prazo de validade, com os itens em duas colunas e uma seção **O que acontece
+agora** em três passos.
+
+São dois papéis distintos. A proposta compara e tenta convencer; este aqui o
+cliente guarda para conferir se recebeu o que contratou. Manter os dois no
+mesmo formato faria o segundo continuar parecendo venda depois da venda
+feita.
+
 ### Usando no celular
 
 O painel foi feito para funcionar com o telefone na mão durante a ligação.

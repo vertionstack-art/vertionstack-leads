@@ -393,3 +393,84 @@
   .topo-meta { text-align: left; }
   .barra-imprimir, .dica-imprimir { padding: 0 12px; }
 }
+
+/* ------------------------------------ documento de plano contratado */
+
+/*
+ * Aqui não há mais nada sendo vendido: o cliente já escolheu. O cartão
+ * ocupa a largura toda e o que estava apertado em três colunas ganha
+ * espaço para ser lido com calma — este é o papel que ele vai guardar
+ * para conferir se recebeu o que contratou.
+ */
+
+.planos--unico { display: block; }
+
+.plano--fechado {
+  padding: 32px 30px 28px;
+  border-color: #047857;
+  box-shadow: inset 0 0 0 1px #047857;
+}
+
+.selo--fechado { background: #047857; }
+
+.plano--fechado .plano-nome { font-size: 30px; }
+.plano--fechado .preco-valor { font-size: 34px; }
+
+.plano--fechado .itens {
+  columns: 2;
+  column-gap: 34px;
+  margin-top: 4px;
+}
+
+.plano--fechado .itens li { break-inside: avoid; margin-bottom: 14px; }
+.plano--fechado .itens strong { font-size: 13.5px; }
+.plano--fechado .itens span { font-size: 12px; }
+
+.passos {
+  list-style: none;
+  counter-reset: passo;
+  margin: 0 0 26px;
+  padding: 0;
+}
+
+.passos li {
+  counter-increment: passo;
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 16px;
+}
+
+.passos li::before {
+  content: counter(passo);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  background: var(--roxo);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.passos strong { display: block; font-size: 14px; }
+.passos span { display: block; margin-top: 2px; font-size: 13px; color: var(--cinza); }
+
+@media (max-width: 620px) {
+  .plano--fechado { padding: 22px 18px; }
+  .plano--fechado .itens { columns: 1; }
+}
+
+@media print {
+  .plano--fechado { padding: 18px 16px; }
+  .plano--fechado .plano-nome { font-size: 21px; }
+  .plano--fechado .preco-valor { font-size: 24px; }
+  .plano--fechado .itens { columns: 2; }
+  .passos { break-inside: avoid; }
+  .passos strong { font-size: 11.5px; }
+  .passos span { font-size: 10.5px; }
+}

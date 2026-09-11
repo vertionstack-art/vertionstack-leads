@@ -53,6 +53,7 @@ export default function PropostaModal({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
+    escolhido?: Nivel | null;
   } | null;
 
   const [porte, setPorte] = useState<Porte>(salvo?.porte || 'micro');
@@ -62,6 +63,7 @@ export default function PropostaModal({
   );
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
+  const [escolhido, setEscolhido] = useState<Nivel | null>(salvo?.escolhido || null);
   const [copiado, setCopiado] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -99,7 +101,7 @@ export default function PropostaModal({
 
   async function salvar() {
     setGuardando(true);
-    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto });
+    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, escolhido });
     setSalvouAlgumaVez(true);
     setGuardando(false);
   }
@@ -295,6 +297,17 @@ export default function PropostaModal({
                         {a}
                       </p>
                     ))}
+
+                    <button
+                      onClick={() => setEscolhido(escolhido === p.nivel ? null : p.nivel)}
+                      className={`mt-3 min-h-[36px] w-full rounded-lg border text-[12px] font-medium transition ${
+                        escolhido === p.nivel
+                          ? 'border-emerald-600 bg-emerald-600 text-white'
+                          : 'border-zinc-300 text-zinc-600 hover:border-emerald-500 hover:text-emerald-700'
+                      }`}
+                    >
+                      {escolhido === p.nivel ? '✓ foi este que ele fechou' : 'marcar como fechado'}
+                    </button>
                   </div>
                 ))}
 
@@ -342,9 +355,11 @@ export default function PropostaModal({
         {/* ------------------------------------------------------ rodapé */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 px-6 py-4">
           <p className="text-[12px] text-zinc-500">
-            {salvouAlgumaVez
-              ? 'Salve de novo se mudar algo — o link mostra sempre a última versão.'
-              : 'Salve para liberar o link e o PDF que vão para o cliente.'}
+            {!salvouAlgumaVez
+              ? 'Salve para liberar o link e o PDF que vão para o cliente.'
+              : escolhido
+                ? 'Cliente fechou o plano — o PDF verde traz só o que ele contratou.'
+                : 'Marque num dos planos qual ele fechou para gerar o documento de confirmação.'}
           </p>
           <div className="flex gap-2">
             <button
@@ -378,8 +393,24 @@ export default function PropostaModal({
                   : 'pointer-events-none border-zinc-200 text-zinc-300'
               }`}
             >
-              Ver / PDF ↗
+              As 3 opções ↗
             </a>
+            {escolhido && (
+              <a
+                href={`${linkProposta}?plano=${escolhido}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-disabled={!salvouAlgumaVez}
+                onClick={(e) => { if (!salvouAlgumaVez) e.preventDefault(); }}
+                className={`flex min-h-[44px] items-center rounded-lg px-4 text-[13px] font-semibold transition ${
+                  salvouAlgumaVez
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                    : 'pointer-events-none bg-zinc-200 text-zinc-400'
+                }`}
+              >
+                PDF do fechado ↗
+              </a>
+            )}
             <button
               onClick={salvar}
               disabled={guardando}

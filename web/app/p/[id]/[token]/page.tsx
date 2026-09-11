@@ -65,10 +65,13 @@ function aberturaPara(kind: string, siteStatus: string | null): string {
 
 export default async function PaginaProposta({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; token: string }>;
+  searchParams: Promise<{ plano?: string }>;
 }) {
   const { id, token } = await params;
+  const { plano: planoPedido } = await searchParams;
   const idLimpo = decodeURIComponent(id);
 
   if (!tokenConfere(idLimpo, token)) notFound();
@@ -84,7 +87,7 @@ export default async function PaginaProposta({
     ignorarTeto?: boolean;
   };
 
-  const planos = montarPropostas({
+  const todos = montarPropostas({
     marcacoes: cfg.marcacoes || {},
     porte: cfg.porte || 'micro',
     formalizacao: cfg.formalizacao || 'desconhecido',
@@ -92,7 +95,17 @@ export default async function PaginaProposta({
     ignorarTeto: cfg.ignorarTeto,
   }).filter((p) => p.itens.length > 0);
 
-  if (!planos.length) notFound();
+  if (!todos.length) notFound();
+
+  /*
+   * Dois documentos saem daqui. Com ?plano=, e o resumo do que o cliente
+   * fechou: nao ha mais nada a vender, entao some a comparacao e entra o
+   * detalhe do que ele recebe e o que acontece depois. Sem o parametro,
+   * e a proposta com as tres opcoes.
+   */
+  const escolhido = planoPedido ? todos.find((p) => p.nivel === planoPedido) : undefined;
+  const planos = escolhido ? [escolhido] : todos;
+  const fechado = Boolean(escolhido);
 
   const hoje = new Date();
   const validade = new Date(hoje.getTime() + DIAS_DE_VALIDADE * 86400000);
@@ -111,25 +124,38 @@ export default async function PaginaProposta({
           </div>
           <div className="topo-meta">
             <div>{dataLonga(hoje)}</div>
-            <div className="fraco">válida até {dataLonga(validade)}</div>
+            <div className="fraco">
+              {fechado ? `para ${lead.name}` : `válida até ${dataLonga(validade)}`}
+            </div>
           </div>
         </header>
 
         {/* ----------------------------------------------------- abertura */}
         <section className="abre">
-          <p className="sobrescrito">Proposta comercial</p>
+          <p className="sobrescrito">{fechado ? 'Resumo do que foi contratado' : 'Proposta comercial'}</p>
           <h1 className="titulo">{lead.name}</h1>
           {(lead.address || lead.city) && (
             <p className="endereco">{[lead.address, lead.city].filter(Boolean).join(' — ')}</p>
           )}
-          <p className="lead">{abertura}</p>
+          <p className="lead">
+            {fechado
+              ? `Este é o resumo do plano ${planos[0].rotulo} que vocês fecharam. Guarde este documento: ele lista tudo o que está incluso e o que acontece a partir de agora.`
+              : abertura}
+          </p>
         </section>
 
         {/* ------------------------------------------------------- planos */}
-        <section className="planos" style={{ '--n': planos.length } as React.CSSProperties}>
+        <section
+          className={`planos ${fechado ? 'planos--unico' : ''}`}
+          style={{ '--n': planos.length } as React.CSSProperties}
+        >
           {planos.map((p, i) => (
-            <div key={p.nivel} className={`plano ${i === 1 ? 'plano--destaque' : ''}`}>
-              {i === 1 && <span className="selo">mais escolhido</span>}
+            <div
+              key={p.nivel}
+              className={`plano ${!fechado && i === 1 ? 'plano--destaque' : ''} ${fechado ? 'plano--fechado' : ''}`}
+            >
+              {!fechado && i === 1 && <span className="selo">mais escolhido</span>}
+              {fechado && <span className="selo selo--fechado">plano contratado</span>}
 
               <h2 className="plano-nome">{p.rotulo}</h2>
 
@@ -174,7 +200,23 @@ export default async function PaginaProposta({
 
         {/* --------------------------------------------------- condições */}
         <section className="condicoes">
-          <h2 className="secao-titulo">Como funciona</h2>
+          <h2 className="secao-titulo">{fechado ? 'O que acontece agora' : 'Como funciona'}</h2>
+          {fechado && (
+            <ol className="passos">
+              <li>
+                <strong>Recebemos seu material</strong>
+                <span>Logo, fotos, textos que já existam e os dados de contato que vão no site.</span>
+              </li>
+              <li>
+                <strong>Montamos e mandamos para você ver</strong>
+                <span>Você aprova ou pede ajuste antes de qualquer coisa ir para o ar.</span>
+              </li>
+              <li>
+                <strong>Publicamos no seu domínio</strong>
+                <span>Com o endereço próprio e o certificado de segurança já ativos.</span>
+              </li>
+            </ol>
+          )}
           <dl className="grade">
             <div>
               <dt>Prazo</dt>
@@ -205,7 +247,7 @@ export default async function PaginaProposta({
             </p>
           </div>
           <p className="fraco assinatura">
-            Proposta gerada em {dataLonga(hoje)} para {lead.name}.
+            {fechado ? 'Documento emitido' : 'Proposta gerada'} em {dataLonga(hoje)} para {lead.name}.
           </p>
         </footer>
       </article>
