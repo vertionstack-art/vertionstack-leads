@@ -1,0 +1,395 @@
+/*
+ * A proposta que o cliente abre.
+ *
+ * Quem recebe isto é dono de barbearia ou de pizzaria, geralmente abrindo
+ * no celular pelo WhatsApp. Precisa parecer documento de empresa que
+ * existe — não flyer, não landing page colorida. Por isso serifada nos
+ * títulos, muita margem, e o roxo aparecendo só onde o olho deve parar:
+ * o preço e o plano do meio.
+ *
+ * Tudo aqui é pensado para virar PDF: as medidas são em milímetros na
+ * impressão, as quebras de página são controladas, e nada de fundo que
+ * gaste tinta à toa.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600;700&display=swap');
+
+.folha {
+  --roxo: #6d28d9;
+  --roxo-claro: #f5f3ff;
+  --tinta: #12121a;
+  --cinza: #6b6b76;
+  --linha: #e4e4e8;
+  --papel: #ffffff;
+
+  --serif: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --sans: 'Figtree', ui-sans-serif, -apple-system, 'Segoe UI', sans-serif;
+
+  min-height: 100vh;
+  background: #f4f4f6;
+  padding: 28px 16px 64px;
+  font-family: var(--sans);
+  color: var(--tinta);
+  -webkit-font-smoothing: antialiased;
+}
+
+.doc {
+  max-width: 940px;
+  margin: 0 auto;
+  background: var(--papel);
+  padding: 52px 56px 40px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 12px 40px rgba(0, 0, 0, 0.08);
+}
+
+/* ------------------------------------------------------- cabeçalho */
+
+.topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.marca-ponto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--roxo);
+}
+
+.marca-nome {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.topo-meta {
+  text-align: right;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fraco { color: var(--cinza); }
+
+/* -------------------------------------------------------- abertura */
+
+.abre {
+  padding: 44px 0 38px;
+  max-width: 62ch;
+}
+
+.sobrescrito {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--roxo);
+  margin-bottom: 14px;
+}
+
+.titulo {
+  font-family: var(--serif);
+  font-size: clamp(34px, 6vw, 52px);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.endereco {
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--cinza);
+}
+
+.lead {
+  margin-top: 26px;
+  font-size: 16.5px;
+  line-height: 1.62;
+  color: #3a3a45;
+}
+
+/* ---------------------------------------------------------- planos */
+
+.planos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 18px;
+  margin-bottom: 44px;
+}
+
+.plano {
+  position: relative;
+  border: 1px solid var(--linha);
+  border-radius: 3px;
+  padding: 26px 22px 24px;
+  background: var(--papel);
+}
+
+.plano--destaque {
+  border-color: var(--roxo);
+  box-shadow: inset 0 0 0 1px var(--roxo);
+}
+
+.selo {
+  position: absolute;
+  top: -9px;
+  left: 22px;
+  background: var(--roxo);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 2px;
+}
+
+.plano-nome {
+  font-family: var(--serif);
+  font-size: 25px;
+  font-weight: 400;
+  margin: 0 0 14px;
+  letter-spacing: -0.01em;
+}
+
+.preco {
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--linha);
+}
+
+.preco-valor {
+  display: block;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.preco-mensal {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--cinza);
+}
+
+.itens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.itens li {
+  padding-left: 15px;
+  position: relative;
+  margin-bottom: 11px;
+}
+
+.itens li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--roxo);
+}
+
+.itens--mensal li::before { background: var(--cinza); }
+
+.itens strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.itens span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--cinza);
+}
+
+.itens-titulo {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--cinza);
+  margin: 18px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linha);
+}
+
+/* ------------------------------------------------------- condições */
+
+.condicoes {
+  padding: 30px 0 8px;
+  border-top: 1px solid var(--linha);
+}
+
+.secao-titulo {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 400;
+  margin: 0 0 20px;
+}
+
+.grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 22px 32px;
+  margin: 0;
+}
+
+.grade dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--roxo);
+  margin-bottom: 5px;
+}
+
+.grade dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #3a3a45;
+}
+
+/* ---------------------------------------------------------- rodapé */
+
+.rodape {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--linha);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.rodape-nome {
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+.assinatura { font-size: 11px; }
+
+/* ------------------------------------------------------- imprimir */
+
+.barra-imprimir {
+  max-width: 940px;
+  margin: 0 auto 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-imprimir {
+  border: none;
+  background: var(--tinta);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 0 22px;
+  min-height: 46px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.btn-imprimir:hover { filter: brightness(1.6); }
+
+.dica-imprimir {
+  max-width: 940px;
+  margin: 0 auto 18px;
+  font-size: 12px;
+  color: var(--cinza);
+  text-align: right;
+}
+
+/* ----------------------------------------------- versão em papel */
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 13mm;
+  }
+
+  .folha {
+    background: #fff;
+    padding: 0;
+  }
+
+  .doc {
+    max-width: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  /* a cor faz parte do documento: sem isto o navegador imprime tudo cinza */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .barra-imprimir,
+  .dica-imprimir { display: none; }
+
+  .abre { padding: 26px 0 24px; }
+  .titulo { font-size: 34px; }
+  .lead { font-size: 13.5px; margin-top: 16px; }
+
+  .planos {
+    grid-template-columns: repeat(var(--n, 3), 1fr);
+    gap: 10px;
+    margin-bottom: 26px;
+  }
+
+  .plano {
+    padding: 16px 14px;
+    break-inside: avoid;
+  }
+
+  .plano-nome { font-size: 18px; margin-bottom: 10px; }
+  .preco-valor { font-size: 20px; }
+  .itens strong { font-size: 10.5px; }
+  .itens span { font-size: 9px; }
+  .itens li { margin-bottom: 7px; }
+
+  .condicoes { break-inside: avoid; padding-top: 20px; }
+  .secao-titulo { font-size: 16px; margin-bottom: 14px; }
+  .grade dd { font-size: 11px; }
+
+  .rodape { break-inside: avoid; margin-top: 24px; }
+}
+
+/* ------------------------------------------------------- celular */
+
+@media (max-width: 620px) {
+  .folha { padding: 14px 10px 40px; }
+  .doc { padding: 30px 22px 28px; }
+  .abre { padding: 30px 0 26px; }
+  .lead { font-size: 15px; }
+  .topo { flex-direction: column; gap: 10px; }
+  .topo-meta { text-align: left; }
+  .barra-imprimir, .dica-imprimir { padding: 0 12px; }
+}

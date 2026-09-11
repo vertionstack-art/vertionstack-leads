@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal from './prompt-modal';
 import PropostaModal from './proposta-modal';
+import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
 
 // --------------------------------------------------------- constantes
@@ -275,14 +276,14 @@ export default function Painel({
                 onClick={verificarSites}
                 disabled={verificando}
                 title="Abre cada site cadastrado para ver se está mesmo no ar"
-                className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition hover:border-emerald-500 disabled:opacity-60"
+                className="flex min-h-[40px] items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-medium text-emerald-800 transition hover:border-emerald-500 disabled:opacity-60 md:min-h-0 md:py-1.5"
               >
                 {verificando ? 'Conferindo sites…' : `Conferir ${faltamVerif} sites`}
               </button>
             )}
             <a
               href="/extensao"
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
             >
               Extensão
             </a>
@@ -290,20 +291,20 @@ export default function Painel({
               {usuario}
               <button
                 onClick={async () => { await fetch('/api/auth', { method: 'DELETE' }); location.href = '/login'; }}
-                className="ml-2 underline underline-offset-2 hover:text-roxo-700"
+                className="ml-2 inline-flex min-h-[40px] items-center px-1 underline underline-offset-2 hover:text-roxo-700 md:min-h-0"
               >
                 sair
               </button>
             </span>
             <a
               href={'/api/leads/export?' + query}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
             >
               Baixar CSV
             </a>
             <button
               onClick={carregar}
-              className="rounded-lg bg-roxo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-roxo-700"
+              className="min-h-[40px] rounded-lg bg-roxo-600 px-3 text-xs font-medium text-white transition hover:bg-roxo-700 md:min-h-0 md:py-1.5"
             >
               {carregando ? 'Atualizando…' : 'Atualizar'}
             </button>
@@ -390,13 +391,13 @@ export default function Painel({
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Buscar por nome, telefone, endereço…"
-              className="min-w-[240px] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+              className="min-h-[44px] min-w-[240px] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
             />
 
             <select
               value={cidade}
               onChange={(e) => { setCidade(e.target.value); setPagina(0); }}
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
+              className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
             >
               <option value="">Todas as cidades</option>
               {cidades.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -405,7 +406,7 @@ export default function Painel({
             <select
               value={categoria}
               onChange={(e) => { setCategoria(e.target.value); setPagina(0); }}
-              className="max-w-[200px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
+              className="min-h-[44px] max-w-[200px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
             >
               <option value="">Todas as categorias</option>
               {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -414,19 +415,19 @@ export default function Painel({
             <select
               value={ordem}
               onChange={(e) => { setOrdem(e.target.value as typeof ordem); setPagina(0); }}
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
+              className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
             >
               <option value="recentes">Mais recentes</option>
               <option value="avaliacoes">Mais avaliados</option>
               <option value="nome">Ordem alfabética</option>
             </select>
 
-            <label className="flex cursor-pointer items-center gap-2 text-[13px] text-zinc-700">
+            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-[13px] text-zinc-700">
               <input
                 type="checkbox"
                 checked={comTelefone}
                 onChange={(e) => { setComTelefone(e.target.checked); setPagina(0); }}
-                className="h-4 w-4 accent-roxo-600"
+                className="h-5 w-5 accent-roxo-600"
               />
               Só com telefone
             </label>
@@ -435,7 +436,7 @@ export default function Painel({
               <select
                 value={dePessoa}
                 onChange={(e) => { setDePessoa(e.target.value); setPagina(0); }}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
+                className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
                 title="Quem está cuidando do lead"
               >
                 <option value="">Todo mundo</option>
@@ -451,14 +452,14 @@ export default function Painel({
 
             {(resumo.site_quebrado ?? 0) > 0 && (
               <label
-                className="flex cursor-pointer items-center gap-2 text-[13px] text-emerald-800"
+                className="flex min-h-[44px] cursor-pointer items-center gap-2 text-[13px] text-emerald-800"
                 title="Comércios cujo site cadastrado no Google não está de pé"
               >
                 <input
                   type="checkbox"
                   checked={siteQuebrado}
                   onChange={(e) => { setSiteQuebrado(e.target.checked); setPagina(0); }}
-                  className="h-4 w-4 accent-emerald-600"
+                  className="h-5 w-5 accent-emerald-600"
                 />
                 Site não está de pé <span className="text-emerald-600">({resumo.site_quebrado})</span>
               </label>
@@ -470,7 +471,7 @@ export default function Painel({
               <button
                 key={t.kind}
                 onClick={() => alternar(kinds, setKinds, t.kind)}
-                className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium ring-1 transition ${
+                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-medium ring-1 transition ${
                   kinds.includes(t.kind) ? 'bg-roxo-600 text-white ring-roxo-600' : t.classe + ' ring-inset hover:ring-roxo-300'
                 }`}
               >
@@ -482,7 +483,7 @@ export default function Painel({
               <button
                 key={s.valor}
                 onClick={() => alternar(statusFiltro, setStatusFiltro, s.valor)}
-                className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium ring-1 transition ${
+                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-medium ring-1 transition ${
                   statusFiltro.includes(s.valor) ? 'bg-tinta text-white ring-tinta' : s.classe + ' ring-inset hover:ring-zinc-400'
                 }`}
               >
@@ -494,7 +495,32 @@ export default function Painel({
 
         {/* --------------------------------------------------- tabela */}
         <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          <div className="overflow-x-auto">
+          {/* no celular a tabela vira cartões: sete colunas em 375px seria
+              rolagem lateral justamente na hora de ligar para o comércio */}
+          <div className="md:hidden">
+            {leads.map((lead) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                usuario={usuario}
+                statusLista={STATUS}
+                tipo={tipoDe(lead.websiteKind)}
+                siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
+                linkWhatsApp={linkWhatsApp(lead.phone)}
+                onStatus={(st) => salvarPatch(lead.id, { status: st })}
+                onPrompt={() => setPromptDe(lead)}
+                onProposta={() => setPropostaDe(lead)}
+                onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
+                editandoNota={notaAberta === lead.id}
+                rascunho={rascunho}
+                setRascunho={setRascunho}
+                onSalvarNota={() => { salvarPatch(lead.id, { notes: rascunho }); setNotaAberta(null); }}
+                onCancelarNota={() => setNotaAberta(null)}
+              />
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-[13px]">
               <thead className="border-b border-zinc-200 bg-zinc-50 text-[11px] uppercase tracking-wide text-zinc-500">
                 <tr>
@@ -715,10 +741,11 @@ export default function Painel({
         {propostaDe && (
           <PropostaModal
             lead={propostaDe}
+            linkProposta={propostaDe.linkProposta || ''}
             aoFechar={() => setPropostaDe(null)}
             aoSalvar={async (proposta) => {
               await salvarPatch(propostaDe.id, { proposta });
-              setPropostaDe(null);
+              setPropostaDe((atual) => (atual ? { ...atual, proposta } : atual));
             }}
           />
         )}

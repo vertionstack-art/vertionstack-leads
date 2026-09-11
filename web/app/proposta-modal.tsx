@@ -40,10 +40,12 @@ export default function PropostaModal({
   lead,
   aoFechar,
   aoSalvar,
+  linkProposta,
 }: {
   lead: Lead;
   aoFechar: () => void;
   aoSalvar: (proposta: unknown) => void;
+  linkProposta: string;
 }) {
   const salvo = (lead.proposta || null) as {
     marcacoes?: Marcacoes;
@@ -61,7 +63,9 @@ export default function PropostaModal({
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
   const [copiado, setCopiado] = useState(false);
+  const [copiadoLink, setCopiadoLink] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [salvouAlgumaVez, setSalvouAlgumaVez] = useState(Boolean(lead.proposta));
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar();
@@ -96,6 +100,7 @@ export default function PropostaModal({
   async function salvar() {
     setGuardando(true);
     await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto });
+    setSalvouAlgumaVez(true);
     setGuardando(false);
   }
 
@@ -337,20 +342,48 @@ export default function PropostaModal({
         {/* ------------------------------------------------------ rodapé */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 px-6 py-4">
           <p className="text-[12px] text-zinc-500">
-            A proposta fica salva neste lead — dá para retomar depois.
+            {salvouAlgumaVez
+              ? 'Salve de novo se mudar algo — o link mostra sempre a última versão.'
+              : 'Salve para liberar o link e o PDF que vão para o cliente.'}
           </p>
           <div className="flex gap-2">
             <button
               onClick={copiarTexto}
               disabled={nenhumMarcado}
-              className="rounded-lg border border-zinc-300 px-4 py-2 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
+              className="min-h-[44px] rounded-lg border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
             >
-              {copiado ? 'Copiado!' : 'Copiar para WhatsApp'}
+              {copiado ? 'Copiado!' : 'Copiar texto'}
             </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(location.origin + linkProposta);
+                setCopiadoLink(true);
+                setTimeout(() => setCopiadoLink(false), 2000);
+              }}
+              disabled={!salvouAlgumaVez}
+              title={salvouAlgumaVez ? 'Link da proposta para mandar ao cliente' : 'Salve a proposta primeiro'}
+              className="min-h-[44px] rounded-lg border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
+            >
+              {copiadoLink ? 'Link copiado!' : 'Copiar link'}
+            </button>
+            <a
+              href={linkProposta}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!salvouAlgumaVez}
+              onClick={(e) => { if (!salvouAlgumaVez) e.preventDefault(); }}
+              className={`flex min-h-[44px] items-center rounded-lg border px-4 text-[13px] font-medium transition ${
+                salvouAlgumaVez
+                  ? 'border-zinc-300 text-zinc-700 hover:border-roxo-400 hover:text-roxo-700'
+                  : 'pointer-events-none border-zinc-200 text-zinc-300'
+              }`}
+            >
+              Ver / PDF ↗
+            </a>
             <button
               onClick={salvar}
               disabled={guardando}
-              className="rounded-lg bg-roxo-600 px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-roxo-700 disabled:opacity-60"
+              className="min-h-[44px] rounded-lg bg-roxo-600 px-5 text-[13px] font-semibold text-white transition hover:bg-roxo-700 disabled:opacity-60"
             >
               {guardando ? 'Salvando…' : 'Salvar proposta'}
             </button>

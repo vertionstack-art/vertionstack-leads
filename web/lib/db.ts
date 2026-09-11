@@ -54,6 +54,11 @@ export interface Lead {
   responsavel: string | null;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
+  /**
+   * Caminho público da proposta. Não existe no banco: a rota calcula na
+   * hora, porque o token depende de um segredo que só o servidor tem.
+   */
+  linkProposta?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -419,6 +424,14 @@ export async function faltamVerificar(): Promise<number> {
     where website is not null and website <> '' and site_status is null
   `;
   return (r[0] as { n: number }).n;
+}
+
+/** um lead só, pelo id — usado pela página pública da proposta */
+export async function buscarLead(id: string): Promise<Lead | null> {
+  if (!sql) return memoria.get(id) || null;
+  await garantirSchema();
+  const linhas = await sql`select * from leads where id = ${id} limit 1`;
+  return linhas.length ? daLinha(linhas[0]) : null;
 }
 
 export async function apagarLead(id: string): Promise<boolean> {

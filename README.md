@@ -210,6 +210,31 @@ O custo de cada item aparece na lista (o domínio custa R$ 45/ano e entra como
 "incluso" para o cliente). Sem esse número, é fácil fechar negócio no
 prejuízo achando que se negociou bem.
 
+### Mandar a proposta para o cliente
+
+Depois de salvar, o simulador libera dois botões:
+
+- **Copiar link** — manda o endereço da proposta pelo WhatsApp. O cliente
+  abre no celular e vê um documento formatado, sem precisar de conta nem de
+  aplicativo. O link sempre mostra a última versão salva.
+- **Ver / PDF** — abre a proposta e traz um botão *Baixar em PDF*. Na janela
+  de impressão, escolha **Destino: Salvar como PDF**. O arquivo já sai com o
+  nome do cliente.
+
+O link é público de propósito — dono de pizzaria não vai criar conta para
+ler um orçamento — mas não é adivinhável: cada um leva um token derivado do
+id com um segredo do servidor. Trocar o número na barra de endereço dá 404.
+
+A proposta abre com uma frase diferente conforme o que foi encontrado no
+comércio. Para quem está com o site fora do ar, ela começa dizendo
+exatamente isso — vale mais que qualquer texto sobre "soluções digitais".
+
+### Usando no celular
+
+O painel foi feito para funcionar com o telefone na mão durante a ligação.
+Em telas pequenas a tabela vira cartões, e cada lead traz os botões
+**Ligar** e **WhatsApp** em tamanho de dedo. Nada de rolagem lateral.
+
 ### Trabalhando em dupla
 
 Os dois veem a mesma lista, e o painel mostra quem é quem:

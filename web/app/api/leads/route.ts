@@ -10,6 +10,7 @@ import {
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
 import { quemEnviou, podeLer, estaLogado, nomesDaEquipe } from '@/lib/auth';
+import { caminhoDaProposta } from '@/lib/token-proposta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -101,7 +102,13 @@ export async function GET(req: Request) {
 
   try {
     const pagina = await listarLeads(filtrosDaUrl(new URL(req.url)));
-    return NextResponse.json({ ok: true, ...pagina, persistido: temBanco, equipe: nomesDaEquipe });
+    return NextResponse.json({
+      ok: true,
+      ...pagina,
+      leads: pagina.leads.map((l) => ({ ...l, linkProposta: caminhoDaProposta(l.id) })),
+      persistido: temBanco,
+      equipe: nomesDaEquipe,
+    });
   } catch (err) {
     console.error('[leads GET]', err);
     return NextResponse.json({ ok: false, erro: String((err as Error).message) }, { status: 500 });
