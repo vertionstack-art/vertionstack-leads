@@ -50,6 +50,7 @@ export default function PropostaModal({
     porte?: Porte;
     formalizacao?: Formalizacao;
     desconto?: number;
+    ignorarTeto?: boolean;
   } | null;
 
   const [porte, setPorte] = useState<Porte>(salvo?.porte || 'micro');
@@ -58,6 +59,7 @@ export default function PropostaModal({
     salvo?.marcacoes || sugerirMarcacoes(lead.websiteKind, 'micro'),
   );
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
+  const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
   const [copiado, setCopiado] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
@@ -68,8 +70,8 @@ export default function PropostaModal({
   }, [aoFechar]);
 
   const planos = useMemo(
-    () => montarPropostas({ marcacoes, porte, formalizacao, desconto }),
-    [marcacoes, porte, formalizacao, desconto],
+    () => montarPropostas({ marcacoes, porte, formalizacao, desconto, ignorarTeto }),
+    [marcacoes, porte, formalizacao, desconto, ignorarTeto],
   );
 
   /** um clique avança o item para o próximo plano; volta ao "não incluso" no fim */
@@ -79,7 +81,9 @@ export default function PropostaModal({
       const proximo = CICLO[(CICLO.indexOf(agora) + 1) % CICLO.length];
       const novo = { ...atual, [id]: proximo };
 
-      // dois tipos de site não convivem: ligar um desliga os outros
+      // só níveis alternativos do mesmo serviço se excluem (os três
+      // suportes). Produtos diferentes somam: landing mais loja virtual
+      // é escopo maior, não escolha entre um e outro.
       if (proximo) {
         for (const conflito of porId(id)?.conflitaCom || []) {
           if (conflito !== id) delete novo[conflito];
@@ -91,7 +95,7 @@ export default function PropostaModal({
 
   async function salvar() {
     setGuardando(true);
-    await aoSalvar({ marcacoes, porte, formalizacao, desconto });
+    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto });
     setGuardando(false);
   }
 
@@ -309,6 +313,21 @@ export default function PropostaModal({
                     Piso de {moeda(PISO_ABSOLUTO)} e teto de {moeda(tetoDoPorte(porte))} para este porte.
                     O alvo é não sair abaixo de {moeda(ALVO_MINIMO)}.
                   </p>
+
+                  <label className="mt-3 flex cursor-pointer items-start gap-2 border-t border-zinc-100 pt-3 text-[12px] text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={ignorarTeto}
+                      onChange={(e) => setIgnorarTeto(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-roxo-600"
+                    />
+                    <span>
+                      Liberar o teto
+                      <span className="block text-[11px] leading-snug text-zinc-500">
+                        Para escopo grande de verdade — duas entregas juntas, por exemplo. O piso continua valendo.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               </>
             )}

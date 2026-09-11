@@ -30,7 +30,8 @@ export interface Servico {
 export const FAMILIAS: Record<Familia, { titulo: string; explicacao: string }> = {
   presenca: {
     titulo: 'O que vai ser feito',
-    explicacao: 'O produto principal. Escolha um — eles se substituem, não se somam.',
+    explicacao:
+      'Pode marcar mais de um: uma landing para campanha e uma loja virtual são entregas diferentes, e somam.',
   },
   conversao: {
     titulo: 'Transformar visita em cliente',
@@ -54,8 +55,6 @@ export const FAMILIAS: Record<Familia, { titulo: string; explicacao: string }> =
   },
 };
 
-const SITES = ['landing', 'site_institucional', 'site_catalogo', 'loja_virtual', 'sistema', 'dashboard'];
-
 export const CATALOGO: Servico[] = [
   // ---------------------------------------------------------- presença
   {
@@ -65,7 +64,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Uma página só, feita para o cliente ligar ou chamar no WhatsApp.',
     preco: 390,
     custo: 0,
-    conflitaCom: SITES,
     sugerido: 'basico',
   },
   {
@@ -75,7 +73,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Início, serviços, sobre, contato. O cartão de visita que fica no Google.',
     preco: 590,
     custo: 0,
-    conflitaCom: SITES,
     sugerido: 'intermediario',
   },
   {
@@ -85,7 +82,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Produtos e preços que você mesmo atualiza, sem depender de ninguém.',
     preco: 890,
     custo: 0,
-    conflitaCom: SITES,
     sugerido: 'avancado',
   },
   {
@@ -95,7 +91,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Venda direto pelo site, com pagamento online.',
     preco: 1490,
     custo: 0,
-    conflitaCom: SITES,
   },
   {
     id: 'sistema',
@@ -104,7 +99,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Feito para o jeito que o negócio funciona — ordem de serviço, ficha de cliente, controle interno.',
     preco: 2400,
     custo: 0,
-    conflitaCom: SITES,
   },
   {
     id: 'dashboard',
@@ -113,7 +107,6 @@ export const CATALOGO: Servico[] = [
     beneficio: 'Os números do negócio numa tela só, atualizados sozinhos.',
     preco: 1200,
     custo: 0,
-    conflitaCom: SITES,
   },
 
   // --------------------------------------------------------- conversão

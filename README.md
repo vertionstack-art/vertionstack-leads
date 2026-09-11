@@ -197,9 +197,14 @@ copia tudo formatado para colar no WhatsApp do cliente.
 | Teto do Premium | R$ 1.200 × porte | Corta o que estourar |
 
 O teto acompanha o porte: micro para em R$ 1.200, pequena em R$ 1.620, média
-em R$ 2.220, grande em R$ 3.120. Quando o Premium estoura, ele é cortado no
-teto e o simulador avisa — se o cliente comporta mais, o certo é subir o
-porte, não forçar a mão.
+em R$ 2.220, grande em R$ 3.120. Quando um plano estoura, ele é cortado no
+teto e o simulador avisa.
+
+**Dá para marcar quantos produtos quiser.** Uma landing page para campanha e
+uma loja virtual são entregas diferentes e somam. Nesse caso o valor passa do
+teto de propósito — marque *Liberar o teto* embaixo do desconto, e os valores
+cheios voltam. O piso continua valendo sempre. Os únicos itens que se excluem
+são os três níveis de suporte, porque são alternativas do mesmo serviço.
 
 O custo de cada item aparece na lista (o domínio custa R$ 45/ano e entra como
 "incluso" para o cliente). Sem esse número, é fácil fechar negócio no

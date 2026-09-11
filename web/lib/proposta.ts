@@ -41,6 +41,12 @@ export interface ConfigProposta {
   formalizacao: Formalizacao;
   /** desconto manual em % aplicado no fim, se o vendedor quiser */
   desconto?: number;
+  /**
+   * Solta o teto do porte. Serve para escopo que é grande de verdade —
+   * uma landing somada a uma loja virtual custa mais mesmo, e nesse caso
+   * o teto estaria escondendo o preço certo em vez de proteger o cliente.
+   */
+  ignorarTeto?: boolean;
 }
 
 export interface ItemDoPlano {
@@ -175,12 +181,20 @@ export function montarPropostas(cfg: ConfigProposta): Plano[] {
   for (const p of planos) {
     if (p.entrada <= teto) continue;
 
+    if (cfg.ignorarTeto) {
+      p.avisos.push(
+        `Acima do teto de ${moeda(teto)} deste porte, mas o teto está liberado. ` +
+          'Confira se o cliente comporta esse valor.',
+      );
+      continue;
+    }
+
     const antes = p.entrada;
     p.entrada = Math.max(PISO_ABSOLUTO, arredondar(teto));
     p.margemEntrada = p.entrada - p.custoUnico;
     p.avisos.push(
       `Cortei de ${moeda(antes)} para o teto de ${moeda(teto)} deste porte. ` +
-        'Se o cliente comporta mais, suba o porte em vez de forçar a mão aqui.',
+        'Se o escopo é grande mesmo, libere o teto aqui embaixo.',
     );
   }
 
