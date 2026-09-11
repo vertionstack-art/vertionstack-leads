@@ -249,8 +249,8 @@ Em telas pequenas a tabela vira cartões, e cada lead traz os botões
 
 ### Quem entrou na ferramenta
 
-O botão **Acessos**, no topo do painel, abre a lista de endereços que
-bateram na porta: quantas vezes entraram, quantas erraram a senha, de que
+A tela fica em **/admin** e não tem link no painel de propósito — quem usa
+chega pelo endereço direto. Ela lista os endereços que bateram na porta: quantas vezes entraram, quantas erraram a senha, de que
 cidade, em qual navegador, e quando foi a última vez. Dá para bloquear um
 endereço ali mesmo — quem estiver bloqueado leva 403 no login, mesmo com a
 senha certa.
@@ -266,8 +266,13 @@ O seu próprio endereço vem marcado como *você*, e o painel recusa bloqueá-lo
 > mesmo IP (bloquear um bloqueia todas) e qualquer VPN contorna. Serve para
 > enxergar movimento estranho e cortar ruído; quem protege o painel é a senha.
 
-O registro também guarda as aberturas da proposta pelo cliente, então dá para
-ver se ele chegou a olhar antes de você ligar.
+São registrados o login (certo e errado), a visita ao painel e cada abertura
+de proposta pelo cliente — dá para ver se ele chegou a olhar antes de você
+ligar. A visita ao painel só entra uma vez a cada 15 minutos por pessoa;
+sem isso, cada recarregamento viraria uma linha e a lista seria só ruído.
+
+Esconder o botão não é o que protege: o servidor só responde ao dono, e
+quem não for leva 403 mesmo digitando o endereço.
 
 ### Trabalhando em dupla
 

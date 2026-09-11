@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { dono, usuarioAtual } from '@/lib/auth';
-import { ipDaRequisicao } from '@/lib/acessos';
+import { ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import { temBanco } from '@/lib/db';
 import PainelAcessos from './painel-acessos';
 
@@ -12,7 +12,9 @@ export default async function PaginaAdmin() {
   const quem = await usuarioAtual();
   if (!quem) redirect('/login');
 
-  const meuIp = ipDaRequisicao(await headers());
+  const cabecalhos = await headers();
+  const meuIp = ipDaRequisicao(cabecalhos);
+  await registrarAcesso(cabecalhos, 'acessos', 'ok', quem, 15);
 
   return (
     <div className="min-h-screen">

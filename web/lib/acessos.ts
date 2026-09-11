@@ -150,12 +150,42 @@ export async function estaBloqueado(ip: string): Promise<boolean> {
 
 // ------------------------------------------------------------ escrita
 
+/*
+ * Lembrete de quem já foi registrado há pouco.
+ *
+ * Sem isto, abrir o painel registraria uma linha por recarregamento e a
+ * lista viraria ruído. Com janela de alguns minutos, cada pessoa aparece
+ * uma vez por sessão de trabalho, que é a pergunta real: quem esteve aqui.
+ */
+const vistoRecentemente = new Map<string, number>();
+
+function registradoHaPouco(chave: string, minutos: number): boolean {
+  const agora = Date.now();
+
+  if (vistoRecentemente.size > 500) {
+    for (const [k, t] of vistoRecentemente) {
+      if (agora - t > 3600_000) vistoRecentemente.delete(k);
+    }
+  }
+
+  const ultimo = vistoRecentemente.get(chave);
+  if (ultimo && agora - ultimo < minutos * 60_000) return true;
+
+  vistoRecentemente.set(chave, agora);
+  return false;
+}
+
 export async function registrarAcesso(
   req: Request | Headers,
   rota: string,
   resultado: Resultado = 'ok',
   usuario: string | null = null,
+  /** não repete o registro desta combinação por tantos minutos */
+  janelaMin = 0,
 ): Promise<void> {
+  const ipAgora = ipDaRequisicao(req);
+  if (janelaMin > 0 && registradoHaPouco(`${ipAgora}|${rota}|${usuario || ''}`, janelaMin)) return;
+
   if (!sql) {
     const c = contextoDaRequisicao(req);
     memAcessos.unshift({ ...c, rota, usuario, resultado, quando: new Date().toISOString() });
