@@ -125,6 +125,7 @@ export const CATALOGO: Servico[] = [
     preco: 30,
     custo: 0,
     sugerido: 'basico',
+    brinde: true,
   },
   {
     id: 'form_orcamento',

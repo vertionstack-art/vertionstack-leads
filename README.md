@@ -222,8 +222,8 @@ número, é fácil fechar negócio no prejuízo achando que se negociou bem.
 
 **Itens que vão como cortesia.** Alguns serviços aparecem para o cliente com o
 selo *incluso*, como se fossem brinde, mas o valor entra no total normalmente.
-São: escrita dos textos, tratamento de fotos, os três níveis de suporte e o
-relatório mensal. No simulador eles mostram *"vai como cortesia"* embaixo do
+São: botão de WhatsApp, escrita dos textos, tratamento de fotos, os três
+níveis de suporte e o relatório mensal. No simulador eles mostram *"vai como cortesia"* embaixo do
 preço, para você lembrar do que está embutindo.
 
 Não é engano: o item está listado, é entregue e é cobrado dentro do pacote
