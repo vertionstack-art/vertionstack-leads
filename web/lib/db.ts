@@ -56,6 +56,12 @@ export interface Lead {
   instagram: string | null;
   /** de onde veio: 'maps' pela extensão, 'manual' cadastrado à mão */
   origem: string;
+  /**
+   * Endereço do site de prévia publicado para este comércio.
+   * Fica no lead, e não dentro da proposta, porque a prévia é usada antes
+   * de existir proposta — é ela que abre a conversa.
+   */
+  previaUrl: string | null;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
   /**
@@ -126,6 +132,7 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists proposta jsonb`;
   await sql`alter table leads add column if not exists instagram text`;
   await sql`alter table leads add column if not exists origem text not null default 'maps'`;
+  await sql`alter table leads add column if not exists previa_url text`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
@@ -193,6 +200,7 @@ export function normalizarLead(
     notes: null,
     instagram: texto(cru.instagram, 300),
     origem,
+    previaUrl: texto(cru.previaUrl, 500),
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
@@ -231,6 +239,7 @@ function daLinha(r: any): Lead {
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
     instagram: r.instagram,
     origem: r.origem || 'maps',
+    previaUrl: r.previa_url,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
     proposta: r.proposta ?? null,
@@ -270,6 +279,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           siteVerificadoEm: antigo.siteVerificadoEm,
           instagram: l.instagram || antigo.instagram,
           origem: antigo.origem,
+          previaUrl: antigo.previaUrl || l.previaUrl,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
           responsavel: antigo.responsavel,
           proposta: antigo.proposta,
@@ -339,7 +349,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
  */
 export async function atualizarLead(
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -347,12 +357,20 @@ export async function atualizarLead(
   if (!sql) {
     const atual = memoria.get(id);
     if (!atual) return null;
-    const novo: Lead = {
-      ...atual,
-      ...patch,
-      responsavel: soltar ? null : quem || atual.responsavel,
-      updatedAt: new Date().toISOString(),
-    };
+
+    /*
+     * Só as chaves realmente enviadas. Espalhar o patch inteiro apagava o
+     * que não vinha nele: salvar a proposta mandava previaUrl: undefined
+     * junto, e o undefined sobrescrevia o link já guardado. No Postgres
+     * isso não acontece porque cada coluna tem seu "case when enviado".
+     */
+    const novo: Lead = { ...atual };
+    for (const [campo, valor] of Object.entries(patch)) {
+      if (valor !== undefined) (novo as unknown as Record<string, unknown>)[campo] = valor;
+    }
+    novo.responsavel = soltar ? null : quem || atual.responsavel;
+    novo.updatedAt = new Date().toISOString();
+
     memoria.set(id, novo);
     return novo;
   }
@@ -365,6 +383,8 @@ export async function atualizarLead(
       proposta    = case when ${patch.proposta !== undefined}
                          then ${patch.proposta === null ? null : JSON.stringify(patch.proposta)}::jsonb
                          else proposta end,
+      previa_url  = case when ${patch.previaUrl !== undefined}
+                         then ${patch.previaUrl ?? null} else previa_url end,
       responsavel = case
                       when ${soltar} then null
                       else coalesce(${quem ?? null}, responsavel)

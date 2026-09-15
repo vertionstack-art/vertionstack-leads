@@ -20,6 +20,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     status?: string;
     notes?: string | null;
     proposta?: unknown;
+    previaUrl?: string | null;
   };
 
   if (corpo.status && !STATUS_VALIDOS.includes(corpo.status as Status)) {
@@ -32,6 +33,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
       status: corpo.status as Status | undefined,
       notes: corpo.notes !== undefined ? (corpo.notes ? String(corpo.notes).slice(0, 2000) : null) : undefined,
       proposta: corpo.proposta,
+      previaUrl:
+        corpo.previaUrl !== undefined
+          ? corpo.previaUrl
+            ? String(corpo.previaUrl).trim().slice(0, 500)
+            : null
+          : undefined,
     },
     quem,
   );

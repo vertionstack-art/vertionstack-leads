@@ -11,10 +11,32 @@ import { montarPrompt } from '@/lib/prompt-lead';
  * caminho entre ver o lead e ter o material de abordagem na mão ser o mais
  * curto possível, porque isso vai ser feito dezenas de vezes por dia.
  */
-export default function PromptModal({ lead, aoFechar }: { lead: Lead; aoFechar: () => void }) {
+export default function PromptModal({
+  lead,
+  aoFechar,
+  aoSalvarPrevia,
+}: {
+  lead: Lead;
+  aoFechar: () => void;
+  aoSalvarPrevia: (url: string) => Promise<void>;
+}) {
   const [copiado, setCopiado] = useState(false);
+  const [previa, setPrevia] = useState(lead.previaUrl || '');
+  const [guardandoPrevia, setGuardandoPrevia] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
-  const prompt = montarPrompt(lead);
+
+  /*
+   * O prompt é montado com a prévia já salva no lead. Enquanto o campo não
+   * for gravado, o texto continua sendo o de quem não tem prévia — e é
+   * melhor assim: prometer um link que não existe estraga a abordagem.
+   */
+  const prompt = montarPrompt({ ...lead, previaUrl: lead.previaUrl });
+
+  async function salvarPrevia() {
+    setGuardandoPrevia(true);
+    await aoSalvarPrevia(previa.trim());
+    setGuardandoPrevia(false);
+  }
 
   // Esc fecha, como em qualquer janela
   useEffect(() => {
@@ -63,6 +85,34 @@ export default function PromptModal({ lead, aoFechar }: { lead: Lead; aoFechar: 
           >
             ×
           </button>
+        </div>
+
+        {/* --------------------------------------------------- prévia */}
+        <div className="border-b border-zinc-200 bg-roxo-50 px-6 py-3.5">
+          <label htmlFor="previa" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-roxo-800">
+            Site de prévia deste comércio
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="previa"
+              value={previa}
+              onChange={(e) => setPrevia(e.target.value)}
+              placeholder="https://previa-barbearia.vercel.app"
+              className="min-h-[40px] min-w-[240px] flex-1 rounded-lg border border-roxo-200 bg-white px-3 text-[13px] outline-none focus:border-roxo-500"
+            />
+            <button
+              onClick={salvarPrevia}
+              disabled={guardandoPrevia || previa.trim() === (lead.previaUrl || '')}
+              className="min-h-[40px] rounded-lg bg-roxo-600 px-4 text-[12.5px] font-semibold text-white transition hover:bg-roxo-700 disabled:bg-zinc-300"
+            >
+              {guardandoPrevia ? 'Salvando…' : 'Salvar e refazer'}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11.5px] leading-snug text-roxo-900/70">
+            {lead.previaUrl
+              ? 'O prompt abaixo já usa esta prévia como centro da abordagem.'
+              : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
+          </p>
         </div>
 
         {/* ----------------------------------------------------- texto */}

@@ -190,6 +190,29 @@ marcado com origem `manual`, para você distinguir do que veio da varredura.
 
 Deixar o campo de site vazio é o que marca o comércio como oportunidade.
 
+### O site de prévia
+
+Antes de abordar, você publica na Vercel um site de demonstração feito para
+aquele comércio. Cole o endereço no campo roxo que aparece no topo do modal
+**COPY** e clique em *Salvar e refazer*.
+
+A partir daí a prévia aparece em três lugares:
+
+- **No prompt do COPY**, como centro da abordagem. O texto passa de 3.000 para
+  quase 5.000 caracteres e o chat recebe instrução explícita de girar as
+  mensagens em torno do link, incluir o momento da ligação em que se pede para
+  ele abrir, e responder às objeções que a prévia provoca — *"isso é template
+  pronto?"*, *"por que de graça, qual a pegadinha?"*.
+- **Na proposta do cliente**, num bloco destacado com botão *Ver a prévia*. No
+  PDF impresso o endereço aparece escrito por extenso, já que no papel não se
+  clica.
+- **No texto de WhatsApp** da proposta.
+
+O tom que o prompt pede é deliberado: a prévia é ponto de partida, não produto
+final. Ela foi montada de fora, sem as fotos e os textos do comércio — dizer
+isso abre espaço para o cliente apontar o que mudaria, e a crítica dele vira
+briefing.
+
 ### O botão PROPOSTA
 
 Ao lado do COPY, abre o simulador — **sem nada marcado**. Você escolhe o porte

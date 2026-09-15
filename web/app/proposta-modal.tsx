@@ -101,7 +101,7 @@ export default function PropostaModal({
   }
 
   function copiarTexto() {
-    navigator.clipboard.writeText(textoDaProposta(lead.name, proposta));
+    navigator.clipboard.writeText(textoDaProposta(lead.name, proposta, lead.previaUrl));
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
@@ -181,6 +181,20 @@ export default function PropostaModal({
               </div>
               <p className="mt-2 text-[11.5px] leading-relaxed text-zinc-500">{FORMALIZACOES[formalizacao].dica}</p>
             </section>
+
+            {lead.previaUrl && (
+              <p className="mb-3 rounded-xl border border-roxo-200 bg-roxo-50 px-3.5 py-2.5 text-[11.5px] leading-snug text-roxo-900">
+                A prévia deste comércio entra na proposta e no texto do WhatsApp:{' '}
+                <a
+                  href={lead.previaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  {lead.previaUrl.replace(/^https?:\/\//, '')}
+                </a>
+              </p>
+            )}
 
             <div className="mb-4 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
               Clique num serviço para incluir na proposta. Clique de novo para tirar.

@@ -197,6 +197,25 @@ export default async function PaginaProposta({
           </div>
         </section>
 
+        {/* ----------------------------------------------------- prévia */}
+        {lead.previaUrl && (
+          <section className="previa">
+            <div>
+              <p className="previa-titulo">
+                {fechado ? 'A prévia que você viu' : 'Já dá para ver como fica'}
+              </p>
+              <p className="previa-texto">
+                {fechado
+                  ? 'O site final parte daqui, com as suas fotos, os seus textos e as cores da sua marca.'
+                  : 'Montamos uma prévia do seu site antes mesmo de conversar. Ela é só um ponto de partida — o site final leva as suas fotos, os seus textos e as cores da sua marca.'}
+              </p>
+            </div>
+            <a className="previa-botao" href={lead.previaUrl} target="_blank" rel="noopener noreferrer">
+              Ver a prévia
+            </a>
+          </section>
+        )}
+
         {/* --------------------------------------------------- condições */}
         <section className="condicoes">
           <h2 className="secao-titulo">{fechado ? 'O que acontece agora' : 'Como funciona'}</h2>

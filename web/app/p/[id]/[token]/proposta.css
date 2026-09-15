@@ -507,3 +507,57 @@
 @media print {
   .cortesia { font-size: 7.5px; padding: 0 4px; }
 }
+
+/* ------------------------------------------------- prévia do site */
+
+/*
+ * A prévia é o argumento mais forte do documento: o cliente não precisa
+ * imaginar nada, ele clica e vê. Por isso ganha bloco próprio, com fundo,
+ * em vez de virar mais um link no meio do texto.
+ */
+.previa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 0 0 40px;
+  padding: 22px 26px;
+  border-radius: 3px;
+  background: var(--roxo-claro);
+  border: 1px solid #ddd6fe;
+}
+
+.previa-titulo {
+  font-family: var(--serif);
+  font-size: 21px;
+  margin-bottom: 5px;
+}
+
+.previa-texto {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4a4a58;
+  max-width: 56ch;
+}
+
+.previa-botao {
+  flex-shrink: 0;
+  background: var(--roxo);
+  color: #fff;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 13px 26px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+@media print {
+  .previa { margin-bottom: 22px; padding: 14px 16px; break-inside: avoid; }
+  .previa-titulo { font-size: 15px; }
+  .previa-texto { font-size: 10.5px; }
+  /* no papel o botão não clica: o endereço precisa estar legível */
+  .previa-botao::after { content: ' — ' attr(href); font-weight: 400; }
+  .previa-botao { font-size: 9.5px; padding: 6px 10px; white-space: normal; }
+}

@@ -182,7 +182,7 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
 
 // -------------------------------------------------- texto para enviar
 
-export function textoDaProposta(nomeCliente: string, p: Proposta): string {
+export function textoDaProposta(nomeCliente: string, p: Proposta, previaUrl?: string | null): string {
   const linhas: string[] = [];
   linhas.push(`*Proposta — ${nomeCliente}*`);
   linhas.push('');
@@ -201,6 +201,12 @@ export function textoDaProposta(nomeCliente: string, p: Proposta): string {
   linhas.push('');
   if (p.entrada > 0) linhas.push(`Investimento: *${moeda(p.entrada)}*`);
   if (p.mensalidade > 0) linhas.push(`Mensalidade: *${moeda(p.mensalidade)}/mês*`);
+  if (previaUrl) {
+    linhas.push('');
+    linhas.push('Veja a prévia do seu site:');
+    linhas.push(previaUrl);
+  }
+
   linhas.push('');
   linhas.push('Domínio próprio e certificado de segurança já inclusos.');
   linhas.push('Qualquer dúvida, é só chamar.');

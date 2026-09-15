@@ -233,7 +233,10 @@ export default function Painel({
     setPagina(0);
   }
 
-  async function salvarPatch(id: string, patch: { status?: Status; notes?: string | null; proposta?: unknown }) {
+  async function salvarPatch(
+    id: string,
+    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null },
+  ) {
     setLeads((atual) => atual.map((l) => (l.id === id ? { ...l, ...patch } as Lead : l)));
     const r = await fetch('/api/leads/' + encodeURIComponent(id), {
       method: 'PATCH',
@@ -768,7 +771,16 @@ export default function Painel({
           <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
         )}
 
-        {promptDe && <PromptModal lead={promptDe} aoFechar={() => setPromptDe(null)} />}
+        {promptDe && (
+          <PromptModal
+            lead={promptDe}
+            aoFechar={() => setPromptDe(null)}
+            aoSalvarPrevia={async (url) => {
+              await salvarPatch(promptDe.id, { previaUrl: url || null });
+              setPromptDe((atual) => (atual ? { ...atual, previaUrl: url || null } : atual));
+            }}
+          />
+        )}
 
         {propostaDe && (
           <PropostaModal

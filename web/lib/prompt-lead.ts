@@ -141,6 +141,7 @@ function reputacao(lead: Lead): string {
 
 export function montarPrompt(lead: Lead): string {
   const a = anguloDoLead(lead);
+  const previa = (lead.previaUrl || '').trim();
   const linha = (rotulo: string, valor: string | null | undefined) =>
     valor ? `- ${rotulo}: ${valor}` : null;
 
@@ -176,6 +177,23 @@ ${a.cuidado}
 ## O QUE EU VENDO
 
 Sites institucionais, landing pages e automações de atendimento (WhatsApp, agendamento, orçamento). Atendo pequenos comércios, entrego rápido e cobro preço de mercado brasileiro — não sou agência grande.
+${previa ? `
+## O TRUNFO DESTA ABORDAGEM: JÁ FIZ UMA PRÉVIA
+
+Antes de falar com ele, publiquei um site de demonstração feito para o negócio dele, no ar agora:
+
+${previa}
+
+Isto muda a conversa inteira e precisa ser o centro do material que você vai montar:
+
+- Eu não estou pedindo para ele imaginar nada. Ele clica e vê.
+- Não custou nada para ele e não gera compromisso nenhum. Deixe isso explícito, senão soa como armadilha.
+- É um ponto de partida, não o produto final. O site de verdade é melhor: feito com as fotos dele, os textos dele, as cores da marca dele, os serviços e preços reais — a prévia usa o que dava para montar de fora.
+- Tudo é personalizável: cores, seções, fotos, textos, o que entra e o que sai.
+- Mostra que eu já investi trabalho antes de cobrar qualquer coisa.
+
+**Como usar isso sem parecer exagero:** mande o link cedo na conversa, mas não prometa que está perfeito. O tom é "montei uma ideia rápida para você ver como ficaria — e o que a gente faz de verdade fica bem acima disso". Convide-o a apontar o que mudaria; a crítica dele vira briefing e vira venda.
+` : ''}
 
 ## O QUE EU PRECISO QUE VOCÊ MONTE
 
@@ -189,21 +207,26 @@ O que ele está perdendo hoje, em termos concretos. Se der para estimar (busca m
 Qual é a primeira frase. O que abre a porta com esse dono específico, considerando o cuidado apontado acima.
 
 **4. Três mensagens de WhatsApp**
-Curtas, no máximo 4 linhas cada, em português brasileiro informal mas profissional. Sem "espero que esteja bem". Sem parecer robô ou disparo em massa. Três ângulos diferentes:
+Curtas, no máximo 4 linhas cada, em português brasileiro informal mas profissional. Sem "espero que esteja bem". Sem parecer robô ou disparo em massa.${previa ? ' **Todas devem levar ao link da prévia**, cada uma entrando por um caminho diferente — em nenhuma delas o link pode parecer propaganda colada no fim.' : ''} Três ângulos:
 - uma que avisa de um problema
 - uma que puxa pela oportunidade
-- uma bem curta e direta
+- uma bem curta e direta${previa ? `
+
+Escreva o link exatamente assim quando for usá-lo: ${previa}` : ''}
 
 **5. Roteiro de ligação**
-Abertura em até 15 segundos, 3 perguntas que fazem o dono perceber sozinho o problema, e como encaminhar para uma proposta. Escreva como fala, não como texto.
+Abertura em até 15 segundos, 3 perguntas que fazem o dono perceber sozinho o problema, e como encaminhar para uma proposta. Escreva como fala, não como texto.${previa ? ' Inclua o momento exato de dizer que já existe uma prévia pronta e como conduzir para ele abrir o link ainda durante a ligação — e o que dizer enquanto ele estiver olhando.' : ''}
 
 **6. As cinco objeções mais prováveis**
-Com a resposta para cada uma. Inclua obrigatoriamente "não tenho dinheiro agora", "meu Instagram já dá conta" e "vou pensar".
+Com a resposta para cada uma. Inclua obrigatoriamente "não tenho dinheiro agora", "meu Instagram já dá conta" e "vou pensar".${previa ? ' Inclua também as que a prévia costuma provocar: "não gostei desse layout", "isso aí é template pronto?" e "por que você fez isso de graça, qual é a pegadinha?".' : ''}
 
 **7. Proposta**
 O que oferecer nesse caso, com escopo enxuto e faixa de preço em reais realista para o Brasil. Sugira também uma isca inicial mais barata, para começar a relação.
 
-**8. O que descobrir antes de ligar**
+**8. ${previa ? 'Mensagem de retomada' : 'Quando insistir'}**
+${previa ? 'Uma mensagem curta para mandar dois ou três dias depois, caso ele tenha aberto a prévia e não respondido. Sem cobrança e sem "passando para saber se viu".' : 'Como e quando fazer o segundo contato de quem não respondeu, sem parecer insistência.'}
+
+**9. O que descobrir antes de ligar**
 Lista curta do que eu deveria olhar (Instagram dele, concorrentes que aparecem na frente, movimento da região) para chegar preparado.
 
 Responda direto, em português do Brasil, no formato acima. Nada de introdução nem de resumo no final.`;
