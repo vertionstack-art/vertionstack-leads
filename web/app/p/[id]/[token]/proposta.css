@@ -397,23 +397,27 @@
 /* ------------------------------------ documento de plano contratado */
 
 /*
- * Aqui não há mais nada sendo vendido: o cliente já escolheu. O cartão
- * ocupa a largura toda e o que estava apertado em três colunas ganha
- * espaço para ser lido com calma — este é o papel que ele vai guardar
- * para conferir se recebeu o que contratou.
+ * A proposta é um bloco só: uma lista do que vai ser entregue, com espaço
+ * para ser lida com calma. O verde entra quando o cliente já fechou —
+ * confirmação, não oferta.
  */
 
 .planos--unico { display: block; }
 
 .plano--fechado {
   padding: 32px 30px 28px;
+  border-color: var(--roxo);
+  box-shadow: inset 0 0 0 1px var(--roxo);
+}
+
+.plano--contratado {
   border-color: #047857;
   box-shadow: inset 0 0 0 1px #047857;
 }
 
 .selo--fechado { background: #047857; }
 
-.plano--fechado .plano-nome { font-size: 30px; }
+.plano--fechado .preco { padding-top: 6px; }
 .plano--fechado .preco-valor { font-size: 34px; }
 
 .plano--fechado .itens {

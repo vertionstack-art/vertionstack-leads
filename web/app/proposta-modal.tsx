@@ -16,24 +16,15 @@ import {
   ALVO_MINIMO,
   PISO_ABSOLUTO,
   moeda,
-  montarPropostas,
+  montarProposta,
+  normalizarMarcacoes,
   tetoDoPorte,
   textoDaProposta,
   type Marcacoes,
-  type Nivel,
 } from '@/lib/proposta';
 
 const ORDEM_FAMILIAS: Familia[] = ['presenca', 'conversao', 'encontrar', 'conteudo', 'infra', 'recorrente'];
 
-const CICLO: (Nivel | undefined)[] = [undefined, 'basico', 'intermediario', 'avancado'];
-
-const COR_NIVEL: Record<Nivel, string> = {
-  basico: 'bg-emerald-600 text-white border-emerald-600',
-  intermediario: 'bg-roxo-600 text-white border-roxo-600',
-  avancado: 'bg-tinta text-white border-tinta',
-};
-
-const SIGLA: Record<Nivel, string> = { basico: 'E', intermediario: 'C', avancado: 'P' };
 
 export default function PropostaModal({
   lead,
@@ -52,7 +43,7 @@ export default function PropostaModal({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
-    escolhido?: Nivel | null;
+    fechado?: boolean;
   } | null;
 
   const [porte, setPorte] = useState<Porte>(salvo?.porte || 'micro');
@@ -63,10 +54,10 @@ export default function PropostaModal({
    * — o contrário de escolher. Quem monta a proposta decide item a item o
    * que vai oferecer para aquele comércio.
    */
-  const [marcacoes, setMarcacoes] = useState<Marcacoes>(salvo?.marcacoes || {});
+  const [marcacoes, setMarcacoes] = useState<Marcacoes>(normalizarMarcacoes(salvo?.marcacoes));
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
-  const [escolhido, setEscolhido] = useState<Nivel | null>(salvo?.escolhido || null);
+  const [fechado, setFechado] = useState<boolean>(Boolean(salvo?.fechado));
   const [copiado, setCopiado] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -78,22 +69,22 @@ export default function PropostaModal({
     return () => document.removeEventListener('keydown', esc);
   }, [aoFechar]);
 
-  const planos = useMemo(
-    () => montarPropostas({ marcacoes, porte, formalizacao, desconto, ignorarTeto }),
+  const proposta = useMemo(
+    () => montarProposta({ marcacoes, porte, formalizacao, desconto, ignorarTeto }),
     [marcacoes, porte, formalizacao, desconto, ignorarTeto],
   );
 
-  /** um clique avança o item para o próximo plano; volta ao "não incluso" no fim */
-  function girar(id: string) {
+  /** liga ou desliga o serviço na proposta */
+  function alternar(id: string) {
     setMarcacoes((atual) => {
-      const agora = atual[id];
-      const proximo = CICLO[(CICLO.indexOf(agora) + 1) % CICLO.length];
-      const novo = { ...atual, [id]: proximo };
+      const ligando = !atual[id];
+      const novo = { ...atual, [id]: ligando };
+      if (!ligando) delete novo[id];
 
       // só níveis alternativos do mesmo serviço se excluem (os três
       // suportes). Produtos diferentes somam: landing mais loja virtual
       // é escopo maior, não escolha entre um e outro.
-      if (proximo) {
+      if (ligando) {
         for (const conflito of porId(id)?.conflitaCom || []) {
           if (conflito !== id) delete novo[conflito];
         }
@@ -104,13 +95,13 @@ export default function PropostaModal({
 
   async function salvar() {
     setGuardando(true);
-    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, escolhido });
+    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, fechado });
     setSalvouAlgumaVez(true);
     setGuardando(false);
   }
 
   function copiarTexto() {
-    navigator.clipboard.writeText(textoDaProposta(lead.name, planos));
+    navigator.clipboard.writeText(textoDaProposta(lead.name, proposta));
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
   }
@@ -130,7 +121,7 @@ export default function PropostaModal({
               Montar proposta — {lead.name}
             </h2>
             <p className="mt-0.5 text-[12px] text-zinc-500">
-              Clique em cada serviço para escolher em que plano ele entra. Os planos são cumulativos.
+              Marque o que vai ser oferecido a este comércio. O preço se ajusta sozinho.
             </p>
           </div>
           <button
@@ -191,22 +182,8 @@ export default function PropostaModal({
               <p className="mt-2 text-[11.5px] leading-relaxed text-zinc-500">{FORMALIZACOES[formalizacao].dica}</p>
             </section>
 
-            {/* legenda */}
-            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
-              <span className="font-medium">Clique para incluir:</span>
-              <span className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded border border-emerald-600 bg-emerald-600 text-[10px] font-bold text-white">E</span>
-                Essencial
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded border border-roxo-600 bg-roxo-600 text-[10px] font-bold text-white">C</span>
-                Completo
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded border border-tinta bg-tinta text-[10px] font-bold text-white">P</span>
-                Premium
-              </span>
-              <span className="text-zinc-400">· clicar de novo remove</span>
+            <div className="mb-4 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
+              Clique num serviço para incluir na proposta. Clique de novo para tirar.
             </div>
 
             {/* serviços */}
@@ -217,24 +194,25 @@ export default function PropostaModal({
 
                 <div className="space-y-1">
                   {CATALOGO.filter((s) => s.familia === fam).map((s) => {
-                    const nivel = marcacoes[s.id];
+                    const incluso = Boolean(marcacoes[s.id]);
                     return (
                       <button
                         key={s.id}
-                        onClick={() => girar(s.id)}
+                        onClick={() => alternar(s.id)}
+                        aria-pressed={incluso}
                         className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition ${
-                          nivel ? 'border-zinc-300 bg-white' : 'border-transparent bg-zinc-50 hover:bg-zinc-100'
+                          incluso ? 'border-roxo-300 bg-roxo-50' : 'border-transparent bg-zinc-50 hover:bg-zinc-100'
                         }`}
                       >
                         <span
-                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[10px] font-bold ${
-                            nivel ? COR_NIVEL[nivel] : 'border-zinc-300 bg-white text-transparent'
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border text-[11px] font-bold ${
+                            incluso ? 'border-roxo-600 bg-roxo-600 text-white' : 'border-zinc-300 bg-white text-transparent'
                           }`}
                         >
-                          {nivel ? SIGLA[nivel] : '·'}
+                          {incluso ? '✓' : '·'}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className={`block text-[13px] ${nivel ? 'font-medium text-tinta' : 'text-zinc-600'}`}>
+                          <span className={`block text-[13px] ${incluso ? 'font-medium text-tinta' : 'text-zinc-600'}`}>
                             {s.nome}
                           </span>
                           <span className="block text-[11px] leading-snug text-zinc-500">{s.beneficio}</span>
@@ -254,65 +232,56 @@ export default function PropostaModal({
             ))}
           </div>
 
-          {/* -------------------------------------------------- planos */}
+          {/* ------------------------------------------------- proposta */}
           <div className="min-h-0 overflow-auto bg-zinc-50 p-5">
             {nenhumMarcado ? (
               <p className="mt-8 text-center text-[13px] text-zinc-500">
-                Marque os serviços ao lado para ver as três propostas.
+                Marque ao lado o que vai ser oferecido. O preço aparece aqui.
               </p>
             ) : (
               <>
-                {planos.map((p) => (
-                  <div
-                    key={p.nivel}
-                    className={`mb-3 rounded-xl border bg-white p-4 ${
-                      p.nivel === 'intermediario' ? 'border-roxo-400 ring-2 ring-roxo-100' : 'border-zinc-200'
-                    }`}
-                  >
-                    <div className="flex items-baseline justify-between">
-                      <h4 className="text-[13px] font-semibold uppercase tracking-wide">{p.rotulo}</h4>
-                      {p.nivel === 'intermediario' && (
-                        <span className="rounded-full bg-roxo-100 px-2 py-0.5 text-[10px] font-medium text-roxo-800">
-                          o que mais fecha
-                        </span>
-                      )}
-                    </div>
+                <div className="mb-3 rounded-xl border border-roxo-400 bg-white p-4 ring-2 ring-roxo-100">
+                  <h4 className="text-[13px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Valor da proposta
+                  </h4>
 
-                    <div className="mt-1.5 text-[22px] font-semibold tabular-nums text-tinta">
-                      {p.entrada > 0 ? moeda(p.entrada) : '—'}
-                    </div>
-                    {p.mensalidade > 0 && (
-                      <div className="text-[12.5px] text-zinc-600">
-                        + <b className="tabular-nums">{moeda(p.mensalidade)}</b> por mês
-                      </div>
-                    )}
-
-                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-zinc-500">
-                      <span>{p.itens.filter((i) => !i.mensal).length} entregas</span>
-                      {p.custoUnico > 0 && <span>seu custo {moeda(p.custoUnico)}</span>}
-                      <span className={p.margemEntrada < 200 ? 'font-medium text-amber-700' : ''}>
-                        sobra {moeda(p.margemEntrada)}
-                      </span>
-                    </div>
-
-                    {p.avisos.map((a, i) => (
-                      <p key={i} className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
-                        {a}
-                      </p>
-                    ))}
-
-                    <button
-                      onClick={() => setEscolhido(escolhido === p.nivel ? null : p.nivel)}
-                      className={`mt-3 min-h-[36px] w-full rounded-lg border text-[12px] font-medium transition ${
-                        escolhido === p.nivel
-                          ? 'border-emerald-600 bg-emerald-600 text-white'
-                          : 'border-zinc-300 text-zinc-600 hover:border-emerald-500 hover:text-emerald-700'
-                      }`}
-                    >
-                      {escolhido === p.nivel ? '✓ foi este que ele fechou' : 'marcar como fechado'}
-                    </button>
+                  <div className="mt-1.5 text-[28px] font-semibold tabular-nums text-tinta">
+                    {proposta.entrada > 0 ? moeda(proposta.entrada) : '—'}
                   </div>
-                ))}
+                  {proposta.mensalidade > 0 && (
+                    <div className="text-[13px] text-zinc-600">
+                      + <b className="tabular-nums">{moeda(proposta.mensalidade)}</b> por mês
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex flex-wrap gap-x-3 gap-y-0.5 border-t border-zinc-100 pt-3 text-[11.5px] text-zinc-500">
+                    <span>{proposta.itens.filter((i) => !i.mensal).length} entregas</span>
+                    {proposta.itens.some((i) => i.mensal) && (
+                      <span>{proposta.itens.filter((i) => i.mensal).length} mensais</span>
+                    )}
+                    {proposta.custoUnico > 0 && <span>seu custo {moeda(proposta.custoUnico)}</span>}
+                    <span className={proposta.margemEntrada < 200 ? 'font-medium text-amber-700' : ''}>
+                      sobra {moeda(proposta.margemEntrada)}
+                    </span>
+                  </div>
+
+                  {proposta.avisos.map((a, i) => (
+                    <p key={i} className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
+                      {a}
+                    </p>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setFechado(!fechado)}
+                  className={`mb-3 min-h-[40px] w-full rounded-xl border text-[12.5px] font-medium transition ${
+                    fechado
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-zinc-300 bg-white text-zinc-600 hover:border-emerald-500 hover:text-emerald-700'
+                  }`}
+                >
+                  {fechado ? '✓ o cliente fechou' : 'marcar como fechado'}
+                </button>
 
                 <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
                   <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -360,9 +329,9 @@ export default function PropostaModal({
           <p className="text-[12px] text-zinc-500">
             {!salvouAlgumaVez
               ? 'Salve para liberar o link e o PDF que vão para o cliente.'
-              : escolhido
-                ? 'Cliente fechou o plano — o PDF verde traz só o que ele contratou.'
-                : 'Marque num dos planos qual ele fechou para gerar o documento de confirmação.'}
+              : fechado
+                ? 'Cliente fechou — o PDF verde é o documento de confirmação.'
+                : 'Se o cliente fechar, marque acima para gerar o documento de confirmação.'}
           </p>
           <div className="flex gap-2">
             <button
@@ -396,11 +365,11 @@ export default function PropostaModal({
                   : 'pointer-events-none border-zinc-200 text-zinc-300'
               }`}
             >
-              As 3 opções ↗
+              Ver proposta ↗
             </a>
-            {escolhido && (
+            {fechado && (
               <a
-                href={`${linkProposta}?plano=${escolhido}`}
+                href={`${linkProposta}?fechado=1`}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-disabled={!salvouAlgumaVez}

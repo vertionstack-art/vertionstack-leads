@@ -1,70 +1,53 @@
 /**
- * Monta as três propostas a partir do que foi marcado.
+ * Monta a proposta a partir do que foi marcado.
  *
- * Os planos são cumulativos: cada serviço é marcado com o plano em que
- * *entra*, e continua valendo nos de cima. Marcar "landing page" como
- * básico significa que ela está nos três; marcar "agendamento" como
- * avançado significa que só o avançado tem.
+ * Uma lista, um preço: cada serviço entra ou não entra. A versão anterior
+ * dividia tudo em Essencial, Completo e Premium, o que obrigava a decidir
+ * duas coisas por item — se ele entra e em qual faixa — quando a conversa
+ * com o comerciante é só sobre o que ele vai levar.
  *
  * Sobre os limites: o piso não é preferência, é sobrevivência — abaixo
  * dele o trabalho sai de graça ou no prejuízo. O teto é o contrário: um
- * número que impede pedir demais para quem não pode pagar, e que sobe
- * junto com o porte do cliente, porque cobrar de uma rede o mesmo que de
- * uma barbearia de uma cadeira é deixar dinheiro na mesa.
+ * número que impede pedir demais de quem não pode pagar, e que sobe junto
+ * com o porte do cliente, porque cobrar de uma rede o mesmo que de uma
+ * barbearia de uma cadeira é deixar dinheiro na mesa.
  */
 
-import {
-  CATALOGO,
-  PORTES,
-  FORMALIZACOES,
-  porId,
-  type Porte,
-  type Formalizacao,
-} from './catalogo';
+import { CATALOGO, PORTES, FORMALIZACOES, type Porte, type Formalizacao } from './catalogo';
 
-export type Nivel = 'basico' | 'intermediario' | 'avancado';
-
-export const NIVEIS: Nivel[] = ['basico', 'intermediario', 'avancado'];
-
-export const ROTULO_NIVEL: Record<Nivel, string> = {
-  basico: 'Essencial',
-  intermediario: 'Completo',
-  avancado: 'Premium',
-};
-
-/** o que o vendedor marcou: id do serviço -> plano em que ele entra */
-export type Marcacoes = Record<string, Nivel | undefined>;
+/** id do serviço -> está incluso */
+export type Marcacoes = Record<string, boolean>;
 
 export interface ConfigProposta {
   marcacoes: Marcacoes;
   porte: Porte;
   formalizacao: Formalizacao;
-  /** desconto manual em % aplicado no fim, se o vendedor quiser */
+  /** desconto manual em % aplicado no fim */
   desconto?: number;
   /**
-   * Solta o teto do porte. Serve para escopo que é grande de verdade —
-   * uma landing somada a uma loja virtual custa mais mesmo, e nesse caso
-   * o teto estaria escondendo o preço certo em vez de proteger o cliente.
+   * Solta o teto do porte. Serve para escopo grande de verdade — uma
+   * landing somada a uma loja virtual custa mais mesmo, e aí o teto
+   * esconderia o preço certo em vez de proteger o cliente.
    */
   ignorarTeto?: boolean;
+  /** o cliente fechou: muda o documento de proposta para confirmação */
+  fechado?: boolean;
 }
 
-export interface ItemDoPlano {
+export interface ItemDaProposta {
   id: string;
   nome: string;
   beneficio: string;
   mensal: boolean;
 }
 
-export interface Plano {
-  nivel: Nivel;
-  rotulo: string;
-  itens: ItemDoPlano[];
+export interface Proposta {
+  itens: ItemDaProposta[];
   /** valor de entrada, cobrado uma vez */
   entrada: number;
   /** valor por mês */
   mensalidade: number;
-  /** o que sai do seu bolso: uma vez e por mês */
+  /** o que sai do seu bolso */
   custoUnico: number;
   custoMensal: number;
   /** quanto sobra da entrada depois dos custos */
@@ -76,12 +59,10 @@ export interface Plano {
 
 /** abaixo disto o projeto não se paga */
 export const PISO_ABSOLUTO = 387.45;
-/** onde o plano de entrada deveria chegar */
+/** onde a proposta deveria chegar */
 export const ALVO_MINIMO = 500;
-/** teto do plano premium para um cliente micro; sobe com o porte */
+/** teto para um cliente micro; sobe com o porte */
 export const TETO_BASE = 1200;
-
-const ordem: Record<Nivel, number> = { basico: 0, intermediario: 1, avancado: 2 };
 
 /** termina em ,45 como o piso — número quebrado passa impressão de conta feita */
 function arredondar(v: number): number {
@@ -98,16 +79,31 @@ export function tetoDoPorte(porte: Porte): number {
   return Math.round(TETO_BASE * PORTES[porte].fator);
 }
 
+export function moeda(v: number): string {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/**
+ * Aceita o formato antigo, em que cada item guardava o plano em que entrava
+ * ('basico' | 'intermediario' | 'avancado'). Propostas salvas antes desta
+ * mudança continuam abrindo: qualquer valor preenchido vira "incluso".
+ */
+export function normalizarMarcacoes(bruto: unknown): Marcacoes {
+  const saida: Marcacoes = {};
+  if (!bruto || typeof bruto !== 'object') return saida;
+  for (const [id, valor] of Object.entries(bruto as Record<string, unknown>)) {
+    if (valor) saida[id] = true;
+  }
+  return saida;
+}
+
 // ------------------------------------------------------------- cálculo
 
-function montarPlano(nivel: Nivel, cfg: ConfigProposta): Plano {
+export function montarProposta(cfg: ConfigProposta): Proposta {
   const fator = PORTES[cfg.porte].fator * FORMALIZACOES[cfg.formalizacao].fator;
   const avisos: string[] = [];
 
-  const escolhidos = CATALOGO.filter((s) => {
-    const marcado = cfg.marcacoes[s.id];
-    return marcado !== undefined && ordem[marcado] <= ordem[nivel];
-  });
+  const escolhidos = CATALOGO.filter((s) => cfg.marcacoes[s.id]);
 
   let baseUnica = 0;
   let baseMensal = 0;
@@ -124,7 +120,6 @@ function montarPlano(nivel: Nivel, cfg: ConfigProposta): Plano {
     }
   }
 
-  // o domínio é anual: para a conta de entrada, vale o primeiro ano
   let entrada = baseUnica * fator;
   let mensalidade = baseMensal * fator;
 
@@ -133,6 +128,8 @@ function montarPlano(nivel: Nivel, cfg: ConfigProposta): Plano {
     mensalidade *= 1 - cfg.desconto / 100;
   }
 
+  const teto = tetoDoPorte(cfg.porte);
+
   if (entrada > 0 && entrada < PISO_ABSOLUTO) {
     avisos.push(`Ficou abaixo do piso de ${moeda(PISO_ABSOLUTO)}; ajustei para o piso.`);
     entrada = PISO_ABSOLUTO;
@@ -140,16 +137,31 @@ function montarPlano(nivel: Nivel, cfg: ConfigProposta): Plano {
     avisos.push(`Abaixo dos ${moeda(ALVO_MINIMO)} que você quer como mínimo. Vale incluir mais um item.`);
   }
 
+  if (entrada > teto) {
+    if (cfg.ignorarTeto) {
+      avisos.push(
+        `Acima do teto de ${moeda(teto)} deste porte, mas o teto está liberado. ` +
+          'Confira se o cliente comporta esse valor.',
+      );
+    } else {
+      const antes = entrada;
+      entrada = teto;
+      avisos.push(
+        `Cortei de ${moeda(arredondar(antes))} para o teto de ${moeda(teto)} deste porte. ` +
+          'Se o escopo é grande mesmo, libere o teto aqui embaixo.',
+      );
+    }
+  }
+
   entrada = entrada > 0 ? arredondar(entrada) : 0;
   mensalidade = arredondarMensal(mensalidade);
 
-  if (entrada > 0 && entrada - custoUnico < 200) {
+  const margemEntrada = entrada - custoUnico;
+  if (entrada > 0 && margemEntrada < 200) {
     avisos.push('Sobra pouco depois dos custos. Confira se compensa.');
   }
 
   return {
-    nivel,
-    rotulo: ROTULO_NIVEL[nivel],
     itens: escolhidos.map((s) => ({
       id: s.id,
       nome: s.nome,
@@ -160,96 +172,31 @@ function montarPlano(nivel: Nivel, cfg: ConfigProposta): Plano {
     mensalidade,
     custoUnico,
     custoMensal,
-    margemEntrada: entrada - custoUnico,
+    margemEntrada,
     avisos,
   };
 }
 
-/**
- * O teto precisa ser respeitado de verdade, não só avisado.
- *
- * Corta só quem passou do limite. A primeira versão encolhia os três na
- * mesma proporção, e isso produzia um absurdo: marcar MEI, que dá desconto,
- * deixava o plano de entrada MAIS caro — porque com a base menor o premium
- * chegava mais perto do teto, era comprimido menos, e a compressão menor
- * subia os outros junto. Teto é limite de quem estoura, não régua geral.
- */
-export function montarPropostas(cfg: ConfigProposta): Plano[] {
-  const planos = NIVEIS.map((n) => montarPlano(n, cfg));
-  const teto = tetoDoPorte(cfg.porte);
-
-  for (const p of planos) {
-    if (p.entrada <= teto) continue;
-
-    if (cfg.ignorarTeto) {
-      p.avisos.push(
-        `Acima do teto de ${moeda(teto)} deste porte, mas o teto está liberado. ` +
-          'Confira se o cliente comporta esse valor.',
-      );
-      continue;
-    }
-
-    const antes = p.entrada;
-    p.entrada = Math.max(PISO_ABSOLUTO, arredondar(teto));
-    p.margemEntrada = p.entrada - p.custoUnico;
-    p.avisos.push(
-      `Cortei de ${moeda(antes)} para o teto de ${moeda(teto)} deste porte. ` +
-        'Se o escopo é grande mesmo, libere o teto aqui embaixo.',
-    );
-  }
-
-  // a escada precisa subir: nunca um plano maior custando igual ou menos.
-  // Quando o teto achatou dois planos no mesmo valor, o de baixo é que cede.
-  for (let i = planos.length - 1; i > 0; i--) {
-    const atual = planos[i];
-    const anterior = planos[i - 1];
-    if (atual.entrada > 0 && anterior.entrada >= atual.entrada) {
-      anterior.entrada = arredondar(atual.entrada * 0.82);
-      anterior.margemEntrada = anterior.entrada - anterior.custoUnico;
-    }
-  }
-
-  for (const p of planos) {
-    if (p.entrada > 0 && p.margemEntrada < 200 && !p.avisos.some((a) => a.startsWith('Sobra pouco'))) {
-      p.avisos.push('Sobra pouco depois dos custos. Confira se compensa.');
-    }
-  }
-
-  return planos;
-}
-
-export function moeda(v: number): string {
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
 // -------------------------------------------------- texto para enviar
 
-export function textoDaProposta(nomeCliente: string, planos: Plano[]): string {
+export function textoDaProposta(nomeCliente: string, p: Proposta): string {
   const linhas: string[] = [];
   linhas.push(`*Proposta — ${nomeCliente}*`);
   linhas.push('');
 
-  for (const p of planos) {
-    if (!p.itens.length) continue;
+  for (const i of p.itens.filter((x) => !x.mensal)) linhas.push(`• ${i.nome}`);
 
-    linhas.push(`*${p.rotulo.toUpperCase()}*`);
-    for (const i of p.itens.filter((x) => !x.mensal)) linhas.push(`• ${i.nome}`);
-
-    const mensais = p.itens.filter((x) => x.mensal);
-    if (mensais.length) {
-      linhas.push('');
-      linhas.push('_Acompanhamento mensal:_');
-      for (const i of mensais) linhas.push(`• ${i.nome}`);
-    }
-
+  const mensais = p.itens.filter((x) => x.mensal);
+  if (mensais.length) {
     linhas.push('');
-    if (p.entrada > 0) linhas.push(`Investimento: *${moeda(p.entrada)}*`);
-    if (p.mensalidade > 0) linhas.push(`Mensalidade: *${moeda(p.mensalidade)}/mês*`);
-    linhas.push('');
-    linhas.push('—');
-    linhas.push('');
+    linhas.push('_Acompanhamento mensal:_');
+    for (const i of mensais) linhas.push(`• ${i.nome}`);
   }
 
+  linhas.push('');
+  if (p.entrada > 0) linhas.push(`Investimento: *${moeda(p.entrada)}*`);
+  if (p.mensalidade > 0) linhas.push(`Mensalidade: *${moeda(p.mensalidade)}/mês*`);
+  linhas.push('');
   linhas.push('Domínio próprio e certificado de segurança já inclusos.');
   linhas.push('Qualquer dúvida, é só chamar.');
 

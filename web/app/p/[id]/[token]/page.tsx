@@ -2,7 +2,7 @@ import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { buscarLead } from '@/lib/db';
 import { tokenConfere } from '@/lib/token-proposta';
-import { montarPropostas, moeda, type Marcacoes } from '@/lib/proposta';
+import { montarProposta, moeda, normalizarMarcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import BotaoImprimir from './imprimir';
@@ -70,10 +70,10 @@ export default async function PaginaProposta({
   searchParams,
 }: {
   params: Promise<{ id: string; token: string }>;
-  searchParams: Promise<{ plano?: string }>;
+  searchParams: Promise<{ fechado?: string }>;
 }) {
   const { id, token } = await params;
-  const { plano: planoPedido } = await searchParams;
+  const { fechado: pediuFechado } = await searchParams;
   const idLimpo = decodeURIComponent(id);
 
   if (!tokenConfere(idLimpo, token)) notFound();
@@ -87,32 +87,29 @@ export default async function PaginaProposta({
   if (!lead || !lead.proposta) notFound();
 
   const cfg = lead.proposta as {
-    marcacoes?: Marcacoes;
+    marcacoes?: unknown;
     porte?: Porte;
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
   };
 
-  const todos = montarPropostas({
-    marcacoes: cfg.marcacoes || {},
+  const proposta = montarProposta({
+    marcacoes: normalizarMarcacoes(cfg.marcacoes),
     porte: cfg.porte || 'micro',
     formalizacao: cfg.formalizacao || 'desconhecido',
     desconto: cfg.desconto,
     ignorarTeto: cfg.ignorarTeto,
-  }).filter((p) => p.itens.length > 0);
+  });
 
-  if (!todos.length) notFound();
+  if (!proposta.itens.length) notFound();
 
   /*
-   * Dois documentos saem daqui. Com ?plano=, e o resumo do que o cliente
-   * fechou: nao ha mais nada a vender, entao some a comparacao e entra o
-   * detalhe do que ele recebe e o que acontece depois. Sem o parametro,
-   * e a proposta com as tres opcoes.
+   * Dois documentos saem daqui. Com ?fechado=1, e o resumo do que o cliente
+   * contratou: nao ha mais nada a vender, entao entra o detalhe do que ele
+   * recebe e o que acontece depois, e sai o prazo de validade.
    */
-  const escolhido = planoPedido ? todos.find((p) => p.nivel === planoPedido) : undefined;
-  const planos = escolhido ? [escolhido] : todos;
-  const fechado = Boolean(escolhido);
+  const fechado = pediuFechado === '1';
 
   const hoje = new Date();
   const validade = new Date(hoje.getTime() + DIAS_DE_VALIDADE * 86400000);
@@ -146,63 +143,52 @@ export default async function PaginaProposta({
           )}
           <p className="lead">
             {fechado
-              ? `Este é o resumo do plano ${planos[0].rotulo} que vocês fecharam. Guarde este documento: ele lista tudo o que está incluso e o que acontece a partir de agora.`
+              ? 'Este é o resumo do que vocês fecharam. Guarde este documento: ele lista tudo o que está incluso e o que acontece a partir de agora.'
               : abertura}
           </p>
         </section>
 
-        {/* ------------------------------------------------------- planos */}
-        <section
-          className={`planos ${fechado ? 'planos--unico' : ''}`}
-          style={{ '--n': planos.length } as React.CSSProperties}
-        >
-          {planos.map((p, i) => (
-            <div
-              key={p.nivel}
-              className={`plano ${!fechado && i === 1 ? 'plano--destaque' : ''} ${fechado ? 'plano--fechado' : ''}`}
-            >
-              {!fechado && i === 1 && <span className="selo">mais escolhido</span>}
-              {fechado && <span className="selo selo--fechado">plano contratado</span>}
+        {/* ----------------------------------------------------- proposta */}
+        <section className="planos planos--unico">
+          <div className={`plano plano--fechado ${fechado ? 'plano--contratado' : ''}`}>
+            <span className={`selo ${fechado ? 'selo--fechado' : ''}`}>
+              {fechado ? 'contratado' : 'o que está incluso'}
+            </span>
 
-              <h2 className="plano-nome">{p.rotulo}</h2>
-
-              <div className="preco">
-                <span className="preco-valor">{moeda(p.entrada)}</span>
-                {p.mensalidade > 0 && (
-                  <span className="preco-mensal">
-                    depois {moeda(p.mensalidade)} por mês
-                  </span>
-                )}
-              </div>
-
-              <ul className="itens">
-                {p.itens
-                  .filter((it) => !it.mensal)
-                  .map((it) => (
-                    <li key={it.id}>
-                      <strong>{it.nome}</strong>
-                      <span>{it.beneficio}</span>
-                    </li>
-                  ))}
-              </ul>
-
-              {p.itens.some((it) => it.mensal) && (
-                <>
-                  <p className="itens-titulo">Todo mês</p>
-                  <ul className="itens itens--mensal">
-                    {p.itens
-                      .filter((it) => it.mensal)
-                      .map((it) => (
-                        <li key={it.id}>
-                          <strong>{it.nome}</strong>
-                          <span>{it.beneficio}</span>
-                        </li>
-                      ))}
-                  </ul>
-                </>
+            <div className="preco">
+              <span className="preco-valor">{moeda(proposta.entrada)}</span>
+              {proposta.mensalidade > 0 && (
+                <span className="preco-mensal">depois {moeda(proposta.mensalidade)} por mês</span>
               )}
             </div>
-          ))}
+
+            <ul className="itens">
+              {proposta.itens
+                .filter((it) => !it.mensal)
+                .map((it) => (
+                  <li key={it.id}>
+                    <strong>{it.nome}</strong>
+                    <span>{it.beneficio}</span>
+                  </li>
+                ))}
+            </ul>
+
+            {proposta.itens.some((it) => it.mensal) && (
+              <>
+                <p className="itens-titulo">Todo mês</p>
+                <ul className="itens itens--mensal">
+                  {proposta.itens
+                    .filter((it) => it.mensal)
+                    .map((it) => (
+                      <li key={it.id}>
+                        <strong>{it.nome}</strong>
+                        <span>{it.beneficio}</span>
+                      </li>
+                    ))}
+                </ul>
+              </>
+            )}
+          </div>
         </section>
 
         {/* --------------------------------------------------- condições */}

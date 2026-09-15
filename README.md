@@ -192,67 +192,44 @@ Deixar o campo de site vazio é o que marca o comércio como oportunidade.
 
 ### O botão PROPOSTA
 
-Ao lado do COPY, abre o simulador — **sem nada marcado**. Você marca o porte
-do cliente, como a empresa é registrada, e clica em cada serviço para escolher
-em que plano ele entra — **E** (Essencial), **C** (Completo) ou **P** (Premium). Os planos são
-cumulativos: o que está no Essencial aparece nos três.
+Ao lado do COPY, abre o simulador — **sem nada marcado**. Você escolhe o porte
+do cliente, como a empresa é registrada, e clica nos serviços que vai oferecer.
+Clicar de novo tira. O preço se ajusta sozinho.
 
-Do lado direito saem as três propostas, já com o valor de entrada, a
-mensalidade e **quanto sobra para você** depois dos custos. No fim, um botão
-copia tudo formatado para colar no WhatsApp do cliente.
+Do lado direito sai o valor de entrada, a mensalidade e **quanto sobra para
+você** depois dos custos. Um botão copia tudo formatado para o WhatsApp.
 
 **As regras de preço que o simulador respeita:**
 
 | Regra | Valor | O que faz |
 |---|---|---|
 | Piso | R$ 387,45 | Nunca passa disso para baixo — é o custo |
-| Alvo mínimo | R$ 500 | Avisa quando o Essencial fica abaixo |
-| Teto do Premium | R$ 1.200 × porte | Corta o que estourar |
+| Alvo mínimo | R$ 500 | Avisa quando a proposta fica abaixo |
+| Teto | R$ 1.200 × porte | Corta o que estourar |
 
 O teto acompanha o porte: micro para em R$ 1.200, pequena em R$ 1.620, média
-em R$ 2.220, grande em R$ 3.120. Quando um plano estoura, ele é cortado no
-teto e o simulador avisa.
+em R$ 2.220, grande em R$ 3.120. Quando estoura, é cortado e o simulador
+avisa.
 
 **Dá para marcar quantos produtos quiser.** Uma landing page para campanha e
 uma loja virtual são entregas diferentes e somam. Nesse caso o valor passa do
-teto de propósito — marque *Liberar o teto* embaixo do desconto, e os valores
-cheios voltam. O piso continua valendo sempre. Os únicos itens que se excluem
-são os três níveis de suporte, porque são alternativas do mesmo serviço.
+teto de propósito — marque *Liberar o teto* embaixo do desconto. O piso
+continua valendo sempre. Os únicos itens que se excluem são os três níveis de
+suporte, porque são alternativas do mesmo serviço.
 
 O custo de cada item aparece na lista (o domínio custa R$ 45/ano e entra como
-"incluso" para o cliente). Sem esse número, é fácil fechar negócio no
-prejuízo achando que se negociou bem.
-
-### Mandar a proposta para o cliente
-
-Depois de salvar, o simulador libera dois botões:
-
-- **Copiar link** — manda o endereço da proposta pelo WhatsApp. O cliente
-  abre no celular e vê um documento formatado, sem precisar de conta nem de
-  aplicativo. O link sempre mostra a última versão salva.
-- **Ver / PDF** — abre a proposta e traz um botão *Baixar em PDF*. Na janela
-  de impressão, escolha **Destino: Salvar como PDF**. O arquivo já sai com o
-  nome do cliente.
-
-O link é público de propósito — dono de pizzaria não vai criar conta para
-ler um orçamento — mas não é adivinhável: cada um leva um token derivado do
-id com um segredo do servidor. Trocar o número na barra de endereço dá 404.
-
-A proposta abre com uma frase diferente conforme o que foi encontrado no
-comércio. Para quem está com o site fora do ar, ela começa dizendo
-exatamente isso — vale mais que qualquer texto sobre "soluções digitais".
+"incluso" para o cliente). Sem esse número, é fácil fechar negócio no prejuízo
+achando que se negociou bem.
 
 ### Quando o cliente fecha
 
-Marque, no cartão do plano, **"marcar como fechado"**. Aparece um botão verde
-**PDF do fechado** que gera um documento diferente: sem as outras opções, sem
-prazo de validade, com os itens em duas colunas e uma seção **O que acontece
-agora** em três passos.
+Clique em **"marcar como fechado"**. Aparece um botão verde **PDF do fechado**
+que gera um documento diferente: sem prazo de validade, com os itens em duas
+colunas e uma seção **O que acontece agora** em três passos.
 
-São dois papéis distintos. A proposta compara e tenta convencer; este aqui o
-cliente guarda para conferir se recebeu o que contratou. Manter os dois no
-mesmo formato faria o segundo continuar parecendo venda depois da venda
-feita.
+São dois papéis distintos. A proposta ainda tenta convencer; este aqui o
+cliente guarda para conferir se recebeu o que contratou. Por isso o verde no
+lugar do roxo: confirmação, não oferta.
 
 ### Usando no celular
 
