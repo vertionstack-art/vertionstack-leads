@@ -17,7 +17,6 @@ import {
   PISO_ABSOLUTO,
   moeda,
   montarPropostas,
-  sugerirMarcacoes,
   tetoDoPorte,
   textoDaProposta,
   type Marcacoes,
@@ -58,9 +57,13 @@ export default function PropostaModal({
 
   const [porte, setPorte] = useState<Porte>(salvo?.porte || 'micro');
   const [formalizacao, setFormalizacao] = useState<Formalizacao>(salvo?.formalizacao || 'desconhecido');
-  const [marcacoes, setMarcacoes] = useState<Marcacoes>(
-    salvo?.marcacoes || sugerirMarcacoes(lead.websiteKind, 'micro'),
-  );
+  /*
+   * Abre sem nada marcado de propósito. Antes vinha uma sugestão pronta
+   * com dezesseis serviços, e o trabalho virava desmarcar o que não cabia
+   * — o contrário de escolher. Quem monta a proposta decide item a item o
+   * que vai oferecer para aquele comércio.
+   */
+  const [marcacoes, setMarcacoes] = useState<Marcacoes>(salvo?.marcacoes || {});
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
   const [escolhido, setEscolhido] = useState<Nivel | null>(salvo?.escolhido || null);

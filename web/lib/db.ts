@@ -52,6 +52,10 @@ export interface Lead {
   coletadoPor: string | null;
   /** quem mexeu no status por último — é quem está cuidando do lead */
   responsavel: string | null;
+  /** perfil do Instagram, separado do site: muitos comércios têm um e não o outro */
+  instagram: string | null;
+  /** de onde veio: 'maps' pela extensão, 'manual' cadastrado à mão */
+  origem: string;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
   /**
@@ -120,6 +124,8 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists coletado_por text`;
   await sql`alter table leads add column if not exists responsavel text`;
   await sql`alter table leads add column if not exists proposta jsonb`;
+  await sql`alter table leads add column if not exists instagram text`;
+  await sql`alter table leads add column if not exists origem text not null default 'maps'`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
@@ -144,7 +150,11 @@ function normalizarId(bruto: string): string {
 }
 
 /** limpa e reclassifica o que chegou da extensão — nunca confiar no cliente */
-export function normalizarLead(cru: Record<string, unknown>, coletadoPor?: string | null): Lead | null {
+export function normalizarLead(
+  cru: Record<string, unknown>,
+  coletadoPor?: string | null,
+  origem: string = 'maps',
+): Lead | null {
   const nome = String(cru.name || '').trim();
   if (!nome) return null;
 
@@ -181,6 +191,8 @@ export function normalizarLead(cru: Record<string, unknown>, coletadoPor?: strin
     hours: texto(cru.hours, 200),
     status: 'novo',
     notes: null,
+    instagram: texto(cru.instagram, 300),
+    origem,
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
@@ -217,6 +229,8 @@ function daLinha(r: any): Lead {
     siteStatus: r.site_status,
     siteDetalhe: r.site_detalhe,
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
+    instagram: r.instagram,
+    origem: r.origem || 'maps',
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
     proposta: r.proposta ?? null,
@@ -254,6 +268,8 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           siteStatus: antigo.siteStatus,
           siteDetalhe: antigo.siteDetalhe,
           siteVerificadoEm: antigo.siteVerificadoEm,
+          instagram: l.instagram || antigo.instagram,
+          origem: antigo.origem,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
           responsavel: antigo.responsavel,
           proposta: antigo.proposta,
@@ -280,12 +296,12 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
       insert into leads (
         id, name, category, search_term, city, phone, address, website,
         website_kind, website_label, is_lead, rating, reviews, maps_url,
-        lat, lng, hours, status, coletado_por, updated_at
+        lat, lng, hours, status, coletado_por, instagram, origem, updated_at
       ) values (
         ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
-        'novo', ${l.coletadoPor}, now()
+        'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, now()
       )
       on conflict (id) do update set
         name          = excluded.name,
@@ -305,6 +321,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
         lng           = coalesce(excluded.lng, leads.lng),
         hours         = coalesce(excluded.hours, leads.hours),
         coletado_por  = coalesce(leads.coletado_por, excluded.coletado_por),
+        instagram     = coalesce(excluded.instagram, leads.instagram),
         updated_at    = now()
     `;
   }

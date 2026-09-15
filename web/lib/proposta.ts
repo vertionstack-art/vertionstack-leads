@@ -222,45 +222,6 @@ export function moeda(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-// ----------------------------------------------------------- sugestão
-
-/**
- * Um ponto de partida com base no que já se sabe do lead, para o vendedor
- * ajustar em vez de começar do zero. Quem não tem site nenhum precisa do
- * básico funcionando; quem tem site quebrado precisa de reposição rápida.
- */
-export function sugerirMarcacoes(websiteKind: string, porte: Porte): Marcacoes {
-  const m: Marcacoes = {};
-
-  const principal =
-    porte === 'grande' ? 'site_catalogo' : porte === 'media' ? 'site_institucional' : 'landing';
-
-  m[principal] = 'basico';
-  m.dominio = 'basico';
-  m.hospedagem = 'basico';
-  m.whatsapp = 'basico';
-  m.gmn = 'basico';
-  m.manutencao = 'basico';
-  m.suporte_comercial = 'basico';
-
-  m.site_institucional = m.site_institucional || (principal === 'landing' ? undefined : m.site_institucional);
-  m.textos = 'intermediario';
-  m.seo = 'intermediario';
-  m.form_orcamento = 'intermediario';
-  m.email = 'intermediario';
-  m.analytics = 'intermediario';
-  m.atualizacoes = 'intermediario';
-
-  m.agendamento = 'avancado';
-  m.auto_whatsapp = 'avancado';
-  m.relatorio = 'avancado';
-
-  // quem só tem rede social já sabe conversar por mensagem: a automação pesa mais
-  if (websiteKind === 'social') m.auto_whatsapp = 'intermediario';
-
-  return m;
-}
-
 // -------------------------------------------------- texto para enviar
 
 export function textoDaProposta(nomeCliente: string, planos: Plano[]): string {

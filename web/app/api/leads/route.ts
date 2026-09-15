@@ -9,7 +9,7 @@ import {
   type Status,
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
-import { quemEnviou, podeLer, estaLogado, nomesDaEquipe } from '@/lib/auth';
+import { quemEnviou, podeLer, estaLogado, usuarioAtual, nomesDaEquipe } from '@/lib/auth';
 import { caminhoDaProposta } from '@/lib/token-proposta';
 
 export const runtime = 'nodejs';
@@ -44,8 +44,17 @@ export function filtrosDaUrl(url: URL): Filtros {
 // ------------------------------------------------- recebe da extensão
 
 export async function POST(req: Request) {
-  // a chave também diz de quem é a extensão, para o painel mostrar quem coletou
-  const coletor = quemEnviou(req);
+  /*
+   * Duas portas para o mesmo lugar: a extensão chega com a chave, e quem
+   * está no painel chega com a sessão do navegador — este segundo caso é o
+   * cadastro feito à mão, de um comércio que veio por indicação ou que
+   * você conheceu na rua, e que nunca passaria por uma varredura do Maps.
+   */
+  const porChave = quemEnviou(req);
+  const porSessao = porChave ? null : await usuarioAtual();
+  const coletor = porChave || porSessao;
+  const manual = !porChave && Boolean(porSessao);
+
   if (!coletor) {
     return NextResponse.json(
       { ok: false, erro: 'Chave inválida. Confira o INGEST_TOKEN na Vercel e a chave nas configurações da extensão.' },
@@ -69,7 +78,7 @@ export async function POST(req: Request) {
   }
 
   const limpos = brutos
-    .map((b) => normalizarLead(b as Record<string, unknown>, coletor))
+    .map((b) => normalizarLead(b as Record<string, unknown>, coletor, manual ? 'manual' : 'maps'))
     .filter((l): l is NonNullable<typeof l> => l !== null);
 
   // dentro do mesmo lote pode vir o mesmo comércio duas vezes

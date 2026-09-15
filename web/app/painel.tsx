@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal from './prompt-modal';
 import PropostaModal from './proposta-modal';
+import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
 
@@ -127,6 +128,7 @@ export default function Painel({
 
   const [promptDe, setPromptDe] = useState<Lead | null>(null);
   const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
+  const [cadastrando, setCadastrando] = useState(false);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
   const [copiado, setCopiado] = useState<string | null>(null);
@@ -284,6 +286,13 @@ export default function Painel({
                 {verificando ? 'Conferindo sites…' : `Conferir ${faltamVerif} sites`}
               </button>
             )}
+            <button
+              onClick={() => setCadastrando(true)}
+              title="Cadastrar um comércio à mão"
+              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
+            >
+              + Cadastrar
+            </button>
             <a
               href="/extensao"
               className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
@@ -590,6 +599,16 @@ export default function Painel({
                             {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
                           </a>
                         )}
+                        {lead.instagram && (
+                          <a
+                            href={lead.instagram}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            className="mt-1 block text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
+                          >
+                            {'@' + lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}
+                          </a>
+                        )}
                         {lead.siteStatus && SITE_STATUS[lead.siteStatus] && (
                           <div
                             className={`mt-1 text-[11px] ${SITE_STATUS[lead.siteStatus].classe}`}
@@ -726,7 +745,13 @@ export default function Painel({
                   ? 'Afrouxe os filtros acima para ver mais resultados.'
                   : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
               </p>
-              <p className="mt-4">
+              <p className="mt-4 flex flex-wrap justify-center gap-4">
+                <button
+                  onClick={() => setCadastrando(true)}
+                  className="text-[13px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-800"
+                >
+                  Cadastrar um comércio à mão
+                </button>
                 <a href="/extensao" className="text-[13px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-800">
                   Ainda não instalou a extensão? Baixe aqui →
                 </a>
@@ -738,6 +763,10 @@ export default function Painel({
             <div className="px-6 py-16 text-center text-[13px] text-zinc-500">Carregando…</div>
           )}
         </div>
+
+        {cadastrando && (
+          <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
+        )}
 
         {promptDe && <PromptModal lead={promptDe} aoFechar={() => setPromptDe(null)} />}
 

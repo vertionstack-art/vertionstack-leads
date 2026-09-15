@@ -177,11 +177,24 @@ que o dono pode ter sido abandonado por quem fez o site.
 A nota do Google entra no argumento: um comércio com 4,9 e 890 avaliações tem
 prova social pronta que hoje não tem onde ser mostrada.
 
+### Cadastrar um comércio à mão
+
+O botão **+ Cadastrar**, no topo do painel, abre um formulário para os leads
+que não vêm do Maps: indicação, conversa de balcão, um perfil que mandaram no
+WhatsApp. Só o nome é obrigatório — exigir mais faria você desistir de
+cadastrar no meio da rua, que é quando isso costuma acontecer.
+
+Além dos dados comuns, tem campo para **link do Google Maps** e **Instagram**
+(pode colar só o `@`, a ferramenta monta o endereço). Quem entra por aqui fica
+marcado com origem `manual`, para você distinguir do que veio da varredura.
+
+Deixar o campo de site vazio é o que marca o comércio como oportunidade.
+
 ### O botão PROPOSTA
 
-Ao lado do COPY, abre o simulador. Você marca o porte do cliente, como a
-empresa é registrada, e clica em cada serviço para escolher em que plano ele
-entra — **E** (Essencial), **C** (Completo) ou **P** (Premium). Os planos são
+Ao lado do COPY, abre o simulador — **sem nada marcado**. Você marca o porte
+do cliente, como a empresa é registrada, e clica em cada serviço para escolher
+em que plano ele entra — **E** (Essencial), **C** (Completo) ou **P** (Premium). Os planos são
 cumulativos: o que está no Essencial aparece nos três.
 
 Do lado direito saem as três propostas, já com o valor de entrada, a
