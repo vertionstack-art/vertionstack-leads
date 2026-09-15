@@ -220,6 +220,14 @@ export default function PropostaModal({
                         <span className="shrink-0 text-right text-[11.5px] text-zinc-500">
                           {s.preco > 0 ? moeda(s.preco) : 'incluso'}
                           {s.mensal && <span className="block text-[10px]">por mês</span>}
+                          {s.brinde && (
+                            <span
+                              className="block text-[10px] text-roxo-700"
+                              title="O cliente vê como cortesia, mas o valor entra no total"
+                            >
+                              vai como cortesia
+                            </span>
+                          )}
                           {s.custo > 0 && (
                             <span className="block text-[10px] text-amber-700">custa {moeda(s.custo)}</span>
                           )}

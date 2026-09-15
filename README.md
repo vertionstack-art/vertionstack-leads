@@ -217,9 +217,18 @@ teto de propósito — marque *Liberar o teto* embaixo do desconto. O piso
 continua valendo sempre. Os únicos itens que se excluem são os três níveis de
 suporte, porque são alternativas do mesmo serviço.
 
-O custo de cada item aparece na lista (o domínio custa R$ 45/ano e entra como
-"incluso" para o cliente). Sem esse número, é fácil fechar negócio no prejuízo
-achando que se negociou bem.
+O custo de cada item aparece na lista (o domínio custa R$ 45/ano). Sem esse
+número, é fácil fechar negócio no prejuízo achando que se negociou bem.
+
+**Itens que vão como cortesia.** Alguns serviços aparecem para o cliente com o
+selo *incluso*, como se fossem brinde, mas o valor entra no total normalmente.
+São: escrita dos textos, tratamento de fotos, os três níveis de suporte e o
+relatório mensal. No simulador eles mostram *"vai como cortesia"* embaixo do
+preço, para você lembrar do que está embutindo.
+
+Não é engano: o item está listado, é entregue e é cobrado dentro do pacote
+fechado — o cliente sabe o que vai receber e quanto vai pagar no total. O que
+muda é a percepção de valor, que é o ponto.
 
 ### Quando o cliente fecha
 

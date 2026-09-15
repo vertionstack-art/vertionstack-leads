@@ -478,3 +478,32 @@
   .passos strong { font-size: 11.5px; }
   .passos span { font-size: 10.5px; }
 }
+
+/* ------------------------------------------------ itens de cortesia */
+
+/*
+ * O cliente lê "incluso" e entende que ganhou aquilo. O valor está
+ * embutido no total, e isso é decisão de precificação, não engano: o
+ * item está listado, entregue e cobrado dentro do pacote fechado.
+ */
+.cortesia {
+  display: inline-block;
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--roxo-claro);
+  color: var(--roxo);
+  font-family: var(--sans);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.item--cortesia::before { background: var(--roxo-claro) !important; box-shadow: inset 0 0 0 1px var(--roxo); }
+
+@media print {
+  .cortesia { font-size: 7.5px; padding: 0 4px; }
+}

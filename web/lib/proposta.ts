@@ -39,6 +39,8 @@ export interface ItemDaProposta {
   nome: string;
   beneficio: string;
   mensal: boolean;
+  /** o cliente vê como cortesia; o valor já está embutido no total */
+  brinde: boolean;
 }
 
 export interface Proposta {
@@ -167,6 +169,7 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
       nome: s.nome,
       beneficio: s.beneficio,
       mensal: !!s.mensal,
+      brinde: !!s.brinde,
     })),
     entrada,
     mensalidade,
@@ -184,13 +187,15 @@ export function textoDaProposta(nomeCliente: string, p: Proposta): string {
   linhas.push(`*Proposta — ${nomeCliente}*`);
   linhas.push('');
 
-  for (const i of p.itens.filter((x) => !x.mensal)) linhas.push(`• ${i.nome}`);
+  const rotulo = (i: ItemDaProposta) => `• ${i.nome}${i.brinde ? ' _(incluso)_' : ''}`;
+
+  for (const i of p.itens.filter((x) => !x.mensal)) linhas.push(rotulo(i));
 
   const mensais = p.itens.filter((x) => x.mensal);
   if (mensais.length) {
     linhas.push('');
     linhas.push('_Acompanhamento mensal:_');
-    for (const i of mensais) linhas.push(`• ${i.nome}`);
+    for (const i of mensais) linhas.push(rotulo(i));
   }
 
   linhas.push('');

@@ -21,6 +21,13 @@ export interface Servico {
   custo: number;
   /** true = cobrança mensal; false = uma vez só */
   mensal?: boolean;
+  /**
+   * Aparece como cortesia no documento do cliente, mas o preço entra na
+   * conta normalmente. É o velho truque de embutir: o comerciante lê
+   * "incluso" e sente que ganhou algo, e você não trabalha de graça.
+   * O valor cheio continua visível para você aqui dentro.
+   */
+  brinde?: boolean;
   /** itens que não fazem sentido juntos (ex.: dois tipos de site) */
   conflitaCom?: string[];
   /** sugestão de em qual plano este item costuma entrar */
@@ -115,7 +122,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Botão de WhatsApp com mensagem pronta',
     familia: 'conversao',
     beneficio: 'O cliente clica e a conversa já abre escrita. Some a barreira de "o que eu digo".',
-    preco: 60,
+    preco: 30,
     custo: 0,
     sugerido: 'basico',
   },
@@ -124,7 +131,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Formulário de orçamento',
     familia: 'conversao',
     beneficio: 'Pedido chega no seu e-mail e no WhatsApp, já com as informações que você precisa perguntar.',
-    preco: 90,
+    preco: 70,
     custo: 0,
     sugerido: 'intermediario',
   },
@@ -133,7 +140,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Agendamento online',
     familia: 'conversao',
     beneficio: 'O cliente marca horário sozinho, inclusive de madrugada, sem ocupar seu atendente.',
-    preco: 190,
+    preco: 150,
     custo: 0,
     sugerido: 'avancado',
   },
@@ -142,7 +149,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Atendimento automático no WhatsApp',
     familia: 'conversao',
     beneficio: 'Responde na hora as perguntas de sempre — preço, horário, endereço — mesmo fechado.',
-    preco: 240,
+    preco: 200,
     custo: 0,
     sugerido: 'avancado',
   },
@@ -151,7 +158,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Lista de contatos organizada',
     familia: 'conversao',
     beneficio: 'Todo mundo que pediu orçamento fica registrado, para você retomar depois.',
-    preco: 150,
+    preco: 120,
     custo: 0,
   },
 
@@ -161,7 +168,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Otimização para o Google',
     familia: 'encontrar',
     beneficio: 'O site preparado para aparecer quando alguém procura seu serviço na sua região.',
-    preco: 140,
+    preco: 120,
     custo: 0,
     sugerido: 'intermediario',
   },
@@ -170,7 +177,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Perfil do Google Meu Negócio arrumado',
     familia: 'encontrar',
     beneficio: 'É por ali que a maioria acha você. Fotos, horário, serviços e o link certo do site.',
-    preco: 110,
+    preco: 80,
     custo: 0,
     sugerido: 'basico',
   },
@@ -179,7 +186,7 @@ export const CATALOGO: Servico[] = [
     nome: 'Relatório de visitas',
     familia: 'encontrar',
     beneficio: 'Saber quantas pessoas entraram, de onde vieram e o que procuraram.',
-    preco: 60,
+    preco: 40,
     custo: 0,
     sugerido: 'intermediario',
   },
@@ -190,16 +197,17 @@ export const CATALOGO: Servico[] = [
     nome: 'Escrita dos textos',
     familia: 'conteudo',
     beneficio: 'Você não precisa escrever nada. A gente escreve e você aprova.',
-    preco: 130,
+    preco: 100,
     custo: 0,
     sugerido: 'intermediario',
+    brinde: true,
   },
   {
     id: 'identidade',
     nome: 'Ajuste de identidade visual',
     familia: 'conteudo',
     beneficio: 'Cores, tipografia e logo em ordem, para o site não parecer de outra empresa.',
-    preco: 180,
+    preco: 150,
     custo: 0,
   },
   {
@@ -207,8 +215,9 @@ export const CATALOGO: Servico[] = [
     nome: 'Tratamento de fotos',
     familia: 'conteudo',
     beneficio: 'As fotos que você já tem, recortadas e tratadas para não deixarem o site feio.',
-    preco: 120,
+    preco: 100,
     custo: 0,
+    brinde: true,
   },
 
   // ----------------------------------------------------------- infra
@@ -266,42 +275,46 @@ export const CATALOGO: Servico[] = [
     nome: 'Suporte em horário comercial',
     familia: 'recorrente',
     beneficio: 'Segunda a sexta, das 9h às 18h, resposta no mesmo dia útil.',
-    preco: 60,
+    preco: 50,
     custo: 0,
     mensal: true,
     conflitaCom: ['suporte_estendido', 'suporte_24h'],
     sugerido: 'basico',
+    brinde: true,
   },
   {
     id: 'suporte_estendido',
     nome: 'Suporte estendido',
     familia: 'recorrente',
     beneficio: 'Todos os dias, das 8h às 22h, inclusive fim de semana.',
-    preco: 150,
+    preco: 100,
     custo: 0,
     mensal: true,
     conflitaCom: ['suporte_comercial', 'suporte_24h'],
     sugerido: 'avancado',
+    brinde: true,
   },
   {
     id: 'suporte_24h',
     nome: 'Suporte 24 horas',
     familia: 'recorrente',
     beneficio: 'Qualquer hora, qualquer dia, com retorno em até 1 hora.',
-    preco: 340,
+    preco: 200,
     custo: 0,
     mensal: true,
     conflitaCom: ['suporte_comercial', 'suporte_estendido'],
+    brinde: true,
   },
   {
     id: 'relatorio',
     nome: 'Relatório mensal',
     familia: 'recorrente',
     beneficio: 'Todo mês um resumo do que o site trouxe de contato e visita.',
-    preco: 60,
+    preco: 50,
     custo: 0,
     mensal: true,
     sugerido: 'avancado',
+    brinde: true,
   },
 ];
 

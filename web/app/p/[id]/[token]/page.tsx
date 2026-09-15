@@ -166,8 +166,11 @@ export default async function PaginaProposta({
               {proposta.itens
                 .filter((it) => !it.mensal)
                 .map((it) => (
-                  <li key={it.id}>
-                    <strong>{it.nome}</strong>
+                  <li key={it.id} className={it.brinde ? 'item--cortesia' : ''}>
+                    <strong>
+                      {it.nome}
+                      {it.brinde && <em className="cortesia">incluso</em>}
+                    </strong>
                     <span>{it.beneficio}</span>
                   </li>
                 ))}
@@ -180,8 +183,11 @@ export default async function PaginaProposta({
                   {proposta.itens
                     .filter((it) => it.mensal)
                     .map((it) => (
-                      <li key={it.id}>
-                        <strong>{it.nome}</strong>
+                      <li key={it.id} className={it.brinde ? 'item--cortesia' : ''}>
+                        <strong>
+                          {it.nome}
+                          {it.brinde && <em className="cortesia">incluso</em>}
+                        </strong>
                         <span>{it.beneficio}</span>
                       </li>
                     ))}
