@@ -3,23 +3,48 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Lead } from '@/lib/db';
 import { montarPrompt } from '@/lib/prompt-lead';
+import { montarPromptSite } from '@/lib/prompt-site';
+
+export type Variante = 'abordagem' | 'site';
+
+const TEXTOS: Record<Variante, { titulo: string; subtitulo: string; destino: string; url: string }> = {
+  abordagem: {
+    titulo: 'Prompt de abordagem',
+    subtitulo:
+      'Cole no ChatGPT para receber briefing, mensagens de WhatsApp, roteiro de ligação e respostas para objeções.',
+    destino: 'Abrir chat',
+    url: 'https://chatgpt.com/',
+  },
+  site: {
+    titulo: 'Prompt para construir o site',
+    subtitulo:
+      'Cole no Claude Code. Ele instala as skills, monta o site com os dados deste comércio, sobe no GitHub e publica na Vercel.',
+    destino: 'Abrir Claude',
+    url: 'https://claude.ai/',
+  },
+};
 
 /**
- * Mostra o prompt pronto de um lead para você copiar e colar no ChatGPT.
+ * Mostra um prompt pronto de um lead para copiar.
  *
- * O texto já vem selecionado e o botão copia com um clique — a ideia é o
- * caminho entre ver o lead e ter o material de abordagem na mão ser o mais
- * curto possível, porque isso vai ser feito dezenas de vezes por dia.
+ * São dois usos no mesmo formato: o de abordagem, que vai para o chat e
+ * volta como material de venda, e o de construção, que vai para o
+ * assistente que escreve o código do site de prévia. O caminho entre ver
+ * o lead e ter o texto na mão precisa ser curto — isso é feito dezenas de
+ * vezes por dia.
  */
 export default function PromptModal({
   lead,
+  variante = 'abordagem',
   aoFechar,
   aoSalvarPrevia,
 }: {
   lead: Lead;
+  variante?: Variante;
   aoFechar: () => void;
   aoSalvarPrevia: (url: string) => Promise<void>;
 }) {
+  const t = TEXTOS[variante];
   const [copiado, setCopiado] = useState(false);
   const [previa, setPrevia] = useState(lead.previaUrl || '');
   const [guardandoPrevia, setGuardandoPrevia] = useState(false);
@@ -30,7 +55,8 @@ export default function PromptModal({
    * for gravado, o texto continua sendo o de quem não tem prévia — e é
    * melhor assim: prometer um link que não existe estraga a abordagem.
    */
-  const prompt = montarPrompt({ ...lead, previaUrl: lead.previaUrl });
+  const prompt =
+    variante === 'site' ? montarPromptSite(lead) : montarPrompt({ ...lead, previaUrl: lead.previaUrl });
 
   async function salvarPrevia() {
     setGuardandoPrevia(true);
@@ -72,11 +98,9 @@ export default function PromptModal({
         <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-6 py-4">
           <div>
             <h2 className="text-[15px] font-semibold leading-tight tracking-tight">
-              Prompt de abordagem — {lead.name}
+              {t.titulo} — {lead.name}
             </h2>
-            <p className="mt-0.5 text-[12px] text-zinc-500">
-              Cole no ChatGPT para receber briefing, mensagens de WhatsApp, roteiro de ligação e respostas para objeções.
-            </p>
+            <p className="mt-0.5 text-[12px] text-zinc-500">{t.subtitulo}</p>
           </div>
           <button
             onClick={aoFechar}
@@ -109,9 +133,11 @@ export default function PromptModal({
             </button>
           </div>
           <p className="mt-1.5 text-[11.5px] leading-snug text-roxo-900/70">
-            {lead.previaUrl
-              ? 'O prompt abaixo já usa esta prévia como centro da abordagem.'
-              : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
+            {variante === 'site'
+              ? 'Quando o site estiver publicado, cole o endereço aqui — ele passa a ser usado na abordagem e na proposta.'
+              : lead.previaUrl
+                ? 'O prompt abaixo já usa esta prévia como centro da abordagem.'
+                : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
           </p>
         </div>
 
@@ -130,8 +156,8 @@ export default function PromptModal({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-200 px-6 py-4">
           <p className="text-[12px] text-zinc-500">
             {copiado
-              ? 'Copiado. Agora é só abrir o chat e colar com Ctrl+V.'
-              : `${prompt.length.toLocaleString('pt-BR')} caracteres — copie e cole no chat.`}
+              ? 'Copiado. Agora é só colar com Ctrl+V.'
+              : `${prompt.length.toLocaleString('pt-BR')} caracteres — copie e cole.`}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -143,7 +169,7 @@ export default function PromptModal({
               {copiado ? '✓ Copiado!' : '1. Copiar prompt'}
             </button>
             <a
-              href="https://chatgpt.com/"
+              href={t.url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => { if (!copiado) copiar(); }}
@@ -153,7 +179,7 @@ export default function PromptModal({
                   : 'border border-zinc-300 text-zinc-700 hover:border-roxo-400 hover:text-roxo-700'
               }`}
             >
-              2. Abrir chat ↗
+              2. {t.destino} ↗
             </a>
           </div>
         </div>

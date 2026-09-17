@@ -213,6 +213,34 @@ final. Ela foi montada de fora, sem as fotos e os textos do comércio — dizer
 isso abre espaço para o cliente apontar o que mudaria, e a crítica dele vira
 briefing.
 
+### O botão SITE
+
+Ao lado do COPY. Gera o prompt para **construir** o site de prévia — o outro
+lado da moeda do COPY, que é para conversar com o dono.
+
+O prompt leva tudo o que se sabe do comércio: nome, ramo, endereço, cidade,
+telefone, Instagram, ficha do Maps, nota e número de avaliações, coordenadas,
+site atual e a situação dele, e as suas anotações. O link do WhatsApp é
+montado a partir do telefone, já pronto para entrar no site.
+
+Ele começa mandando instalar as skills, com o comando literal, e define a
+stack: Next.js com TypeScript e Tailwind, código no GitHub, publicado na
+Vercel.
+
+**O que muda conforme o ramo.** Barbearia recebe instrução de priorizar
+agendamento, galeria de cortes e tabela de preços; pizzaria, cardápio com foto
+e pedido por WhatsApp; clínica, especialidades, convênios e tom sóbrio sem
+promessa de resultado; oficina, lista de serviços e orçamento por foto. Sem
+isso o assistente entrega a mesma página para todos, que é o que faz site de
+pequeno negócio parecer template.
+
+O prompt também proíbe inventar dado que não existe — preço, horário, tempo de
+mercado. Prévia com informação inventada queima a conversa.
+
+Quando o site estiver no ar, cole o endereço no campo roxo do próprio modal.
+Ele vira a prévia usada na abordagem e na proposta, e o botão passa a mostrar
+**✓ SITE**.
+
 ### O botão PROPOSTA
 
 Ao lado do COPY, abre o simulador — **sem nada marcado**. Você escolhe o porte

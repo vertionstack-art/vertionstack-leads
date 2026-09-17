@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
-import PromptModal from './prompt-modal';
+import PromptModal, { type Variante } from './prompt-modal';
 import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
@@ -127,6 +127,7 @@ export default function Painel({
   const [faltamVerif, setFaltamVerif] = useState(0);
 
   const [promptDe, setPromptDe] = useState<Lead | null>(null);
+  const [variantePrompt, setVariantePrompt] = useState<Variante>('abordagem');
   const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
   const [cadastrando, setCadastrando] = useState(false);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
@@ -523,7 +524,8 @@ export default function Painel({
                 siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
                 linkWhatsApp={linkWhatsApp(lead.phone)}
                 onStatus={(st) => salvarPatch(lead.id, { status: st })}
-                onPrompt={() => setPromptDe(lead)}
+                onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
+                onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                 onProposta={() => setPropostaDe(lead)}
                 onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
                 editandoNota={notaAberta === lead.id}
@@ -694,11 +696,22 @@ export default function Painel({
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <div className="flex justify-end gap-1.5">
                           <button
-                            onClick={() => setPromptDe(lead)}
+                            onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                             title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
                             className="rounded-md border border-roxo-300 bg-roxo-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
                           >
                             COPY
+                          </button>
+                          <button
+                            onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
+                            title="Gera o prompt para construir o site de prévia deste comércio"
+                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                              lead.previaUrl
+                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
+                                : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
+                            }`}
+                          >
+                            {lead.previaUrl ? '✓ SITE' : 'SITE'}
                           </button>
                           <button
                             onClick={() => setPropostaDe(lead)}
@@ -774,6 +787,7 @@ export default function Painel({
         {promptDe && (
           <PromptModal
             lead={promptDe}
+            variante={variantePrompt}
             aoFechar={() => setPromptDe(null)}
             aoSalvarPrevia={async (url) => {
               await salvarPatch(promptDe.id, { previaUrl: url || null });

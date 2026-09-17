@@ -26,6 +26,7 @@ export default function LeadCard({
   linkWhatsApp,
   onStatus,
   onPrompt,
+  onPromptSite,
   onProposta,
   onNota,
   editandoNota,
@@ -42,6 +43,7 @@ export default function LeadCard({
   linkWhatsApp: string | null;
   onStatus: (s: Status) => void;
   onPrompt: () => void;
+  onPromptSite: () => void;
   onProposta: () => void;
   onNota: () => void;
   editandoNota: boolean;
@@ -126,22 +128,32 @@ export default function LeadCard({
       )}
 
       {/* ações */}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           onClick={onPrompt}
-          className={`${TOQUE} rounded-xl border border-roxo-300 bg-roxo-50 text-[13px] font-semibold text-roxo-700 active:bg-roxo-100`}
+          className={`${TOQUE} rounded-xl border border-roxo-300 bg-roxo-50 text-[12.5px] font-semibold text-roxo-700 active:bg-roxo-100`}
         >
           COPY
         </button>
         <button
+          onClick={onPromptSite}
+          className={`${TOQUE} rounded-xl border text-[12.5px] font-semibold ${
+            lead.previaUrl
+              ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
+              : 'border-zinc-300 bg-white text-zinc-700'
+          }`}
+        >
+          SITE
+        </button>
+        <button
           onClick={onProposta}
-          className={`${TOQUE} rounded-xl border text-[13px] font-semibold ${
+          className={`${TOQUE} rounded-xl border text-[12.5px] font-semibold ${
             lead.proposta
               ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
               : 'border-zinc-300 bg-white text-zinc-700'
           }`}
         >
-          {lead.proposta ? '✓ PROPOSTA' : 'PROPOSTA'}
+          {lead.proposta ? '✓ PROP.' : 'PROPOSTA'}
         </button>
       </div>
 
