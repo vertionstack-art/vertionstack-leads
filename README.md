@@ -223,9 +223,15 @@ telefone, Instagram, ficha do Maps, nota e número de avaliações, coordenadas,
 site atual e a situação dele, e as suas anotações. O link do WhatsApp é
 montado a partir do telefone, já pronto para entrar no site.
 
-Ele começa mandando instalar as skills, com o comando literal, e define a
-stack: Next.js com TypeScript e Tailwind, código no GitHub, publicado na
-Vercel.
+O prompt começa mandando o assistente **parar e esperar o link do
+repositório** — quem cria é você, na conta certa. Assistente que cria
+repositório sozinho abre na conta errada e o trabalho já nasce no lugar errado.
+
+Depois do link, ele instala as skills com o comando literal. O uso delas é
+declarado **obrigatório**, com o papel de cada uma (direção visual, estrutura,
+mobile, revisão dos textos) e a exigência de dizer no fim quais consultou e o
+que cada uma mudou. A stack é Next.js com TypeScript e Tailwind, publicado na
+Vercel a partir do seu repositório.
 
 **O que muda conforme o ramo.** Barbearia recebe instrução de priorizar
 agendamento, galeria de cortes e tabela de preços; pizzaria, cardápio com foto

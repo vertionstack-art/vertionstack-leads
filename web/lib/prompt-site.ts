@@ -6,6 +6,11 @@
  * a extensão colheu do Google Maps mais o que foi cadastrado à mão, para
  * o site já nascer com o nome certo, o telefone certo e o WhatsApp certo
  * — sem ninguém precisar redigitar nada.
+ *
+ * O prompt começa mandando o assistente parar e esperar o link do
+ * repositório. Quem cria é o Lucas, na conta certa: assistente que cria
+ * repositório sozinho acaba abrindo na conta errada, com o nome errado,
+ * e aí o trabalho já nasce no lugar errado.
  */
 
 import type { Lead } from './db';
@@ -141,7 +146,15 @@ export function montarPromptSite(lead: Lead, nomeEmpresa = 'Vertion Stack'): str
 
   return `Preciso que você construa um site de prévia para um comércio real. Este site vai ser mostrado ao dono como demonstração, então ele precisa ficar bom de verdade — é a peça que vai fechar a venda.
 
-## ANTES DE COMEÇAR: INSTALE AS SKILLS
+## PARE AQUI: PRIMEIRO EU CRIO O REPOSITÓRIO
+
+**Não comece nada ainda.** Eu vou criar o repositório no GitHub e te mandar o link.
+
+Sua primeira resposta deve ser só isso: peça o link do repositório e aguarde. Não instale nada, não escreva código, não crie repositório nenhum por conta própria — o repositório é meu e eu já vou entregá-lo criado.
+
+Depois que eu mandar o link, siga o resto deste prompt na ordem.
+
+## ASSIM QUE EU MANDAR O LINK: INSTALE AS SKILLS
 
 Rode este comando exatamente como está, sem alterar nada:
 
@@ -149,7 +162,15 @@ Rode este comando exatamente como está, sem alterar nada:
 ${COMANDO_SKILLS}
 \`\`\`
 
-Depois de instalar, use essas skills durante todo o trabalho — principalmente as de design e frontend. O site não pode ter cara de template genérico.
+**O uso dessas skills é obrigatório, não opcional.** Não escreva uma linha de código antes de carregá-las e ler o que elas orientam. Elas existem justamente para o site não sair com cara de template genérico — que é o resultado padrão de quem monta página sem consultá-las.
+
+Em especial:
+- **frontend-design** e **ui-ux-pro-max** definem a direção visual, a tipografia e a paleta. Nada de fonte e cor escolhidas no chute.
+- **senior-frontend** e **ui-design-system** guiam a estrutura dos componentes e a consistência.
+- **mobile-design** manda no comportamento em tela pequena, que é onde a maioria vai abrir.
+- **humanizer** passa nos textos no fim, para não soarem escritos por máquina.
+
+Antes de me entregar o site, diga quais skills você consultou e o que cada uma mudou na sua decisão. Se você não usou nenhuma, o trabalho está errado e precisa ser refeito.
 
 ## O CLIENTE
 
@@ -173,16 +194,18 @@ ${semFotos}
 ## STACK E PUBLICAÇÃO
 
 - **Next.js** com TypeScript e Tailwind.
-- Código versionado no **GitHub**, em repositório novo para este cliente.
+- Código versionado **no repositório que eu te mandei** — não crie outro.
 - Publicado na **Vercel**, conectado a esse repositório.
 - No fim, me devolva o endereço público da Vercel — é o link que eu vou mandar para o dono.
 
 ## COMO EU QUERO QUE VOCÊ TRABALHE
 
-1. Antes de escrever código, me diga em três linhas a direção visual que escolheu e por quê, considerando o ramo e o público desse comércio.
-2. Construa o site.
-3. Suba para o GitHub e publique na Vercel.
-4. Me entregue: o link do site no ar, o link do repositório, e o que eu preciso pedir ao cliente para deixar o site definitivo (fotos, textos, logo, o que for).
+1. Peça o link do repositório e espere. Só depois disso siga adiante.
+2. Instale as skills com o comando acima e carregue-as. Isso é obrigatório.
+3. Me diga em três linhas a direção visual que escolheu e por quê, considerando o ramo e o público desse comércio — e em quais skills você se apoiou para chegar nela.
+4. Construa o site.
+5. Suba para o repositório que eu mandei e publique na Vercel.
+6. Me entregue: o link do site no ar e o que eu preciso pedir ao cliente para deixar o site definitivo (fotos, textos, logo, o que for).
 
 Não invente informação sobre o negócio. Se precisar de um dado que não está acima — preço, horário, tempo de mercado — use um marcador visível de que ali entra a informação real, ou pergunte. Prévia com dado inventado queima a conversa.
 
