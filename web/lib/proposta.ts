@@ -133,7 +133,10 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
   const teto = tetoDoPorte(cfg.porte);
 
   if (entrada > 0 && entrada < PISO_ABSOLUTO) {
-    avisos.push(`Ficou abaixo do piso de ${moeda(PISO_ABSOLUTO)}; ajustei para o piso.`);
+    avisos.push(
+      `Ficou abaixo do piso de ${moeda(PISO_ABSOLUTO)}; ajustei para o piso.` +
+        (cfg.desconto ? ' O desconto que você deu não cabe neste escopo.' : ''),
+    );
     entrada = PISO_ABSOLUTO;
   } else if (entrada > 0 && entrada < ALVO_MINIMO) {
     avisos.push(`Abaixo dos ${moeda(ALVO_MINIMO)} que você quer como mínimo. Vale incluir mais um item.`);
@@ -161,6 +164,19 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
   const margemEntrada = entrada - custoUnico;
   if (entrada > 0 && margemEntrada < 200) {
     avisos.push('Sobra pouco depois dos custos. Confira se compensa.');
+  }
+
+  /*
+   * Desconto grande merece ser dito em reais, não em porcentagem. "30%"
+   * não dói; "você está deixando R$ 420 na mesa" dói — e é o número que
+   * faz a pessoa pensar duas vezes antes de fechar por fechar.
+   */
+  if (cfg.desconto && cfg.desconto >= 25 && entrada > 0) {
+    const cheio = arredondar(entrada / (1 - cfg.desconto / 100));
+    avisos.push(
+      `Desconto de ${cfg.desconto}%: são ${moeda(cheio - entrada)} a menos do que a proposta cheia. ` +
+        'Cobre alguma contrapartida — pagamento à vista, indicação, depoimento.',
+    );
   }
 
   return {

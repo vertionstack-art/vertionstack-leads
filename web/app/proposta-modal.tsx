@@ -313,13 +313,19 @@ export default function PropostaModal({
                     <input
                       type="range"
                       min={0}
-                      max={30}
+                      max={50}
                       step={5}
                       value={desconto}
                       onChange={(e) => setDesconto(Number(e.target.value))}
                       className="flex-1 accent-roxo-600"
                     />
-                    <span className="w-10 text-right text-[13px] font-medium tabular-nums">{desconto}%</span>
+                    <span
+                      className={`w-10 text-right text-[13px] font-semibold tabular-nums ${
+                        desconto >= 35 ? 'text-red-600' : desconto >= 20 ? 'text-amber-600' : 'text-zinc-700'
+                      }`}
+                    >
+                      {desconto}%
+                    </span>
                   </div>
                   <p className="mt-2 text-[11px] leading-snug text-zinc-500">
                     Piso de {moeda(PISO_ABSOLUTO)} e teto de {moeda(tetoDoPorte(porte))} para este porte.
