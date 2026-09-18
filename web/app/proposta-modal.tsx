@@ -7,7 +7,10 @@ import {
   FAMILIAS,
   FORMALIZACOES,
   PORTES,
+  RAMOS,
   porId,
+  ramoDaCategoria,
+  serveAoRamo,
   type Familia,
   type Formalizacao,
   type Porte,
@@ -23,7 +26,7 @@ import {
   type Marcacoes,
 } from '@/lib/proposta';
 
-const ORDEM_FAMILIAS: Familia[] = ['presenca', 'conversao', 'encontrar', 'conteudo', 'infra', 'recorrente'];
+const ORDEM_FAMILIAS: Familia[] = ['presenca', 'conversao', 'encontrar', 'conteudo', 'infra', 'recorrente', 'cortesia'];
 
 
 export default function PropostaModal({
@@ -73,6 +76,30 @@ export default function PropostaModal({
     () => montarProposta({ marcacoes, porte, formalizacao, desconto, ignorarTeto }),
     [marcacoes, porte, formalizacao, desconto, ignorarTeto],
   );
+
+  /*
+   * O ramo do lead decide o que aparece na lista. Cardápio com QR Code
+   * não se oferece para imobiliária, e uma lista onde metade dos itens
+   * não cabe faz a pessoa clicar errado na pressa.
+   */
+  const ramo = useMemo(() => ramoDaCategoria(lead.category), [lead.category]);
+  const [verTudo, setVerTudo] = useState(false);
+  const visivel = (s: (typeof CATALOGO)[number]) => verTudo || serveAoRamo(s, ramo);
+  const escondidos = useMemo(() => CATALOGO.filter((s) => !serveAoRamo(s, ramo)).length, [ramo]);
+
+  /** marca de uma vez tudo o que está à mostra numa família */
+  function marcarFamilia(fam: Familia) {
+    const ids = CATALOGO.filter((s) => s.familia === fam && visivel(s)).map((s) => s.id);
+    const faltaAlgum = ids.some((id) => !marcacoes[id]);
+    setMarcacoes((atual) => {
+      const novo = { ...atual };
+      for (const id of ids) {
+        if (faltaAlgum) novo[id] = true;
+        else delete novo[id];
+      }
+      return novo;
+    });
+  }
 
   /** liga ou desliga o serviço na proposta */
   function alternar(id: string) {
@@ -198,16 +225,37 @@ export default function PropostaModal({
 
             <div className="mb-4 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
               Clique num serviço para incluir na proposta. Clique de novo para tirar.
+              {ramo && escondidos > 0 && (
+                <span className="mt-1.5 block">
+                  Mostrando o que serve para <strong className="font-medium text-zinc-700">{RAMOS[ramo].toLowerCase()}</strong>.{' '}
+                  <button
+                    onClick={() => setVerTudo((v) => !v)}
+                    className="font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-900"
+                  >
+                    {verTudo ? 'esconder os de outros ramos' : `ver os outros ${escondidos}`}
+                  </button>
+                </span>
+              )}
             </div>
 
             {/* serviços */}
             {ORDEM_FAMILIAS.map((fam) => (
               <section key={fam} className="mb-5">
-                <h3 className="text-[12.5px] font-semibold">{FAMILIAS[fam].titulo}</h3>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="text-[12.5px] font-semibold">{FAMILIAS[fam].titulo}</h3>
+                  {fam === 'cortesia' && (
+                    <button
+                      onClick={() => marcarFamilia('cortesia')}
+                      className="shrink-0 text-[11px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-900"
+                    >
+                      marcar todas
+                    </button>
+                  )}
+                </div>
                 <p className="mb-2 text-[11.5px] text-zinc-500">{FAMILIAS[fam].explicacao}</p>
 
                 <div className="space-y-1">
-                  {CATALOGO.filter((s) => s.familia === fam).map((s) => {
+                  {CATALOGO.filter((s) => s.familia === fam && visivel(s)).map((s) => {
                     const incluso = Boolean(marcacoes[s.id]);
                     return (
                       <button
@@ -234,7 +282,7 @@ export default function PropostaModal({
                         <span className="shrink-0 text-right text-[11.5px] text-zinc-500">
                           {s.preco > 0 ? moeda(s.preco) : 'incluso'}
                           {s.mensal && <span className="block text-[10px]">por mês</span>}
-                          {s.brinde && (
+                          {s.brinde && s.preco > 0 && (
                             <span
                               className="block text-[10px] text-roxo-700"
                               title="O cliente vê como cortesia, mas o valor entra no total"
@@ -273,6 +321,12 @@ export default function PropostaModal({
                   {proposta.mensalidade > 0 && (
                     <div className="text-[13px] text-zinc-600">
                       + <b className="tabular-nums">{moeda(proposta.mensalidade)}</b> por mês
+                    </div>
+                  )}
+                  {proposta.anualidade > 0 && (
+                    <div className="mt-1 text-[11.5px] leading-snug text-zinc-500">
+                      Sem mensalidade: <b className="tabular-nums">{moeda(proposta.anualidade)}</b> por ano a partir do
+                      segundo ano. Já vai escrito na proposta do cliente.
                     </div>
                   )}
 

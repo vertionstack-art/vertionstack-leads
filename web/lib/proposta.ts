@@ -54,6 +54,12 @@ export interface Proposta {
   custoMensal: number;
   /** quanto sobra da entrada depois dos custos */
   margemEntrada: number;
+  /**
+   * Valor cobrado uma vez por ano, a partir do segundo ano, quando o
+   * cliente não assina mensalidade. Zero quando há mensalidade — aí a
+   * manutenção já está paga todo mês.
+   */
+  anualidade: number;
   avisos: string[];
 }
 
@@ -65,6 +71,17 @@ export const PISO_ABSOLUTO = 387.45;
 export const ALVO_MINIMO = 500;
 /** teto para um cliente micro; sobe com o porte */
 export const TETO_BASE = 1200;
+
+/**
+ * Quem não contrata mensalidade ainda assim tem um custo por ano para o
+ * site continuar de pé — domínio e hospedagem não se renovam sozinhos.
+ *
+ * O primeiro ano já está pago dentro da entrada. A cobrança só começa
+ * doze meses depois, e isso precisa estar escrito na proposta: cliente
+ * que descobre a renovação só quando a fatura chega vira reclamação,
+ * não renovação.
+ */
+export const ANUAL_SEM_MENSALIDADE = 107.98;
 
 /** termina em ,45 como o piso — número quebrado passa impressão de conta feita */
 function arredondar(v: number): number {
@@ -192,6 +209,7 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
     custoUnico,
     custoMensal,
     margemEntrada,
+    anualidade: mensalidade > 0 ? 0 : ANUAL_SEM_MENSALIDADE,
     avisos,
   };
 }
@@ -217,6 +235,13 @@ export function textoDaProposta(nomeCliente: string, p: Proposta, previaUrl?: st
   linhas.push('');
   if (p.entrada > 0) linhas.push(`Investimento: *${moeda(p.entrada)}*`);
   if (p.mensalidade > 0) linhas.push(`Mensalidade: *${moeda(p.mensalidade)}/mês*`);
+  if (p.anualidade > 0 && p.entrada > 0) {
+    linhas.push('');
+    linhas.push(
+      `O primeiro ano está incluso. A partir do segundo, ${moeda(p.anualidade)} por ano ` +
+        'para manter o site no ar — nada é cobrado agora.',
+    );
+  }
   if (previaUrl) {
     linhas.push('');
     linhas.push('Veja a prévia do seu site:');
@@ -224,7 +249,20 @@ export function textoDaProposta(nomeCliente: string, p: Proposta, previaUrl?: st
   }
 
   linhas.push('');
-  linhas.push('Domínio próprio e certificado de segurança já inclusos.');
+  /*
+   * Só prometer o que foi marcado. A linha era fixa e afirmava domínio
+   * incluso mesmo em proposta sem domínio — promessa que o cliente
+   * cobra depois, e com razão.
+   */
+  const temDominio = p.itens.some((i) => i.id === 'dominio');
+  const temHospedagem = p.itens.some((i) => i.id === 'hospedagem');
+  if (temDominio && temHospedagem) {
+    linhas.push('Domínio próprio e certificado de segurança já inclusos.');
+  } else if (temDominio) {
+    linhas.push('Domínio próprio já incluso.');
+  } else if (temHospedagem) {
+    linhas.push('Hospedagem e certificado de segurança já inclusos.');
+  }
   linhas.push('Qualquer dúvida, é só chamar.');
 
   return linhas.join('\n');

@@ -8,7 +8,64 @@
  * prejuízo achando que está barganhando bem.
  */
 
-export type Familia = 'presenca' | 'conversao' | 'encontrar' | 'conteudo' | 'infra' | 'recorrente';
+export type Familia = 'presenca' | 'conversao' | 'encontrar' | 'conteudo' | 'infra' | 'recorrente' | 'cortesia';
+
+/**
+ * Os ramos que a prospecção alcança.
+ *
+ * Existe porque cardápio com QR Code não se oferece para imobiliária e
+ * vitrine de imóveis não se oferece para pizzaria. Sem esta divisão, a
+ * lista de marcação vira um cardápio de 30 itens onde metade não cabe,
+ * e o risco é oferecer na proposta uma coisa que o dono nem entende.
+ */
+export type Ramo =
+  | 'beleza'
+  | 'alimentacao'
+  | 'saude'
+  | 'fitness'
+  | 'imobiliario'
+  | 'servicos'
+  | 'varejo'
+  | 'turismo';
+
+export const RAMOS: Record<Ramo, string> = {
+  beleza: 'Barbearia, salão, estética',
+  alimentacao: 'Restaurante, pizzaria, padaria, café',
+  saude: 'Clínica, consultório, veterinária',
+  fitness: 'Academia, estúdio, artes marciais',
+  imobiliario: 'Imobiliária, corretor, construtora',
+  servicos: 'Oficina, serralheria, reformas',
+  varejo: 'Loja, ótica, boutique',
+  turismo: 'Agência de viagem, pousada',
+};
+
+/**
+ * Descobre o ramo a partir da categoria que o Google Maps devolveu.
+ *
+ * O Maps escreve livre — "Barbearia", "Salão de beleza masculino",
+ * "Barbeiro" — então casa por pedaço de palavra, não por igualdade.
+ * Sem correspondência devolve null, e aí nada é filtrado: melhor
+ * mostrar tudo do que esconder o item certo por não ter reconhecido.
+ */
+export function ramoDaCategoria(categoria: string | null | undefined): Ramo | null {
+  const c = (categoria || '').toLowerCase();
+  if (!c) return null;
+
+  if (/barbear|cabelei|salão|salao|beleza|estétic|estetic|manicure|unha|depila|sobrancelh/.test(c)) return 'beleza';
+  if (/pizza|hamburgu|lanche|restaurante|comida|food|cafeteria|café|cafe|padaria|doceria|açaí|acai|sorvete|bar|pastel|marmit|churrasc/.test(c))
+    return 'alimentacao';
+  if (/clínic|clinic|odonto|dentist|médic|medic|saúde|saude|psic|fisio|veterin|nutri|laborat|farmác|farmac|consultóri|consultori/.test(c))
+    return 'saude';
+  if (/academia|fitness|crossfit|pilates|yoga|luta|jiu|muay|natação|natacao|dança|danca|personal/.test(c)) return 'fitness';
+  if (/imobiliá|imobilia|imóve|imove|corretor|constru|loteament|terren/.test(c)) return 'imobiliario';
+  if (/oficina|mecânic|mecanic|funilar|borrach|serralh|marcenar|elétric|eletric|encanad|reforma|pintur|vidraç|vidrac|chavei|dedetiz|limpez|advog|contab/.test(c))
+    return 'servicos';
+  if (/ótica|otica|loja|boutique|roupa|calçad|calcad|joalher|papelar|presente|móvei|movei|pet shop|petshop|materiais|distribuid|mercad/.test(c))
+    return 'varejo';
+  if (/viage|turis|hotel|pousada|passeio|hosped|chalé|chale/.test(c)) return 'turismo';
+
+  return null;
+}
 
 export interface Servico {
   id: string;
@@ -32,6 +89,18 @@ export interface Servico {
   conflitaCom?: string[];
   /** sugestão de em qual plano este item costuma entrar */
   sugerido?: 'basico' | 'intermediario' | 'avancado';
+  /**
+   * Ramos onde este item faz sentido. Ausente = serve para todos, que é
+   * o caso da maioria — só os itens realmente específicos listam ramo.
+   */
+  ramos?: Ramo[];
+}
+
+/** Um item cabe no lead quando não tem ramo declarado, ou quando o ramo bate. */
+export function serveAoRamo(servico: Servico, ramo: Ramo | null): boolean {
+  if (!servico.ramos) return true;
+  if (!ramo) return true; // categoria desconhecida: não esconde nada
+  return servico.ramos.includes(ramo);
 }
 
 export const FAMILIAS: Record<Familia, { titulo: string; explicacao: string }> = {
@@ -59,6 +128,11 @@ export const FAMILIAS: Record<Familia, { titulo: string; explicacao: string }> =
   recorrente: {
     titulo: 'Mensalidade',
     explicacao: 'Receita que se repete. Um cliente de R$ 120/mês vale mais que um projeto de R$ 800.',
+  },
+  cortesia: {
+    titulo: 'Cortesias que não custam nada',
+    explicacao:
+      'Tudo aqui já vem junto do trabalho ou leva minutos para fazer, e mesmo assim tem valor para quem lê. Marque à vontade: não muda o preço e engorda a lista de entregas.',
   },
 };
 
@@ -163,6 +237,18 @@ export const CATALOGO: Servico[] = [
     custo: 0,
   },
 
+  {
+    id: 'cardapio_qr',
+    nome: 'Cardápio digital com QR Code',
+    familia: 'conversao',
+    beneficio:
+      'Um código na mesa que abre o cardápio no celular do cliente. Trocar preço leva um minuto e não custa gráfica.',
+    preco: 180,
+    custo: 0,
+    ramos: ['alimentacao'],
+    sugerido: 'intermediario',
+  },
+
   // ------------------------------------------------------ ser achado
   {
     id: 'seo',
@@ -219,6 +305,16 @@ export const CATALOGO: Servico[] = [
     preco: 100,
     custo: 0,
     brinde: true,
+  },
+
+  {
+    id: 'blog',
+    nome: 'Área de novidades (blog)',
+    familia: 'conteudo',
+    beneficio:
+      'Um espaço onde você mesmo publica promoção, novidade ou dica. O Google gosta de site que se mexe, e o cliente volta para ver.',
+    preco: 220,
+    custo: 0,
   },
 
   // ----------------------------------------------------------- infra
@@ -315,6 +411,99 @@ export const CATALOGO: Servico[] = [
     custo: 0,
     mensal: true,
     sugerido: 'avancado',
+    brinde: true,
+  },
+
+  // ------------------------------------------------------- cortesias
+  /*
+   * Estes nove não custam nada e quase não dão trabalho: ou já saem
+   * prontos do jeito que o site é feito, ou levam minutos. Preço zero
+   * de propósito — não é para faturar, é para o cliente enxergar o
+   * tamanho do que está levando. Uma proposta de quatro linhas parece
+   * cara; a mesma proposta com doze linhas parece barata.
+   */
+  {
+    id: 'compartilhamento',
+    nome: 'Link bonito no WhatsApp e no Instagram',
+    familia: 'cortesia',
+    beneficio:
+      'Quando alguém manda o endereço do site numa conversa, aparece a foto e o nome do negócio — não um link seco que ninguém clica.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'favicon',
+    nome: 'Ícone do negócio na aba do navegador',
+    familia: 'cortesia',
+    beneficio: 'Seu símbolo aparece na abinha e nos favoritos, do mesmo jeito que nas empresas grandes.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'backup',
+    nome: 'Backup automático',
+    familia: 'cortesia',
+    beneficio: 'Cada alteração fica guardada. Se algo sair errado, o site volta a como estava em poucos minutos.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'horario_aberto',
+    nome: 'Aviso de aberto ou fechado, automático',
+    familia: 'cortesia',
+    beneficio:
+      'O site mostra sozinho "aberto agora" ou "fecha às 18h", conforme o horário do dia. Ninguém liga à toa e ninguém deixa de ir achando que fechou.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'redes_no_site',
+    nome: 'Suas redes ligadas ao site',
+    familia: 'cortesia',
+    beneficio: 'Instagram, Facebook e WhatsApp a um toque, e o site aparecendo na bio das redes. Um puxa o outro.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'celular_antigo',
+    nome: 'Funciona em celular simples',
+    familia: 'cortesia',
+    beneficio:
+      'Testado em tela pequena e aparelho antigo, que é como boa parte dos seus clientes vai abrir. Site que trava perde venda.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'avisar_google',
+    nome: 'Aviso ao Google de que o site existe',
+    familia: 'cortesia',
+    beneficio: 'Cadastro nas ferramentas do Google para ele encontrar e listar as páginas sem esperar meses.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'como_chegar',
+    nome: 'Botão "como chegar"',
+    familia: 'cortesia',
+    beneficio: 'Um toque e a rota abre no mapa do celular, já traçada até a sua porta.',
+    preco: 0,
+    custo: 0,
+    brinde: true,
+  },
+  {
+    id: 'garantia_30',
+    nome: 'Ajustes sem custo nos primeiros 30 dias',
+    familia: 'cortesia',
+    beneficio: 'Errou um preço, quer trocar uma foto, mudou o horário: no primeiro mês a gente acerta sem cobrar.',
+    preco: 0,
+    custo: 0,
     brinde: true,
   },
 ];

@@ -561,3 +561,30 @@
   .previa-botao::after { content: ' — ' attr(href); font-weight: 400; }
   .previa-botao { font-size: 9.5px; padding: 6px 10px; white-space: normal; }
 }
+
+/*
+ * A renovação anual precisa ser lida, não descoberta depois. Fica logo
+ * abaixo do preço, com moldura leve — discreta o bastante para não
+ * competir com o valor, visível o bastante para ninguém alegar surpresa.
+ */
+.preco-anual {
+  display: block;
+  margin-top: 0.75rem;
+  max-width: 32rem;
+  border-left: 3px solid var(--roxo, #7c3aed);
+  padding: 0.45rem 0 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #52525b;
+}
+
+.preco-anual strong {
+  color: #27272a;
+}
+
+@media print {
+  .preco-anual {
+    border-left-color: #999;
+    color: #333;
+  }
+}

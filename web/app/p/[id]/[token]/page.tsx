@@ -105,6 +105,14 @@ export default async function PaginaProposta({
   if (!proposta.itens.length) notFound();
 
   /*
+   * O documento prometia domínio e hospedagem inclusos em toda proposta,
+   * estivessem marcados ou não. É promessa que o cliente cobra depois, e
+   * com razão — então só diz o que a proposta realmente traz.
+   */
+  const temDominio = proposta.itens.some((i) => i.id === 'dominio');
+  const temHospedagem = proposta.itens.some((i) => i.id === 'hospedagem');
+
+  /*
    * Dois documentos saem daqui. Com ?fechado=1, e o resumo do que o cliente
    * contratou: nao ha mais nada a vender, entao entra o detalhe do que ele
    * recebe e o que acontece depois, e sai o prazo de validade.
@@ -159,6 +167,12 @@ export default async function PaginaProposta({
               <span className="preco-valor">{moeda(proposta.entrada)}</span>
               {proposta.mensalidade > 0 && (
                 <span className="preco-mensal">depois {moeda(proposta.mensalidade)} por mês</span>
+              )}
+              {proposta.anualidade > 0 && (
+                <span className="preco-anual">
+                  O primeiro ano está incluso. A partir do segundo, {moeda(proposta.anualidade)} por ano para manter o
+                  site no ar — <strong>nada é cobrado agora</strong>.
+                </span>
               )}
             </div>
 
@@ -230,8 +244,12 @@ export default async function PaginaProposta({
                 <span>Você aprova ou pede ajuste antes de qualquer coisa ir para o ar.</span>
               </li>
               <li>
-                <strong>Publicamos no seu domínio</strong>
-                <span>Com o endereço próprio e o certificado de segurança já ativos.</span>
+                <strong>Publicamos</strong>
+                <span>
+                  {temDominio
+                    ? 'No seu endereço próprio, com o certificado de segurança já ativo.'
+                    : 'O site entra no ar e o endereço fica pronto para você divulgar.'}
+                </span>
               </li>
             </ol>
           )}
@@ -244,10 +262,16 @@ export default async function PaginaProposta({
               <dt>Pagamento</dt>
               <dd>Metade na aprovação, metade na entrega. Pix, cartão ou boleto.</dd>
             </div>
-            <div>
-              <dt>Domínio e hospedagem</dt>
-              <dd>Inclusos no primeiro ano, sem custo adicional.</dd>
-            </div>
+            {(temDominio || temHospedagem) && (
+              <div>
+                <dt>{temDominio && temHospedagem ? 'Domínio e hospedagem' : temDominio ? 'Domínio' : 'Hospedagem'}</dt>
+                <dd>
+                  {temDominio
+                    ? 'Inclusos no primeiro ano, sem custo adicional.'
+                    : 'Inclusa, com o certificado de segurança ativo.'}
+                </dd>
+              </div>
+            )}
             <div>
               <dt>Ajustes</dt>
               <dd>Duas rodadas de alteração inclusas antes da publicação.</dd>
