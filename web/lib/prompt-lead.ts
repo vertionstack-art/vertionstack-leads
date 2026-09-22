@@ -195,6 +195,29 @@ Isto muda a conversa inteira e precisa ser o centro do material que você vai mo
 **Como usar isso sem parecer exagero:** mande o link cedo na conversa, mas não prometa que está perfeito. O tom é "montei uma ideia rápida para você ver como ficaria — e o que a gente faz de verdade fica bem acima disso". Convide-o a apontar o que mudaria; a crítica dele vira briefing e vira venda.
 ` : ''}
 
+## QUEM VAI LER A MENSAGEM QUASE NUNCA É O DONO
+
+O número do Google é o número do balcão. Quem responde é a recepcionista, a
+secretária, o barbeiro que está livre, o filho que cuida do celular. Essa
+pessoa não decide nada, não tem interesse nenhum em comprar site, e o
+trabalho dela é despachar quem está vendendo.
+
+Tudo que você escrever precisa sobreviver a isso:
+
+- **Nunca venda para quem atendeu.** Explicar serviço, preço ou benefício
+  para o atendente só faz ele responder "não temos interesse" antes de o
+  dono saber que alguém falou.
+- **Dê a ele um motivo para repassar.** Ele repassa o que parece
+  importante ou o que parece interessante demais para segurar. Não repassa
+  proposta comercial.
+- **Não peça para falar com o responsável logo de cara.** "Gostaria de
+  falar com o responsável pelo marketing" é a frase mais reconhecível de
+  telemarketing que existe, e derruba a conversa na primeira linha.
+- **Escreva de um jeito que o atendente consiga repassar sem entender.**
+  Se ele precisa explicar o que é para o chefe, ele não repassa.
+- Se der para descobrir o nome do dono, use. Perguntar "o João está?"
+  passa por quem "quero falar com o responsável" não passa.
+
 ## O QUE EU PRECISO QUE VOCÊ MONTE
 
 **1. Briefing do negócio**
@@ -207,18 +230,40 @@ O que ele está perdendo hoje, em termos concretos. Se der para estimar (busca m
 Qual é a primeira frase. O que abre a porta com esse dono específico, considerando o cuidado apontado acima.
 
 **4. Três mensagens de WhatsApp**
-Curtas, no máximo 4 linhas cada, em português brasileiro informal mas profissional. Sem "espero que esteja bem". Sem parecer robô ou disparo em massa.${previa ? ' **Todas devem levar ao link da prévia**, cada uma entrando por um caminho diferente — em nenhuma delas o link pode parecer propaganda colada no fim.' : ''} Três ângulos:
-- uma que avisa de um problema
-- uma que puxa pela oportunidade
-- uma bem curta e direta${previa ? `
 
-Escreva o link exatamente assim quando for usá-lo: ${previa}` : ''}
+Curtas, no máximo 4 linhas cada, em português brasileiro informal mas profissional. Sem "espero que esteja bem". Sem parecer robô ou disparo em massa. Lembre que quem lê é o atendente, não o dono.
+
+**A abertura tem que provocar curiosidade, não explicar.** O que funciona é dizer que existe uma coisa feita com o nome do negócio e que eu quero mostrar — sem contar o que é. Na linha desse tipo:
+
+- "oi! montei uma coisa aqui com o nome da ${lead.name} e queria mostrar pra vocês"
+- "fiz uma coisa pra ${lead.name} esses dias, posso te mandar pra dar uma olhada?"
+- "tenho uma coisa pronta aqui com a cara da ${lead.name}, quem é que vê essas coisas aí?"
+
+Use essa ideia, mas **escreva as suas próprias versões** — não copie essas três frases. Elas só mostram o tom.
+
+Por que funciona: ninguém resiste a saber o que foi feito com o nome do próprio negócio. A pergunta "o quê?" é a resposta que eu quero, e ela vem do atendente também — que aí repassa por curiosidade, não porque entendeu a proposta.
+
+O que não pode aparecer em nenhuma delas:
+- a palavra "site", "landing page", "orçamento", "proposta" ou "serviço" na primeira mensagem
+- qualquer coisa que soe como oferta; no momento em que soa, vira disparo em massa
+- pedir para falar com o responsável
+
+As três, por ângulo:
+- **uma de pura curiosidade**, que não entrega nada e só quer a resposta
+- **uma de curiosidade${previa ? ' que já manda o link junto' : ' um pouco mais concreta'}**, para quando eu não quiser esperar resposta
+- **uma que avisa de um problema**, para quando o diagnóstico acima for forte o bastante para abrir sozinho a conversa
+
+**Junto com as três, escreva a resposta para "o que é?"** — é a mensagem que decide tudo, e é onde eu finalmente digo do que se trata. Curta, sem empolgação, e já levando ao próximo passo.${previa ? `
+
+É nessa resposta que entra o link, escrito exatamente assim: ${previa}
+
+Vale também escrever a versão dela para quando quem perguntou "o que é?" foi o atendente, e não o dono: aí a resposta precisa dar a ele algo fácil de repassar, sem virar explicação técnica.` : ''}
 
 **5. Roteiro de ligação**
-Abertura em até 15 segundos, 3 perguntas que fazem o dono perceber sozinho o problema, e como encaminhar para uma proposta. Escreva como fala, não como texto.${previa ? ' Inclua o momento exato de dizer que já existe uma prévia pronta e como conduzir para ele abrir o link ainda durante a ligação — e o que dizer enquanto ele estiver olhando.' : ''}
+Comece pelo começo de verdade: **quem atende o telefone não é o dono**. Escreva primeiro as duas ou três frases para passar por essa pessoa — o que dizer, o que não dizer, e o que responder ao "ele não está, pode deixar recado" e ao "manda por e-mail que a gente vê". Só depois disso vem a abertura com o dono, em até 15 segundos, 3 perguntas que fazem ele perceber sozinho o problema, e como encaminhar para uma proposta. Escreva como fala, não como texto.${previa ? ' Inclua o momento exato de dizer que já existe uma prévia pronta e como conduzir para ele abrir o link ainda durante a ligação — e o que dizer enquanto ele estiver olhando.' : ''}
 
 **6. As cinco objeções mais prováveis**
-Com a resposta para cada uma. Inclua obrigatoriamente "não tenho dinheiro agora", "meu Instagram já dá conta" e "vou pensar".${previa ? ' Inclua também as que a prévia costuma provocar: "não gostei desse layout", "isso aí é template pronto?" e "por que você fez isso de graça, qual é a pegadinha?".' : ''}
+Com a resposta para cada uma. Inclua obrigatoriamente "não tenho dinheiro agora", "meu Instagram já dá conta" e "vou pensar". Inclua também as duas que vêm de quem atendeu e não decide: "não temos interesse" (dito antes de o dono saber de nada) e "manda o material por e-mail que eu repasso".${previa ? ' Inclua também as que a prévia costuma provocar: "não gostei desse layout", "isso aí é template pronto?" e "por que você fez isso de graça, qual é a pegadinha?".' : ''}
 
 **7. Proposta**
 O que oferecer nesse caso, com escopo enxuto e faixa de preço em reais realista para o Brasil. Sugira também uma isca inicial mais barata, para começar a relação.
