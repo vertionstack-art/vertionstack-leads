@@ -203,6 +203,19 @@ Use this properly:
 - It also removes the risk from replying. They are not agreeing to a meeting, they are clicking a link.
 - Make the call to action about the preview itself, not about a sales call.
 
+### Do not ask permission — the link is already in the email
+
+**Never ask whether they want to see it.** No "would you like to see a demo?", no "can I send you a
+mockup?", no "would it help if I put something together?", and no version of the same question wearing
+different words. The site is built, it is live, and the link is in this email.
+
+Asking throws away the entire advantage. It turns something already finished back into a favour they
+have to grant, it invites a "no thanks" that costs them nothing to send, and it makes me sound like
+every other person offering to do work later.
+
+The call to action assumes they are going to click. It is about what happens after they look —
+what they think, what they would change, what comes next — never about whether they would like to look.
+
 ### The demo is the floor, not the ceiling — say so
 
 That preview was built from the outside in a few hours, with stock photos and text I wrote myself.
@@ -219,8 +232,9 @@ The email has to make that point, because it is the strongest thing in the whole
   The moment it sounds like a draft that needs excusing, the whole advantage is gone.`
     : `## NO PREVIEW SITE YET
 
-I have not built them a preview. Do not invent one and do not imply a site exists. The call to action
-has to earn a reply on its own — make it small enough that answering costs them nothing.`;
+I have not built them a preview. Do not invent one and do not imply a site exists, and do not promise
+to build one. The call to action has to earn a reply on its own — make it small enough that answering
+costs them nothing.`;
 
   const preco = precoUsd
     ? `## THE PRICE: ${emDolar(precoUsd)}
@@ -303,8 +317,10 @@ No stacked adjectives. No exclamation marks.
 **Formatting:** plain text. No images and no HTML layout — those land in spam and look like a campaign.
 One short paragraph per idea, blank line between.
 
-**Close:** exactly one call to action, and make it cost them nothing. A yes-or-no question they can answer
-with a single word beats asking for a 15-minute call.
+**Close:** exactly one call to action, and make it cost them nothing. A question they can answer in one
+line beats asking for a 15-minute call. It has to be a question that only makes sense after they have
+opened the link — what they think of it, what they would change first — never a question asking for
+permission to show them something they can already see.
 
 **P.S.:** include one. After the subject line it is the most-read part of a cold email. Put the concrete,
 valuable thing there.
