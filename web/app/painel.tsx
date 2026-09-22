@@ -527,6 +527,7 @@ export default function Painel({
                 onStatus={(st) => salvarPatch(lead.id, { status: st })}
                 onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                 onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
+                onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                 onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                 onProposta={() => setPropostaDe(lead)}
                 onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
@@ -714,16 +715,25 @@ export default function Painel({
                             </button>
                           )}
                           <button
-                            onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
-                            title="Gera o prompt para construir o site de prévia deste comércio"
+                            onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
+                            title="Antes da venda: prompt para desenhar a prévia no Claude Design"
                             className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
                               lead.previaUrl
                                 ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
                                 : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
                             }`}
                           >
-                            {lead.previaUrl ? '✓ SITE' : 'SITE'}
+                            {lead.previaUrl ? '✓ DESIGN' : 'DESIGN'}
                           </button>
+                          {lead.previaUrl && (
+                            <button
+                              onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
+                              title="Depois da venda: prompt para publicar o site aprovado no Claude Code"
+                              className="rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold tracking-wide text-zinc-600 transition hover:border-roxo-400 hover:text-roxo-700"
+                            >
+                              ENTREGA
+                            </button>
+                          )}
                           <button
                             onClick={() => setPropostaDe(lead)}
                             title="Monta os três planos de proposta para este lead"

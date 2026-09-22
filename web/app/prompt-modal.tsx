@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { Lead } from '@/lib/db';
 import { montarPrompt } from '@/lib/prompt-lead';
 import { montarPromptSite } from '@/lib/prompt-site';
+import { montarPromptDesign } from '@/lib/prompt-design';
 import { montarPromptGringa } from '@/lib/prompt-gringa';
 
-export type Variante = 'abordagem' | 'site' | 'gringa';
+export type Variante = 'abordagem' | 'design' | 'site' | 'gringa';
 
 const TEXTOS: Record<Variante, { titulo: string; subtitulo: string; destino: string; url: string }> = {
   abordagem: {
@@ -16,10 +17,17 @@ const TEXTOS: Record<Variante, { titulo: string; subtitulo: string; destino: str
     destino: 'Abrir chat',
     url: 'https://chatgpt.com/',
   },
-  site: {
-    titulo: 'Prompt para construir o site',
+  design: {
+    titulo: 'Prompt da prévia — antes da venda',
     subtitulo:
-      'Cole no Claude Code. Ele instala as skills, monta o site com os dados deste comércio, sobe no GitHub e publica na Vercel.',
+      'Cole no Claude Design. Ele desenha a página de demonstração deste comércio, para você mostrar ao dono e abrir a conversa.',
+    destino: 'Abrir Claude',
+    url: 'https://claude.ai/',
+  },
+  site: {
+    titulo: 'Prompt da entrega — depois da venda',
+    subtitulo:
+      'Cole no Claude Code. Ele pega a prévia que o cliente aprovou, faz funcionar o que foi contratado, sobe no GitHub e publica na Vercel.',
     destino: 'Abrir Claude',
     url: 'https://claude.ai/',
   },
@@ -96,7 +104,9 @@ export default function PromptModal({
   const precoNumero = Number(precoUsd.replace(/[^\d]/g, ''));
 
   const prompt =
-    variante === 'site'
+    variante === 'design'
+      ? montarPromptDesign(lead)
+      : variante === 'site'
       ? montarPromptSite(lead)
       : variante === 'gringa'
         ? montarPromptGringa(
@@ -180,8 +190,10 @@ export default function PromptModal({
             </button>
           </div>
           <p className="mt-1.5 text-[11.5px] leading-snug text-roxo-900/70">
-            {variante === 'site'
-              ? 'Quando o site estiver publicado, cole o endereço aqui — ele passa a ser usado na abordagem e na proposta.'
+            {variante === 'design'
+              ? 'Quando publicar a prévia, cole o endereço aqui — é ele que a abordagem e a proposta vão usar.'
+              : variante === 'site'
+              ? 'A prévia aprovada vai junto no prompt, para o Claude Code reproduzir o design que o cliente comprou.'
               : lead.previaUrl
                 ? variante === 'gringa'
                   ? 'O e-mail vai girar em torno desta prévia: site pronto, com o nome dele, antes de ele responder qualquer coisa.'

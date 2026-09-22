@@ -28,6 +28,7 @@ export default function LeadCard({
   onStatus,
   onPrompt,
   onPromptGringa,
+  onPromptDesign,
   onPromptSite,
   onProposta,
   onNota,
@@ -46,6 +47,7 @@ export default function LeadCard({
   onStatus: (s: Status) => void;
   onPrompt: () => void;
   onPromptGringa: () => void;
+  onPromptDesign: () => void;
   onPromptSite: () => void;
   onProposta: () => void;
   onNota: () => void;
@@ -150,14 +152,14 @@ export default function LeadCard({
           COPY
         </button>
         <button
-          onClick={onPromptSite}
+          onClick={onPromptDesign}
           className={`${TOQUE} rounded-xl border text-[12.5px] font-semibold ${
             lead.previaUrl
               ? 'border-emerald-400 bg-emerald-50 text-emerald-800'
               : 'border-zinc-300 bg-white text-zinc-700'
           }`}
         >
-          SITE
+          DESIGN
         </button>
         <button
           onClick={onProposta}
@@ -170,6 +172,15 @@ export default function LeadCard({
           {lead.proposta ? '✓ PROP.' : 'PROPOSTA'}
         </button>
       </div>
+
+      {lead.previaUrl && (
+        <button
+          onClick={onPromptSite}
+          className={`mt-2 w-full ${TOQUE} rounded-xl border border-zinc-300 bg-white text-[12.5px] font-semibold text-zinc-700 active:bg-zinc-50`}
+        >
+          ENTREGA — publicar o site vendido
+        </button>
+      )}
 
       <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
         <select

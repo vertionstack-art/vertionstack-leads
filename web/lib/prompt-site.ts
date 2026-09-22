@@ -1,19 +1,26 @@
 /**
- * Prompt para construir o site de prévia de um lead.
+ * Fase 2: o prompt que transforma a prévia aprovada em site publicado.
  *
- * Diferente do prompt de abordagem, que é para conversar com o dono: este
- * vai para o assistente que vai escrever o código. Ele carrega tudo o que
- * a extensão colheu do Google Maps mais o que foi cadastrado à mão, para
- * o site já nascer com o nome certo, o telefone certo e o WhatsApp certo
- * — sem ninguém precisar redigitar nada.
+ * Roda no Claude Code, depois da venda fechada. A fase 1 (prompt-design.ts)
+ * desenhou a página no Claude Design para abrir a conversa; aqui ela vira
+ * repositório, domínio e site no ar, já com o material real do cliente.
  *
- * O prompt começa mandando o assistente parar e esperar o link do
- * repositório. Quem cria é o Lucas, na conta certa: assistente que cria
- * repositório sozinho acaba abrindo na conta errada, com o nome errado,
- * e aí o trabalho já nasce no lugar errado.
+ * A regra que rege este prompt inteiro: **o cliente comprou o que viu.**
+ * Assistente que recebe um design pronto tende a "melhorar" — troca a cor,
+ * reorganiza a seção, escolhe outra fonte. Isso não é melhoria, é entregar
+ * coisa diferente da que foi vendida, e quem descobre é o dono na hora de
+ * receber.
+ *
+ * O prompt começa mandando parar e esperar o link do repositório. Quem cria
+ * é o Lucas, na conta certa: assistente que cria repositório sozinho acaba
+ * abrindo na conta errada, com o nome errado, e aí o trabalho já nasce no
+ * lugar errado.
  */
 
 import type { Lead } from './db';
+import { focoDoRamo } from './foco-ramo';
+import { porId } from './catalogo';
+import { normalizarMarcacoes } from './proposta';
 
 /**
  * O comando de instalação das skills vai literal, sem uma vírgula fora do
@@ -32,90 +39,30 @@ function whatsappDe(telefone: string | null): string | null {
 }
 
 /**
- * O que não pode faltar no site, conforme o tipo de comércio.
+ * O que o cliente efetivamente comprou, lido da proposta salva no lead.
  *
- * Uma barbearia vive de agendamento; uma pizzaria, de cardápio e pedido;
- * uma clínica, de confiança e convênio. Sem isto o assistente entrega a
- * mesma página genérica para todos, que é o que faz site de pequeno
- * negócio parecer template.
+ * Faz diferença de verdade: sem esta lista o assistente entrega a mesma
+ * página estática da prévia, e o agendamento que foi vendido — e cobrado —
+ * continua sendo um botão que não faz nada.
  */
-function focoDoRamo(categoria: string | null): string {
-  const c = (categoria || '').toLowerCase();
+function contratado(lead: Lead): string | null {
+  const p = lead.proposta as { marcacoes?: unknown } | null;
+  if (!p || typeof p !== 'object') return null;
 
-  if (/barbearia|barbear|cabelei|salão|salao|beleza|estética|estetica|manicure/.test(c))
-    return [
-      '- Agendar é a ação principal: botão de horário em tudo quanto é dobra.',
-      '- Galeria de cortes ou trabalhos feitos vale mais que texto — o cliente compra pelo olho.',
-      '- Tabela de serviços com preço; esconder preço afasta neste ramo.',
-      '- Equipe com foto e nome: as pessoas escolhem o profissional, não só o lugar.',
-    ].join('\n');
+  const marcacoes = normalizarMarcacoes(p.marcacoes as never);
+  const itens = Object.keys(marcacoes)
+    .filter((id) => marcacoes[id])
+    .map((id) => porId(id))
+    .filter(Boolean)
+    .map((s) => `- **${s!.nome}** — ${s!.beneficio}`);
 
-  if (/pizza|hamburgu|lanche|restaurante|bar |comida|food|cafeteria|café|cafe|padaria|doceria|açaí|acai/.test(c))
-    return [
-      '- Cardápio com foto e preço é o coração da página. Sem foto de comida, não vende.',
-      '- Pedir pelo WhatsApp em um toque, com mensagem já escrita.',
-      '- Horário de funcionamento visível sem rolar a página, e se entrega ou não.',
-      '- Área de entrega e tempo médio, se houver.',
-    ].join('\n');
-
-  if (/clínica|clinica|odonto|dentist|médic|medic|saúde|saude|psic|fisio|veterin|pet/.test(c))
-    return [
-      '- Confiança acima de tudo: especialidades, formação, registro profissional.',
-      '- Convênios aceitos, se houver — é a primeira pergunta do paciente.',
-      '- Agendamento de consulta em destaque, e telefone bem visível.',
-      '- Tom sóbrio. Nada de promessa de resultado, que é vedado em saúde.',
-    ].join('\n');
-
-  if (/academia|fitness|crossfit|pilates|yoga|luta|jiu|muay|natação|natacao/.test(c))
-    return [
-      '- Modalidades e horários das turmas.',
-      '- Planos e valores, ou ao menos "a partir de".',
-      '- Fotos do espaço real: quem procura academia quer ver a estrutura.',
-      '- Chamada para aula experimental gratuita.',
-    ].join('\n');
-
-  if (/imobiliá|imobilia|imóve|imove|corretor|constru/.test(c))
-    return [
-      '- Vitrine de imóveis com foto, bairro, metragem e valor.',
-      '- Busca ou filtro simples por tipo e faixa de preço.',
-      '- Formulário de "quero anunciar meu imóvel" além do de compra.',
-      '- CRECI visível — é exigência da profissão.',
-    ].join('\n');
-
-  if (/oficina|mecânic|mecanic|auto|funilar|borracha|serralh|marcenar|elétric|eletric|encanad|reforma/.test(c))
-    return [
-      '- Lista clara dos serviços prestados; o cliente chega pesquisando o problema dele.',
-      '- Orçamento pelo WhatsApp com foto do serviço — é assim que esse ramo negocia.',
-      '- Tempo de mercado e trabalhos feitos passam a confiança que falta.',
-      '- Endereço com mapa: esse cliente vai presencialmente.',
-    ].join('\n');
-
-  if (/ótica|otica|loja|boutique|roupa|calçad|calcad|joalher|papelar|presente/.test(c))
-    return [
-      '- Vitrine dos produtos com foto boa.',
-      '- Marcas trabalhadas, que é o que o cliente procura pelo nome.',
-      '- WhatsApp para consulta de disponibilidade e preço.',
-      '- Endereço e horário bem visíveis.',
-    ].join('\n');
-
-  if (/viage|turis|hotel|pousada|passeio/.test(c))
-    return [
-      '- Destinos e pacotes com foto grande.',
-      '- Formulário de cotação, que é como esse ramo capta.',
-      '- Selo de cadastro no Ministério do Turismo, se houver.',
-    ].join('\n');
-
-  return [
-    '- Deixe claro em cinco segundos o que o negócio faz e para quem.',
-    '- Lista de serviços com uma frase de benefício em cada.',
-    '- Contato por WhatsApp em destaque, em mais de um ponto da página.',
-    '- Endereço, horário e mapa.',
-  ].join('\n');
+  return itens.length ? itens.join('\n') : null;
 }
 
 export function montarPromptSite(lead: Lead, nomeEmpresa = 'Vertion Stack'): string {
   const zap = whatsappDe(lead.phone);
   const linha = (rotulo: string, valor: string | null | undefined) => (valor ? `- **${rotulo}:** ${valor}` : null);
+  const comprou = contratado(lead);
 
   const dados = [
     linha('Nome do comércio', lead.name),
@@ -125,8 +72,9 @@ export function montarPromptSite(lead: Lead, nomeEmpresa = 'Vertion Stack'): str
     linha('Telefone', lead.phone),
     linha('Link direto do WhatsApp', zap),
     linha('Instagram', lead.instagram),
-    linha('Site atual', lead.website),
-    linha('Situação do site atual', lead.siteDetalhe || lead.websiteLabel),
+    linha('Site antigo', lead.website),
+    linha('Situação do site antigo', lead.siteDetalhe || lead.websiteLabel),
+    linha('Horário', lead.hours),
     linha('Ficha no Google Maps', lead.mapsUrl),
     lead.rating
       ? `- **Reputação no Google:** ${lead.rating.toFixed(1).replace('.', ',')} estrelas em ${lead.reviews ?? 0} avaliações`
@@ -137,24 +85,39 @@ export function montarPromptSite(lead: Lead, nomeEmpresa = 'Vertion Stack'): str
     .filter(Boolean)
     .join('\n');
 
-  const semFotos = [
-    'Não tenho as fotos nem os textos oficiais do cliente — este site é uma prévia',
-    'feita de fora para mostrar a ele como ficaria. Use imagens de banco gratuitas',
-    '(Unsplash) coerentes com o ramo, e escreva os textos você mesmo a partir dos',
-    'dados acima. Deixe tudo fácil de trocar depois, num único arquivo de conteúdo.',
-  ].join(' ');
+  return `Este comércio **já fechou negócio**. Existe uma prévia aprovada por ele, e o seu trabalho é transformá-la em site publicado de verdade.
 
-  return `Preciso que você construa um site de prévia para um comércio real. Este site vai ser mostrado ao dono como demonstração, então ele precisa ficar bom de verdade — é a peça que vai fechar a venda.
+## PARE AQUI: PRIMEIRO EU CRIO O REPOSITÓRIO E TE MANDO O DESIGN
 
-## PARE AQUI: PRIMEIRO EU CRIO O REPOSITÓRIO
+**Não comece nada ainda.** Eu vou te mandar duas coisas:
 
-**Não comece nada ainda.** Eu vou criar o repositório no GitHub e te mandar o link.
+1. O link do repositório no GitHub, que eu crio na conta certa.
+2. O design aprovado — o código ou o link da prévia que o cliente já viu e aceitou.
 
-Sua primeira resposta deve ser só isso: peça o link do repositório e aguarde. Não instale nada, não escreva código, não crie repositório nenhum por conta própria — o repositório é meu e eu já vou entregá-lo criado.
+Sua primeira resposta deve ser só isso: peça as duas coisas e aguarde. Não instale nada, não escreva código, não crie repositório nenhum por conta própria.
 
-Depois que eu mandar o link, siga o resto deste prompt na ordem.
+${
+  lead.previaUrl
+    ? `A prévia aprovada está no ar aqui, para você conferir enquanto espera:\n\n${lead.previaUrl}\n`
+    : 'Se eu esquecer de mandar o design, peça antes de qualquer coisa. Não comece do zero.\n'
+}
+## O CLIENTE COMPROU O QUE VIU
 
-## ASSIM QUE EU MANDAR O LINK: INSTALE AS SKILLS
+Esta é a regra mais importante deste trabalho.
+
+O dono aprovou um layout, uma paleta, uma tipografia e uma ordem de seções. **Isso está vendido.** Não troque a cor porque outra combina mais, não reorganize a página porque faz mais sentido, não escolha outra fonte porque é mais moderna. Se você "melhorar" o design, está entregando uma coisa diferente da que foi comprada — e quem vai perceber é o dono, na entrega.
+
+O que você faz aqui é o que a prévia não tinha:
+
+- fazer funcionar de verdade o que lá era só aparência
+- trocar as imagens de banco pelas fotos reais dele
+- trocar os textos de exemplo pelos dados reais
+- deixar o site rápido, encontrável e acessível
+- publicar
+
+Se achar que alguma coisa do design está errada de fato — algo que quebra em tela pequena, contraste ilegível, um elemento que atrapalha a conversão — **me pergunte antes de mudar**. Não decida sozinho.
+
+## ASSIM QUE EU MANDAR OS DOIS: INSTALE AS SKILLS
 
 Rode este comando exatamente como está, sem alterar nada:
 
@@ -162,21 +125,44 @@ Rode este comando exatamente como está, sem alterar nada:
 ${COMANDO_SKILLS}
 \`\`\`
 
-**O uso dessas skills é obrigatório, não opcional.** Não escreva uma linha de código antes de carregá-las e ler o que elas orientam. Elas existem justamente para o site não sair com cara de template genérico — que é o resultado padrão de quem monta página sem consultá-las.
+**O uso dessas skills é obrigatório, não opcional.** Não escreva uma linha de código antes de carregá-las e ler o que elas orientam.
 
 Em especial:
-- **frontend-design** e **ui-ux-pro-max** definem a direção visual, a tipografia e a paleta. Nada de fonte e cor escolhidas no chute.
 - **senior-frontend** e **ui-design-system** guiam a estrutura dos componentes e a consistência.
 - **mobile-design** manda no comportamento em tela pequena, que é onde a maioria vai abrir.
+- **frontend-design** e **ui-ux-pro-max** servem aqui para **preservar** a direção visual aprovada com rigor, não para propor outra.
+- **senior-backend** e **senior-architect** entram no que foi contratado e precisa funcionar.
 - **humanizer** passa nos textos no fim, para não soarem escritos por máquina.
 
-Antes de me entregar o site, diga quais skills você consultou e o que cada uma mudou na sua decisão. Se você não usou nenhuma, o trabalho está errado e precisa ser refeito.
+Antes de me entregar o site, diga quais skills você consultou e o que cada uma mudou na sua decisão.
 
 ## O CLIENTE
 
 ${dados}
 
-## O QUE ESTE SITE PRECISA TER
+${
+  comprou
+    ? `## O QUE FOI VENDIDO — E PRECISA FUNCIONAR DE VERDADE
+
+Isto é o escopo pago. Na prévia era enfeite; aqui tem que funcionar:
+
+${comprou}
+
+Se algum destes itens depender de conta, chave ou serviço externo, me diga exatamente o que você precisa que eu providencie, antes de começar.`
+    : `## ESCOPO
+
+Não anexei a lista do que foi contratado. Antes de começar, me pergunte o que exatamente foi vendido — principalmente se tem agendamento, formulário, catálogo ou automação, porque isso muda o que precisa funcionar de verdade.`
+}
+
+## O MATERIAL REAL DO CLIENTE
+
+A prévia foi feita com foto de banco e texto que eu escrevi. Agora é para valer.
+
+**Antes de construir, me peça em uma lista objetiva** o que falta: logo em boa resolução, fotos reais do espaço e do trabalho, textos ou informações que só o dono tem, preços, e as contas necessárias (domínio, e-mail, redes).
+
+Enquanto o material não chegar, use o que a prévia já tinha e **marque de forma visível** cada ponto que depende de material real. Nada de dado inventado entrando como se fosse definitivo.
+
+## O QUE O SITE PRECISA TER
 
 ${focoDoRamo(lead.category)}
 
@@ -184,30 +170,26 @@ E em qualquer caso:
 - Botão de WhatsApp fixo, sempre alcançável, com mensagem já escrita${zap ? ` (use ${zap})` : ''}.
 - Responsivo de verdade: a maioria vai abrir no celular. Alvos de toque de no mínimo 44px.
 - Rápido. Nada de biblioteca pesada para fazer o que CSS resolve.
-- SEO básico: title, description, Open Graph e dados estruturados de negócio local, com endereço e horário.
+- SEO: title, description, Open Graph e dados estruturados de negócio local, com endereço e horário.
 - Acessível: contraste adequado, textos alternativos nas imagens, navegação por teclado.
-
-## CONTEÚDO
-
-${semFotos}
 
 ## STACK E PUBLICAÇÃO
 
 - **Next.js** com TypeScript e Tailwind.
 - Código versionado **no repositório que eu te mandei** — não crie outro.
 - Publicado na **Vercel**, conectado a esse repositório.
-- No fim, me devolva o endereço público da Vercel — é o link que eu vou mandar para o dono.
+- Todo o conteúdo editável reunido num único arquivo, para o dono conseguir mudar texto e preço depois sem mexer em código.
+- No fim, me devolva o endereço público da Vercel.
 
 ## COMO EU QUERO QUE VOCÊ TRABALHE
 
-1. Peça o link do repositório e espere. Só depois disso siga adiante.
-2. Instale as skills com o comando acima e carregue-as. Isso é obrigatório.
-3. Me diga em três linhas a direção visual que escolheu e por quê, considerando o ramo e o público desse comércio — e em quais skills você se apoiou para chegar nela.
-4. Construa o site.
-5. Suba para o repositório que eu mandei e publique na Vercel.
-6. Me entregue: o link do site no ar e o que eu preciso pedir ao cliente para deixar o site definitivo (fotos, textos, logo, o que for).
+1. Peça o repositório e o design aprovado. Espere.
+2. Instale as skills com o comando acima. Isso é obrigatório.
+3. Me diga o que entendeu do design aprovado — direção visual, paleta, seções — para eu confirmar que você vai reproduzir e não recriar.
+4. Me passe a lista do material que falta.
+5. Construa.
+6. Suba para o repositório que eu mandei e publique na Vercel.
+7. Me entregue: o link no ar, o que ainda depende de material do cliente, e como o dono faz para trocar texto e preço sozinho.
 
-Não invente informação sobre o negócio. Se precisar de um dado que não está acima — preço, horário, tempo de mercado — use um marcador visível de que ali entra a informação real, ou pergunte. Prévia com dado inventado queima a conversa.
-
-Quem está vendendo este site é a ${nomeEmpresa}.`;
+Quem está entregando este site é a ${nomeEmpresa}.`;
 }
