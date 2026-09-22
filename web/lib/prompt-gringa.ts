@@ -151,7 +151,19 @@ function reputacao(lead: Lead): string {
   return `${nota} stars across ${n} reviews.`;
 }
 
-export function montarPromptGringa(lead: Lead, nomeEmpresa = 'Vertion Stack'): string {
+/** "1200" vira "USD 1,200" — separador de milhar americano, sem centavos */
+function emDolar(valor: number): string {
+  return 'USD ' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(valor);
+}
+
+export interface OpcoesGringa {
+  /** quanto será cobrado pelo site, em dólar; vazio deixa o preço fora do e-mail */
+  precoUsd?: number | null;
+  nomeEmpresa?: string;
+}
+
+export function montarPromptGringa(lead: Lead, opcoes: OpcoesGringa = {}): string {
+  const { precoUsd = null, nomeEmpresa = 'Vertion Stack' } = opcoes;
   const d = diagnostico(lead);
   const origem = origemDoLead(lead);
   const idioma = origem.idiomaEmIngles;
@@ -189,11 +201,44 @@ Use this properly:
 - Name it as something already done, not something offered. "I built you one" beats "I could build you one".
 - This is reciprocity, and it is the strongest lever in the whole message: I gave first, unasked.
 - It also removes the risk from replying. They are not agreeing to a meeting, they are clicking a link.
-- Make the call to action about the preview itself, not about a sales call.`
+- Make the call to action about the preview itself, not about a sales call.
+
+### The demo is the floor, not the ceiling — say so
+
+That preview was built from the outside in a few hours, with stock photos and text I wrote myself.
+Not one thing on it came from them: no logo, no real photos, no prices, no menu, no story.
+
+The email has to make that point, because it is the strongest thing in the whole pitch:
+
+- Say plainly that this is a quick demo, put together before we had ever spoken.
+- The real site is built around their own photos, their own words, their own prices, their own brand —
+  and every part of it is theirs to change: layout, colours, sections, wording, all of it.
+- Frame it exactly this way: if this is what I could do knowing nothing about them,
+  what comes out once they are actually involved is a different thing entirely.
+- **Never apologise for the demo and never call it rough.** It is proof of speed and skill.
+  The moment it sounds like a draft that needs excusing, the whole advantage is gone.`
     : `## NO PREVIEW SITE YET
 
 I have not built them a preview. Do not invent one and do not imply a site exists. The call to action
 has to earn a reply on its own — make it small enough that answering costs them nothing.`;
+
+  const preco = precoUsd
+    ? `## THE PRICE: ${emDolar(precoUsd)}
+
+Put this number in the email. Do not dance around it, and do not write "starting at" or "packages from" —
+a real number is what makes an owner reply now instead of filing the email away to deal with later.
+
+Where it goes matters:
+- **Never before the demo link.** A price read before the value is just a cost.
+- Right after they have seen what they get, in a plain sentence: the number, what it covers, nothing else.
+- One number, said once, with confidence. No breakdown, no line items, no discount,
+  no "normally X, for you Y".
+- **Do not justify it and do not soften it.** A price that arrives with an explanation attached
+  sounds like a price that can be argued down.`
+    : `## NO PRICE IN THIS EMAIL
+
+I have not set a number for this one. Do not invent a price, do not give a range, and do not hint at
+one. If they ask what it costs, that is a reply — and a reply is what this email is for.`;
 
   return `You are an elite B2B cold email copywriter. Your emails get replies from small business owners
 who delete almost everything else in their inbox.
@@ -235,6 +280,8 @@ ${d.situacao}
 ${dados}
 
 ${previa}
+
+${preco}
 
 ## HOW THE EMAIL MUST BE BUILT
 

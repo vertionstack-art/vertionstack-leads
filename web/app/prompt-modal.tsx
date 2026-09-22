@@ -55,6 +55,15 @@ export default function PromptModal({
   const t = TEXTOS[variante];
   const [copiado, setCopiado] = useState(false);
   const [previa, setPrevia] = useState(lead.previaUrl || '');
+  /*
+   * O preço em dólar fica no navegador, não no banco.
+   *
+   * É um número de negociação que muda entre uma tentativa e outra, e não
+   * tem nada a ver com a proposta em real que o lead brasileiro recebe.
+   * Guardar aqui evita redigitar ao reabrir a janela, sem inventar coluna
+   * nova nem misturar duas moedas no mesmo campo.
+   */
+  const [precoUsd, setPrecoUsd] = useState('');
   const [guardandoPrevia, setGuardandoPrevia] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -63,11 +72,37 @@ export default function PromptModal({
    * for gravado, o texto continua sendo o de quem não tem prévia — e é
    * melhor assim: prometer um link que não existe estraga a abordagem.
    */
+  const chavePreco = `vl:preco-usd:${lead.id}`;
+
+  useEffect(() => {
+    if (variante !== 'gringa') return;
+    try {
+      setPrecoUsd(localStorage.getItem(chavePreco) || '');
+    } catch {
+      // navegador que bloqueia armazenamento: começa vazio e segue funcionando
+    }
+  }, [chavePreco, variante]);
+
+  function mudarPreco(valor: string) {
+    setPrecoUsd(valor);
+    try {
+      if (valor.trim()) localStorage.setItem(chavePreco, valor);
+      else localStorage.removeItem(chavePreco);
+    } catch {
+      // sem armazenamento o valor ainda vale para esta janela
+    }
+  }
+
+  const precoNumero = Number(precoUsd.replace(/[^\d]/g, ''));
+
   const prompt =
     variante === 'site'
       ? montarPromptSite(lead)
       : variante === 'gringa'
-        ? montarPromptGringa({ ...lead, previaUrl: lead.previaUrl })
+        ? montarPromptGringa(
+            { ...lead, previaUrl: lead.previaUrl },
+            { precoUsd: precoNumero > 0 ? precoNumero : null },
+          )
         : montarPrompt({ ...lead, previaUrl: lead.previaUrl });
 
   async function salvarPrevia() {
@@ -156,6 +191,44 @@ export default function PromptModal({
                   : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
           </p>
         </div>
+
+        {/* ------------------------------------------ preço em dólar */}
+        {variante === 'gringa' && (
+          <div className="border-b border-zinc-200 bg-sky-50 px-6 py-3.5">
+            <label
+              htmlFor="preco-usd"
+              className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-sky-800"
+            >
+              Quanto você vai cobrar pelo site
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] font-semibold text-sky-700">
+                  $
+                </span>
+                <input
+                  id="preco-usd"
+                  type="text"
+                  inputMode="numeric"
+                  value={precoUsd}
+                  onChange={(e) => mudarPreco(e.target.value.replace(/[^\d]/g, ''))}
+                  placeholder="1200"
+                  className="min-h-[40px] w-36 rounded-lg border border-sky-200 bg-white pl-7 pr-3 text-[13px] tabular-nums outline-none focus:border-sky-500"
+                />
+              </div>
+              {precoNumero > 0 && (
+                <span className="text-[12.5px] text-sky-900">
+                  USD {precoNumero.toLocaleString('en-US')} — vai escrito no e-mail
+                </span>
+              )}
+            </div>
+            <p className="mt-1.5 text-[11.5px] leading-snug text-sky-900/70">
+              {precoNumero > 0
+                ? 'O e-mail cita este número uma vez, depois do link da demo — preço antes do valor vira só custo.'
+                : 'Deixe vazio para não falar de preço neste e-mail. A IA não vai inventar nem dar faixa de valor.'}
+            </p>
+          </div>
+        )}
 
         {/* ----------------------------------------------------- texto */}
         <div className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-4">
