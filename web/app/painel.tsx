@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
+import { origemDoLead } from '@/lib/pais';
 import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
@@ -525,6 +526,7 @@ export default function Painel({
                 linkWhatsApp={linkWhatsApp(lead.phone)}
                 onStatus={(st) => salvarPatch(lead.id, { status: st })}
                 onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
+                onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
                 onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                 onProposta={() => setPropostaDe(lead)}
                 onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
@@ -702,6 +704,15 @@ export default function Painel({
                           >
                             COPY
                           </button>
+                          {origemDoLead(lead).estrangeiro && (
+                            <button
+                              onClick={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
+                              title={`Lead de fora do Brasil (${origemDoLead(lead).motivo}). Gera o prompt do e-mail para colar na SkynetChat.`}
+                              className="rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-sky-700 transition hover:border-sky-500 hover:bg-sky-100"
+                            >
+                              COPY GRINGA
+                            </button>
+                          )}
                           <button
                             onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                             title="Gera o prompt para construir o site de prévia deste comércio"

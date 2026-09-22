@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { Lead } from '@/lib/db';
 import { montarPrompt } from '@/lib/prompt-lead';
 import { montarPromptSite } from '@/lib/prompt-site';
+import { montarPromptGringa } from '@/lib/prompt-gringa';
 
-export type Variante = 'abordagem' | 'site';
+export type Variante = 'abordagem' | 'site' | 'gringa';
 
 const TEXTOS: Record<Variante, { titulo: string; subtitulo: string; destino: string; url: string }> = {
   abordagem: {
@@ -21,6 +22,13 @@ const TEXTOS: Record<Variante, { titulo: string; subtitulo: string; destino: str
       'Cole no Claude Code. Ele instala as skills, monta o site com os dados deste comércio, sobe no GitHub e publica na Vercel.',
     destino: 'Abrir Claude',
     url: 'https://claude.ai/',
+  },
+  gringa: {
+    titulo: 'Prompt do e-mail — lead de fora do Brasil',
+    subtitulo:
+      'Cole na SkynetChat com a opção Persuasão ligada. Volta com três assuntos, o e-mail pronto e dois follow-ups, no idioma do país.',
+    destino: 'Abrir SkynetChat',
+    url: 'https://skynetchat.net/',
   },
 };
 
@@ -56,7 +64,11 @@ export default function PromptModal({
    * melhor assim: prometer um link que não existe estraga a abordagem.
    */
   const prompt =
-    variante === 'site' ? montarPromptSite(lead) : montarPrompt({ ...lead, previaUrl: lead.previaUrl });
+    variante === 'site'
+      ? montarPromptSite(lead)
+      : variante === 'gringa'
+        ? montarPromptGringa({ ...lead, previaUrl: lead.previaUrl })
+        : montarPrompt({ ...lead, previaUrl: lead.previaUrl });
 
   async function salvarPrevia() {
     setGuardandoPrevia(true);
@@ -136,8 +148,12 @@ export default function PromptModal({
             {variante === 'site'
               ? 'Quando o site estiver publicado, cole o endereço aqui — ele passa a ser usado na abordagem e na proposta.'
               : lead.previaUrl
-                ? 'O prompt abaixo já usa esta prévia como centro da abordagem.'
-                : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
+                ? variante === 'gringa'
+                  ? 'O e-mail vai girar em torno desta prévia: site pronto, com o nome dele, antes de ele responder qualquer coisa.'
+                  : 'O prompt abaixo já usa esta prévia como centro da abordagem.'
+                : variante === 'gringa'
+                  ? 'Sem prévia o e-mail fica bem mais fraco. Publique na Vercel, cole aqui e salve antes de gerar.'
+                  : 'Publique a prévia na Vercel, cole aqui e salve — o prompt muda para girar em torno dela.'}
           </p>
         </div>
 

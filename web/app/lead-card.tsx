@@ -1,6 +1,7 @@
 'use client';
 
 import type { Lead, Status } from '@/lib/db';
+import { origemDoLead } from '@/lib/pais';
 
 /**
  * O mesmo lead da tabela, no formato que funciona no celular.
@@ -26,6 +27,7 @@ export default function LeadCard({
   linkWhatsApp,
   onStatus,
   onPrompt,
+  onPromptGringa,
   onPromptSite,
   onProposta,
   onNota,
@@ -43,6 +45,7 @@ export default function LeadCard({
   linkWhatsApp: string | null;
   onStatus: (s: Status) => void;
   onPrompt: () => void;
+  onPromptGringa: () => void;
   onPromptSite: () => void;
   onProposta: () => void;
   onNota: () => void;
@@ -53,6 +56,8 @@ export default function LeadCard({
   onCancelarNota: () => void;
 }) {
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
+  // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
+  const gringa = origemDoLead(lead).estrangeiro;
 
   return (
     <article className="border-b border-zinc-200 bg-white px-4 py-4 last:border-b-0">
@@ -128,6 +133,15 @@ export default function LeadCard({
       )}
 
       {/* ações */}
+      {gringa && (
+        <button
+          onClick={onPromptGringa}
+          className={`mt-3 w-full ${TOQUE} rounded-xl border border-sky-300 bg-sky-50 text-[12.5px] font-semibold text-sky-700 active:bg-sky-100`}
+        >
+          COPY GRINGA — e-mail
+        </button>
+      )}
+
       <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           onClick={onPrompt}
