@@ -11,6 +11,7 @@
 import { neon } from '@neondatabase/serverless';
 import { classifyWebsite, type WebsiteKind } from './classify';
 import type { SiteStatus } from './verificar-site';
+import { temperaturaDoLead } from './temperatura';
 
 const URL_BANCO =
   process.env.DATABASE_URL ||
@@ -87,7 +88,7 @@ export interface Filtros {
   responsavel?: string;
   limit?: number;
   offset?: number;
-  ordem?: 'recentes' | 'nome' | 'avaliacoes';
+  ordem?: 'recentes' | 'nome' | 'avaliacoes' | 'temperatura';
 }
 
 // ------------------------------------------------------------ schema
@@ -512,6 +513,7 @@ function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
   out = [...out].sort((a, b) => {
     if (ordem === 'nome') return a.name.localeCompare(b.name, 'pt-BR');
     if (ordem === 'avaliacoes') return (b.reviews || 0) - (a.reviews || 0);
+    if (ordem === 'temperatura') return temperaturaDoLead(b).pontos - temperaturaDoLead(a).pontos;
     return b.createdAt.localeCompare(a.createdAt);
   });
   return out;
@@ -552,6 +554,17 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   const category = f.category ? `%${f.category}%` : null;
   const ordem = f.ordem || 'recentes';
 
+  /*
+   * Temperatura não é coluna: é regra em TypeScript, e traduzi-la para SQL
+   * criaria uma segunda cópia que sai do lugar na primeira vez que os pesos
+   * mudarem. Então nesse modo a consulta traz o conjunto filtrado inteiro,
+   * a nota é calculada aqui e a página é recortada depois. O teto de 5.000
+   * existe para uma base grande não virar uma varredura silenciosa.
+   */
+  const porTemperatura = ordem === 'temperatura';
+  const limitSql = porTemperatura ? 5000 : limit;
+  const offsetSql = porTemperatura ? 0 : offset;
+
   const linhas = await sql`
     select * from leads
     where (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
@@ -570,7 +583,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       case when ${ordem} = 'nome' then name end asc,
       case when ${ordem} = 'avaliacoes' then reviews end desc nulls last,
       case when ${ordem} = 'recentes' then created_at end desc
-    limit ${limit} offset ${offset}
+    limit ${limitSql} offset ${offsetSql}
   `;
 
   const totalRow = await sql`
@@ -613,8 +626,15 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   for (const r of porPessoa as { quem: string; n: number }[]) resumo['de_' + r.quem] = r.n;
   resumo.site_quebrado = (quebrados[0] as { n: number }).n;
 
+  const mapeados = (linhas as any[]).map(daLinha);
+  const pagina = porTemperatura
+    ? [...mapeados]
+        .sort((a, b) => temperaturaDoLead(b).pontos - temperaturaDoLead(a).pontos)
+        .slice(offset, offset + limit)
+    : mapeados;
+
   return {
-    leads: (linhas as any[]).map(daLinha),
+    leads: pagina,
     total: (totalRow[0] as { n: number }).n,
     resumo,
     cidades: (cidades as { city: string }[]).map((r) => r.city),

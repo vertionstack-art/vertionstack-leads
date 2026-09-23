@@ -2,6 +2,7 @@
 
 import type { Lead, Status } from '@/lib/db';
 import { origemDoLead } from '@/lib/pais';
+import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
 
 /**
  * O mesmo lead da tabela, no formato que funciona no celular.
@@ -60,6 +61,7 @@ export default function LeadCard({
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
   // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
   const gringa = origemDoLead(lead).estrangeiro;
+  const temp = temperaturaDoLead(lead);
 
   return (
     <article className="border-b border-zinc-200 bg-white px-4 py-4 last:border-b-0">
@@ -81,6 +83,11 @@ export default function LeadCard({
 
       {/* presença digital */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ring-inset ${CLASSE_NIVEL[temp.nivel]}`}
+        >
+          {temp.rotulo} · {temp.pontos}
+        </span>
         <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-medium ring-1 ring-inset ${tipo.classe}`}>
           {tipo.rotulo}
         </span>
@@ -100,6 +107,14 @@ export default function LeadCard({
           </span>
         )}
       </div>
+
+      {temp.motivos[0] && (
+        <p className="mt-2 text-[12px] leading-snug text-zinc-700">
+          <span className="font-medium">Por quê: </span>
+          {temp.motivos[0]}
+        </p>
+      )}
+      {temp.freios[0] && <p className="mt-1 text-[12px] leading-snug text-amber-700">⚠ {temp.freios[0]}</p>}
 
       {lead.address && <p className="mt-2 text-[12.5px] leading-snug text-zinc-600">{lead.address}</p>}
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
+import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
 import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
@@ -120,7 +121,7 @@ export default function Painel({
   const [siteQuebrado, setSiteQuebrado] = useState(false);
   const [dePessoa, setDePessoa] = useState('');
   const [equipe, setEquipe] = useState<string[]>([]);
-  const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes'>('recentes');
+  const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes' | 'temperatura'>('recentes');
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -434,6 +435,7 @@ export default function Painel({
               onChange={(e) => { setOrdem(e.target.value as typeof ordem); setPagina(0); }}
               className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
             >
+              <option value="temperatura">Mais quentes primeiro</option>
               <option value="recentes">Mais recentes</option>
               <option value="avaliacoes">Mais avaliados</option>
               <option value="nome">Ordem alfabética</option>
@@ -560,7 +562,24 @@ export default function Painel({
                   return (
                     <tr key={lead.id} className="align-top transition hover:bg-roxo-50/40">
                       <td className="px-4 py-3">
-                        <div className="font-medium leading-snug">{lead.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium leading-snug">{lead.name}</span>
+                          {(() => {
+                            const t = temperaturaDoLead(lead);
+                            return (
+                              <span
+                                title={[
+                                  `${t.rotulo} — ${t.pontos} de 100`,
+                                  ...t.motivos.map((m) => '• ' + m),
+                                  ...t.freios.map((f) => '⚠ ' + f),
+                                ].join(String.fromCharCode(10))}
+                                className={`shrink-0 cursor-help rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${CLASSE_NIVEL[t.nivel]}`}
+                              >
+                                {t.rotulo}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         {lead.category && <div className="mt-0.5 text-[11.5px] text-zinc-500">{lead.category}</div>}
                         {notaAberta === lead.id ? (
                           <div className="mt-2">
