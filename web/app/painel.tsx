@@ -604,6 +604,7 @@ export default function Painel({
                 linkWhatsApp={linkWhatsApp(lead.phone)}
                 onStatus={(st) => salvarPatch(lead.id, { status: st })}
                 onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
+                onApagar={() => apagar(lead.id, lead.name)}
                 onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
                 onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                 onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}

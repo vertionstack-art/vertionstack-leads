@@ -38,6 +38,7 @@ export default function LeadCard({
   setRascunho,
   onSalvarNota,
   onCancelarNota,
+  onApagar,
 }: {
   lead: Lead;
   usuario: string;
@@ -57,6 +58,7 @@ export default function LeadCard({
   setRascunho: (v: string) => void;
   onSalvarNota: () => void;
   onCancelarNota: () => void;
+  onApagar: () => void;
 }) {
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
   // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
@@ -253,16 +255,28 @@ export default function LeadCard({
         )
       )}
 
-      {lead.mapsUrl && (
-        <a
-          href={lead.mapsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`mt-2 flex ${TOQUE} items-center justify-center text-[12.5px] text-zinc-500 underline underline-offset-2`}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        {lead.mapsUrl ? (
+          <a
+            href={lead.mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`flex ${TOQUE} flex-1 items-center justify-center text-[12.5px] text-zinc-500 underline underline-offset-2`}
+          >
+            Ver no Google Maps
+          </a>
+        ) : (
+          <span className="flex-1" />
+        )}
+        {/* discreto de propósito: apagar é irreversível e o dedo erra fácil */}
+        <button
+          onClick={onApagar}
+          aria-label={`Apagar ${lead.name}`}
+          className={`flex ${TOQUE} shrink-0 items-center justify-center px-4 text-[12.5px] text-zinc-400 active:text-red-600`}
         >
-          Ver no Google Maps
-        </a>
-      )}
+          apagar
+        </button>
+      </div>
     </article>
   );
 }
