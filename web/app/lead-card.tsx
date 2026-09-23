@@ -39,6 +39,7 @@ export default function LeadCard({
   onSalvarNota,
   onCancelarNota,
   onApagar,
+  onFila,
 }: {
   lead: Lead;
   usuario: string;
@@ -59,6 +60,7 @@ export default function LeadCard({
   onSalvarNota: () => void;
   onCancelarNota: () => void;
   onApagar: () => void;
+  onFila: () => void;
 }) {
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
   // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
@@ -150,6 +152,17 @@ export default function LeadCard({
           Sem telefone cadastrado
         </p>
       )}
+
+      <button
+        onClick={onFila}
+        className={`mt-3 w-full ${TOQUE} rounded-xl border text-[12.5px] font-semibold ${
+          lead.contato
+            ? 'border-sky-500 bg-sky-500 text-white'
+            : 'border-sky-300 bg-sky-50 text-sky-700 active:bg-sky-100'
+        }`}
+      >
+        {lead.contato ? '✓ na fila de contato' : 'CONTACT — pôr na fila'}
+      </button>
 
       {/* ações */}
       {gringa && (

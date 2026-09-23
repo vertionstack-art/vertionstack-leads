@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { atualizarLead, apagarLead, type Status } from '@/lib/db';
-import { estaLogado, usuarioAtual } from '@/lib/auth';
+import { estaLogado, usuarioAtual, quemEnviou} from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +10,13 @@ const STATUS_VALIDOS: Status[] = ['novo', 'contatado', 'negociando', 'fechado', 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, ctx: Ctx) {
-  const quem = await usuarioAtual();
+  /*
+   * Duas portas, como no POST: o painel chega com a sessão do navegador e o
+   * programa de disparo chega com a chave. Sem isso o disparador conseguia
+   * ler a fila mas não carimbar quem já recebeu, e mandaria de novo para a
+   * mesma pessoa na rodada seguinte.
+   */
+  const quem = (await usuarioAtual()) || quemEnviou(req);
   if (!quem) {
     return NextResponse.json({ ok: false, erro: 'Nao autorizado.' }, { status: 401 });
   }
@@ -22,6 +28,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
     proposta?: unknown;
     previaUrl?: string | null;
     cnpj?: unknown;
+    contato?: boolean;
+    contatadoEm?: string | null;
   };
 
   if (corpo.status && !STATUS_VALIDOS.includes(corpo.status as Status)) {
@@ -41,6 +49,8 @@ export async function PATCH(req: Request, ctx: Ctx) {
             : null
           : undefined,
       cnpj: corpo.cnpj,
+      contato: typeof corpo.contato === 'boolean' ? corpo.contato : undefined,
+      contatadoEm: corpo.contatadoEm,
     },
     quem,
   );

@@ -123,6 +123,7 @@ export default function Painel({
   const [equipe, setEquipe] = useState<string[]>([]);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes' | 'temperatura'>('recentes');
   const [niveis, setNiveis] = useState<Nivel[]>([]);
+  const [naFila, setNaFila] = useState(false);
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -155,10 +156,11 @@ export default function Painel({
     if (dePessoa) p.set('de', dePessoa);
     p.set('ordem', ordem);
     if (niveis.length) p.set('temp', niveis.join(','));
+    if (naFila) p.set('fila', '1');
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, naFila, pagina]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -269,8 +271,16 @@ export default function Painel({
   /** algum filtro está reduzindo a lista? muda o texto e o risco do botão de apagar */
   const temFiltro = Boolean(
     buscaDebounce || kinds.length || statusFiltro.length || cidade || categoria ||
-    comTelefone || siteQuebrado || dePessoa || niveis.length,
+    comTelefone || siteQuebrado || dePessoa || niveis.length || naFila,
   );
+
+  /** põe ou tira o lead da fila que o programa de disparo vai ler */
+  async function alternarFila(lead: Lead) {
+    const novo = !lead.contato;
+    setLeads((atual) => atual.map((l) => (l.id === lead.id ? { ...l, contato: novo } : l)));
+    await salvarPatch(lead.id, { contato: novo });
+    setResumo((r) => ({ ...r, na_fila: Math.max(0, (r.na_fila || 0) + (novo ? 1 : -1)) }));
+  }
 
   function alternar<T>(lista: T[], set: (v: T[]) => void, valor: T) {
     set(lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
@@ -279,7 +289,7 @@ export default function Painel({
 
   async function salvarPatch(
     id: string,
-    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown },
+    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; contato?: boolean },
   ) {
     setLeads((atual) => atual.map((l) => (l.id === id ? { ...l, ...patch } as Lead : l)));
     const r = await fetch('/api/leads/' + encodeURIComponent(id), {
@@ -570,6 +580,17 @@ export default function Painel({
                 {rotulo} <span className="opacity-60">{resumo['temp_' + n] || 0}</span>
               </button>
             ))}
+            <button
+              onClick={() => { setNaFila((v) => !v); setPagina(0); }}
+              title="Mostrar só os leads que estão na fila de contato"
+              className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-semibold ring-1 transition ${
+                naFila
+                  ? 'bg-roxo-600 text-white ring-roxo-600'
+                  : 'bg-sky-50 text-sky-700 ring-inset ring-sky-200 hover:ring-roxo-300'
+              }`}
+            >
+              Contact <span className="opacity-60">{resumo.na_fila || 0}</span>
+            </button>
             <span className="mx-2 w-px self-stretch bg-zinc-200" />
             {TIPOS.map((t) => (
               <button
@@ -614,6 +635,7 @@ export default function Painel({
                 onStatus={(st) => salvarPatch(lead.id, { status: st })}
                 onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                 onApagar={() => apagar(lead.id, lead.name)}
+                onFila={() => alternarFila(lead)}
                 onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
                 onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                 onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
@@ -803,6 +825,21 @@ export default function Painel({
 
                       <td className="whitespace-nowrap px-4 py-3 text-right">
                         <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => alternarFila(lead)}
+                            title={
+                              lead.contato
+                                ? 'Está na fila de contato — clique para tirar'
+                                : 'Pôr na fila que o programa de disparo vai ler'
+                            }
+                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                              lead.contato
+                                ? 'border-sky-500 bg-sky-500 text-white hover:bg-sky-600'
+                                : 'border-sky-300 bg-sky-50 text-sky-700 hover:border-sky-500'
+                            }`}
+                          >
+                            {lead.contato ? '✓ CONTACT' : 'CONTACT'}
+                          </button>
                           <button
                             onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                             title="Gera o prompt de abordagem deste lead para colar no ChatGPT"

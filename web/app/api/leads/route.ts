@@ -35,6 +35,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     somenteLeads: url.searchParams.get('leads') === '1',
     comTelefone: url.searchParams.get('fone') === '1',
     siteQuebrado: url.searchParams.get('quebrado') === '1',
+    naFila: url.searchParams.get('fila') === '1',
     responsavel: url.searchParams.get('de') || undefined,
     temperatura: lista(url.searchParams.get('temp'), NIVEIS),
     limit: Number(url.searchParams.get('limit')) || 200,

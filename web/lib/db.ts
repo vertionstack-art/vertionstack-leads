@@ -72,6 +72,16 @@ export interface Lead {
    * preço, situação cadastral para não perder tempo com empresa baixada.
    */
   cnpj: unknown | null;
+  /**
+   * Está na fila de contato — o que o programa de disparo vai buscar.
+   *
+   * É separado do status de propósito: "quero mandar mensagem para esse"
+   * e "já mandei" são momentos diferentes, e misturar os dois faria o
+   * programa reenviar para quem acabou de responder.
+   */
+  contato: boolean;
+  /** quando a mensagem saiu de verdade; null enquanto não saiu */
+  contatadoEm: string | null;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
   /**
@@ -95,6 +105,8 @@ export interface Filtros {
   siteQuebrado?: boolean;
   /** quem está cuidando: um nome, ou 'ninguem' para os sem dono */
   responsavel?: string;
+  /** só os que estão na fila de contato */
+  naFila?: boolean;
   /** níveis de temperatura a mostrar; vazio ou ausente mostra todos */
   temperatura?: Nivel[];
   limit?: number;
@@ -146,6 +158,8 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists origem text not null default 'maps'`;
   await sql`alter table leads add column if not exists previa_url text`;
   await sql`alter table leads add column if not exists cnpj jsonb`;
+  await sql`alter table leads add column if not exists contato boolean not null default false`;
+  await sql`alter table leads add column if not exists contatado_em timestamptz`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
@@ -215,6 +229,8 @@ export function normalizarLead(
     origem,
     previaUrl: texto(cru.previaUrl, 500),
     cnpj: null,
+    contato: false,
+    contatadoEm: null,
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
@@ -255,6 +271,8 @@ function daLinha(r: any): Lead {
     origem: r.origem || 'maps',
     previaUrl: r.previa_url,
     cnpj: r.cnpj ?? null,
+    contato: r.contato === true,
+    contatadoEm: r.contatado_em ? new Date(r.contatado_em).toISOString() : null,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
     proposta: r.proposta ?? null,
@@ -296,6 +314,8 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           origem: antigo.origem,
           previaUrl: antigo.previaUrl || l.previaUrl,
           cnpj: antigo.cnpj ?? l.cnpj,
+          contato: antigo.contato,
+          contatadoEm: antigo.contatadoEm,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
           responsavel: antigo.responsavel,
           proposta: antigo.proposta,
@@ -365,7 +385,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
  */
 export async function atualizarLead(
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; contato?: boolean; contatadoEm?: string | null },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -404,6 +424,10 @@ export async function atualizarLead(
       cnpj        = case when ${patch.cnpj !== undefined}
                          then ${patch.cnpj === null ? null : JSON.stringify(patch.cnpj)}::jsonb
                          else cnpj end,
+      contato     = case when ${patch.contato !== undefined}
+                         then ${patch.contato ?? false} else contato end,
+      contatado_em = case when ${patch.contatadoEm !== undefined}
+                         then ${patch.contatadoEm ?? null}::timestamptz else contatado_em end,
       responsavel = case
                       when ${soltar} then null
                       else coalesce(${quem ?? null}, responsavel)
@@ -543,6 +567,7 @@ function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
   if (f.status?.length) out = out.filter((l) => f.status!.includes(l.status));
   if (f.somenteLeads) out = out.filter((l) => l.isLead);
   if (f.comTelefone) out = out.filter((l) => !!l.phone);
+  if (f.naFila) out = out.filter((l) => l.contato);
   if (f.siteQuebrado) out = out.filter((l) => !!l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus));
   if (f.responsavel === 'ninguem') out = out.filter((l) => !l.responsavel);
   else if (f.responsavel) out = out.filter((l) => l.responsavel === f.responsavel);
@@ -619,6 +644,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
+      and (${f.naFila ? true : null}::boolean is null or contato = true)
       and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
       and (${f.responsavel ?? null}::text is null
            or (${f.responsavel === 'ninguem'} and responsavel is null)
@@ -640,6 +666,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
+      and (${f.naFila ? true : null}::boolean is null or contato = true)
       and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
       and (${f.responsavel ?? null}::text is null
            or (${f.responsavel === 'ninguem'} and responsavel is null)
@@ -673,6 +700,9 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   resumo.oportunidades = (oportunidades[0] as { n: number }).n;
   for (const r of porPessoa as { quem: string; n: number }[]) resumo['de_' + r.quem] = r.n;
   resumo.site_quebrado = (quebrados[0] as { n: number }).n;
+
+  const naFila = await sql`select count(*)::int as n from leads where contato = true`;
+  resumo.na_fila = (naFila[0] as { n: number }).n;
 
   /*
    * Contagem por temperatura para os botões de filtro mostrarem número.
@@ -743,6 +773,7 @@ function resumoDe(todos: Lead[]): Record<string, number> {
     if (l.isLead) r.oportunidades++;
     r['de_' + (l.responsavel || 'ninguem')] = (r['de_' + (l.responsavel || 'ninguem')] || 0) + 1;
     if (l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus)) r.site_quebrado++;
+    if (l.contato) r.na_fila = (r.na_fila || 0) + 1;
     r['temp_' + temperaturaDoLead(l).nivel] = (r['temp_' + temperaturaDoLead(l).nivel] || 0) + 1;
   }
   return r;

@@ -1,0 +1,12 @@
+{
+  "painel_url": "https://vertionstack-leads.vercel.app",
+  "chave": "PONHA-AQUI-A-SUA-CHAVE",
+  "modelo": "Fiz uma coisa aqui pensando {artigo} {nome} e queria mostrar pra vocês. Teria algum responsável com quem eu possa falar ?",
+  "pausa_min_segundos": 45,
+  "pausa_max_segundos": 110,
+  "limite_por_dia": 40,
+  "descanso_a_cada": 12,
+  "descanso_minutos": 15,
+  "confirmar_cada_envio": true,
+  "incluir_telefone_fixo": false
+}
