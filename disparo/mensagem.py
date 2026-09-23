@@ -112,7 +112,7 @@ def artigo(nome: str) -> str:
 # ---------------------------------------------------------------- mensagem
 
 MODELO = (
-    "Fiz uma coisa aqui pensando {artigo} {nome} e queria mostrar pra vocês. "
+    "Oii,tudo bem? Fiz uma coisa aqui pensando {artigo} {nome} e queria mostrar pra vocês. "
     "Teria algum responsável com quem eu possa falar ?"
 )
 

@@ -116,8 +116,14 @@ para centenas de números é um dos sinais mais fáceis de detectar.
 `INGEST_TOKEN` da Vercel.
 
 **"O WhatsApp não está na frente"** — o app não abriu a tempo, ou você
-clicou em outra janela. Se acontecer sempre, confirme que o WhatsApp está
-aberto e logado antes de começar.
+clicou em outra janela. O programa tenta puxar a janela sozinho antes de
+desistir; se acontecer sempre, confirme que o WhatsApp está aberto e
+logado antes de começar.
+
+**A mensagem abre o chat mas não envia** — era um defeito de verdade, já
+corrigido. Se voltar a acontecer, aumente o `espera_abrir` em
+`whatsapp.py`: o app pode estar demorando mais que 7 segundos para montar
+a conversa no seu PC.
 
 **"Falta o pyautogui"** — o passo 2 da instalação não rodou.
 
@@ -134,6 +140,6 @@ aberto e logado antes de começar.
 | `painel.py` | busca a fila e carimba quem recebeu |
 | `telefone.py` | descarta número que não serve |
 | `mensagem.py` | monta a frase com "na/no" certo |
-| `whatsapp.py` | abre o chat e aperta Enter |
+| `whatsapp.py` | abre o chat, cola a mensagem e aperta Enter |
 | `config.json` | suas configurações (não vai para o GitHub) |
 | `enviados.json` | contagem do dia (não vai para o GitHub) |
