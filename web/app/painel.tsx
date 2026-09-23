@@ -238,7 +238,7 @@ export default function Painel({
 
   async function salvarPatch(
     id: string,
-    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null },
+    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown },
   ) {
     setLeads((atual) => atual.map((l) => (l.id === id ? { ...l, ...patch } as Lead : l)));
     const r = await fetch('/api/leads/' + encodeURIComponent(id), {
@@ -844,6 +844,10 @@ export default function Painel({
             aoSalvar={async (proposta) => {
               await salvarPatch(propostaDe.id, { proposta });
               setPropostaDe((atual) => (atual ? { ...atual, proposta } : atual));
+            }}
+            aoSalvarCnpj={async (cnpj) => {
+              await salvarPatch(propostaDe.id, { cnpj });
+              setPropostaDe((atual) => (atual ? { ...atual, cnpj } : atual));
             }}
           />
         )}

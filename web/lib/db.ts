@@ -63,6 +63,15 @@ export interface Lead {
    * de existir proposta — é ela que abre a conversa.
    */
   previaUrl: string | null;
+  /**
+   * Dados da Receita Federal, quando o CNPJ foi consultado.
+   *
+   * Não vem do Maps: é preenchido à mão quando o número aparece no rodapé
+   * do site, na nota ou na conversa. Guarda o retorno inteiro porque o que
+   * interessa varia — tempo de mercado na abordagem, porte e regime no
+   * preço, situação cadastral para não perder tempo com empresa baixada.
+   */
+  cnpj: unknown | null;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
   /**
@@ -134,6 +143,7 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists instagram text`;
   await sql`alter table leads add column if not exists origem text not null default 'maps'`;
   await sql`alter table leads add column if not exists previa_url text`;
+  await sql`alter table leads add column if not exists cnpj jsonb`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
   await sql`create index if not exists leads_status_idx on leads (status)`;
   await sql`create index if not exists leads_city_idx on leads (city)`;
@@ -202,6 +212,7 @@ export function normalizarLead(
     instagram: texto(cru.instagram, 300),
     origem,
     previaUrl: texto(cru.previaUrl, 500),
+    cnpj: null,
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
@@ -241,6 +252,7 @@ function daLinha(r: any): Lead {
     instagram: r.instagram,
     origem: r.origem || 'maps',
     previaUrl: r.previa_url,
+    cnpj: r.cnpj ?? null,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
     proposta: r.proposta ?? null,
@@ -281,6 +293,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           instagram: l.instagram || antigo.instagram,
           origem: antigo.origem,
           previaUrl: antigo.previaUrl || l.previaUrl,
+          cnpj: antigo.cnpj ?? l.cnpj,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
           responsavel: antigo.responsavel,
           proposta: antigo.proposta,
@@ -350,7 +363,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
  */
 export async function atualizarLead(
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -386,6 +399,9 @@ export async function atualizarLead(
                          else proposta end,
       previa_url  = case when ${patch.previaUrl !== undefined}
                          then ${patch.previaUrl ?? null} else previa_url end,
+      cnpj        = case when ${patch.cnpj !== undefined}
+                         then ${patch.cnpj === null ? null : JSON.stringify(patch.cnpj)}::jsonb
+                         else cnpj end,
       responsavel = case
                       when ${soltar} then null
                       else coalesce(${quem ?? null}, responsavel)

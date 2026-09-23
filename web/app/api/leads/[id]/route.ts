@@ -21,6 +21,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     notes?: string | null;
     proposta?: unknown;
     previaUrl?: string | null;
+    cnpj?: unknown;
   };
 
   if (corpo.status && !STATUS_VALIDOS.includes(corpo.status as Status)) {
@@ -39,6 +40,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
             ? String(corpo.previaUrl).trim().slice(0, 500)
             : null
           : undefined,
+      cnpj: corpo.cnpj,
     },
     quem,
   );

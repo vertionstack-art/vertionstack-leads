@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Lead } from '@/lib/db';
+import { formatarCnpj, type DadosCnpj } from '@/lib/cnpj';
 import {
   CATALOGO,
   FAMILIAS,
@@ -33,11 +34,13 @@ export default function PropostaModal({
   lead,
   aoFechar,
   aoSalvar,
+  aoSalvarCnpj,
   linkProposta,
 }: {
   lead: Lead;
   aoFechar: () => void;
   aoSalvar: (proposta: unknown) => void;
+  aoSalvarCnpj: (dados: unknown) => Promise<void>;
   linkProposta: string;
 }) {
   const salvo = (lead.proposta || null) as {
@@ -65,6 +68,44 @@ export default function PropostaModal({
   const [copiadoLink, setCopiadoLink] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [salvouAlgumaVez, setSalvouAlgumaVez] = useState(Boolean(lead.proposta));
+
+  /*
+   * O CNPJ entra nesta janela, e não no cadastro do lead, porque é aqui
+   * que ele vale dinheiro: porte e regime multiplicam o preço e até agora
+   * eram escolhidos no olho. Consultado, os dois vêm da Receita.
+   */
+  const salvoCnpj = (lead.cnpj || null) as DadosCnpj | null;
+  const [cnpjTexto, setCnpjTexto] = useState(salvoCnpj ? formatarCnpj(salvoCnpj.cnpj) : '');
+  const [dadosCnpj, setDadosCnpj] = useState<DadosCnpj | null>(salvoCnpj);
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [erroCnpj, setErroCnpj] = useState<string | null>(null);
+
+  async function buscarCnpj() {
+    setBuscandoCnpj(true);
+    setErroCnpj(null);
+    try {
+      const r = await fetch('/api/cnpj', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cnpj: cnpjTexto }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErroCnpj(j.erro || 'Não consegui consultar agora.');
+        return;
+      }
+      const d = j.dados as DadosCnpj;
+      setDadosCnpj(d);
+      // a Receita sabe mais que o chute — preenche, e você corrige se quiser
+      setPorte(d.porteSugerido);
+      setFormalizacao(d.formalizacaoSugerida);
+      await aoSalvarCnpj(d);
+    } catch {
+      setErroCnpj('Falha de rede. Tente de novo.');
+    } finally {
+      setBuscandoCnpj(false);
+    }
+  }
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar();
@@ -163,6 +204,64 @@ export default function PropostaModal({
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[1fr_380px]">
           {/* ------------------------------------------------ escolhas */}
           <div className="min-h-0 overflow-auto border-r border-zinc-200 p-6">
+            {/* CNPJ */}
+            <section className="mb-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <h3 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                CNPJ do cliente (opcional)
+              </h3>
+              <p className="mb-3 text-[12px] leading-snug text-zinc-500">
+                O Google Maps não traz o CNPJ — ele costuma estar no rodapé do site, na nota ou você
+                pergunta na conversa. Com ele, o porte e o regime vêm da Receita em vez do chute.
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                <input
+                  value={cnpjTexto}
+                  onChange={(e) => setCnpjTexto(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !buscandoCnpj && buscarCnpj()}
+                  placeholder="12.345.678/0001-95"
+                  inputMode="numeric"
+                  aria-label="CNPJ do cliente"
+                  className="min-h-[40px] w-52 rounded-lg border border-zinc-300 bg-white px-3 text-[13px] tabular-nums outline-none focus:border-roxo-500"
+                />
+                <button
+                  onClick={buscarCnpj}
+                  disabled={buscandoCnpj || cnpjTexto.replace(/\D/g, '').length !== 14}
+                  className="min-h-[40px] rounded-lg bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:brightness-150 disabled:bg-zinc-300"
+                >
+                  {buscandoCnpj ? 'Consultando…' : 'Buscar na Receita'}
+                </button>
+              </div>
+
+              {erroCnpj && <p className="mt-2 text-[12px] text-red-700">{erroCnpj}</p>}
+
+              {dadosCnpj && (
+                <div className="mt-3 border-t border-zinc-200 pt-3 text-[12.5px] leading-relaxed text-zinc-700">
+                  <p className="font-medium text-tinta">{dadosCnpj.razaoSocial}</p>
+                  {dadosCnpj.nomeFantasia && <p className="text-zinc-500">{dadosCnpj.nomeFantasia}</p>}
+                  {dadosCnpj.anosDeMercado !== null && (
+                    <p className="mt-1">
+                      <strong>{dadosCnpj.anosDeMercado} anos de mercado</strong>
+                      {dadosCnpj.aberturaEm &&
+                        ` (aberta em ${dadosCnpj.aberturaEm.split('-').reverse().join('/')})`}
+                    </p>
+                  )}
+                  {dadosCnpj.atividade && <p className="text-zinc-500">{dadosCnpj.atividade}</p>}
+                  {dadosCnpj.irregular ? (
+                    <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800">
+                      Situação na Receita: <strong>{dadosCnpj.situacao}</strong>. Empresa fora de atividade
+                      não assina contrato — confirme antes de investir tempo.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[12px] text-emerald-700">Situação: {dadosCnpj.situacao}</p>
+                  )}
+                  <p className="mt-2 text-[11.5px] text-zinc-500">
+                    Porte e regime abaixo já foram preenchidos por esta consulta. Pode corrigir à mão.
+                  </p>
+                </div>
+              )}
+            </section>
+
             {/* porte */}
             <section className="mb-6">
               <h3 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
