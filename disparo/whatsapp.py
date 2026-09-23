@@ -57,6 +57,33 @@ def dependencias_ok() -> tuple[bool, str]:
     return True, ""
 
 
+def explicar(erro: Exception) -> str:
+    """
+    Traduz a exceção para uma frase que diga o que fazer.
+
+    O caso que mais engana é o freio de emergência do pyautogui: ele
+    dispara quando o ponteiro do mouse encosta no canto superior esquerdo
+    da tela, e existe justamente para dar um jeito de abortar. Só que o
+    erro dele não diz nada disso — some como "FailSafeException" e a
+    pessoa fica achando que o programa quebrou sozinho.
+    """
+    if isinstance(erro, ErroDoWhatsApp):
+        return str(erro)
+
+    nome = type(erro).__name__
+    if "FailSafe" in nome:
+        return (
+            "Parei porque o mouse encostou no canto superior esquerdo da tela — "
+            "esse é o freio de emergência. Tire o mouse de lá e comece de novo."
+        )
+    if "Pyperclip" in nome:
+        return (
+            "Não consegui usar a área de transferência. Costuma ser outro programa "
+            "segurando o Ctrl+C; feche gerenciadores de clipboard e tente de novo."
+        )
+    return f"{nome}: {erro}"
+
+
 def _janela_do_whatsapp():
     """
     A janela do WhatsApp, se estiver na frente.

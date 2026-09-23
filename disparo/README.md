@@ -136,6 +136,15 @@ a conversa no seu PC.
 
 **A fila está vazia** — nenhum lead marcado com CONTACT no painel.
 
+**Mandou o primeiro e parou** — não acontece mais: agora uma falha em um
+comércio não derruba os outros, e o motivo aparece na linha dele. Se
+parar mesmo assim, o arquivo `disparo.log` na pasta guarda o que houve em
+cada envio.
+
+**"Parei porque o mouse encostou no canto superior esquerdo"** — esse é o
+freio de emergência, e serve para você abortar levando o mouse ali. Se
+disparou sem querer, tire o mouse do canto e comece de novo.
+
 ---
 
 ## Os arquivos
@@ -150,3 +159,4 @@ a conversa no seu PC.
 | `whatsapp.py` | abre o chat, cola a mensagem e aperta Enter |
 | `config.json` | suas configurações (não vai para o GitHub) |
 | `enviados.json` | contagem do dia (não vai para o GitHub) |
+| `disparo.log` | o que aconteceu em cada envio (não vai para o GitHub) |

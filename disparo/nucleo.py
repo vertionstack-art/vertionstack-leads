@@ -18,7 +18,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import mensagem
@@ -29,6 +29,22 @@ from painel import ErroDoPainel, Painel
 AQUI = Path(__file__).parent
 CONFIG = AQUI / "config.json"
 HISTORICO = AQUI / "enviados.json"
+REGISTRO = AQUI / "disparo.log"
+
+
+def anotar_no_log(texto: str) -> None:
+    """
+    Guarda em arquivo o que aconteceu.
+
+    Existe porque erro que só aparece na barra de estado some quando a
+    janela fecha, e aí não há como saber por que a fila parou na segunda
+    mensagem. Aqui fica.
+    """
+    try:
+        with REGISTRO.open("a", encoding="utf-8") as f:
+            f.write(f"{datetime.now():%Y-%m-%d %H:%M:%S}  {texto}" + chr(10))
+    except Exception:
+        pass  # não vale derrubar um disparo por causa do log
 
 PADRAO = {
     "painel_url": "https://vertionstack-leads.vercel.app",
@@ -190,10 +206,19 @@ class Disparo:
         return not self.parar.wait(timeout=segundos)
 
     def rodar(self) -> None:
+        """Roda a fila. Nada aqui pode escapar sem virar aviso na tela."""
+        try:
+            self._rodar()
+        except Exception as e:
+            anotar_no_log(f"ERRO GERAL, a fila parou: {e!r}")
+            self.avisar(Aviso("fim", f"parou com erro: {whatsapp.explicar(e)}", 0, len(self.alvos)))
+
+    def _rodar(self) -> None:
         painel = Painel(self.cfg["painel_url"], self.cfg["chave"])
         total = len(self.alvos)
         enviados = 0
         falhas = 0
+        anotar_no_log(f"--- comecando fila de {total} ---")
 
         for i, alvo in enumerate(self.alvos, start=1):
             if self.parar.is_set():
@@ -207,19 +232,32 @@ class Disparo:
                     alvo.texto,
                     folga_chat=float(self.cfg.get("folga_chat_segundos") or 1.2),
                 )
-            except whatsapp.ErroDoWhatsApp as e:
+            except Exception as e:
+                # Captura tudo, e não só o ErroDoWhatsApp.
+                #
+                # Antes, qualquer outra exceção — o freio de emergência do
+                # pyautogui, uma falha na área de transferência — subia pela
+                # thread e a matava sem dizer nada. A janela ficava parada
+                # com o botão Parar aceso e a fila morta na primeira
+                # mensagem, que foi exatamente o sintoma relatado.
                 falhas += 1
-                self.avisar(Aviso("falhou", str(e), i, total, alvo))
+                motivo = whatsapp.explicar(e)
+                anotar_no_log(f"FALHOU {alvo.nome} ({alvo.numero}): {motivo}")
+                self.avisar(Aviso("falhou", motivo, i, total, alvo))
                 try:
-                    painel.anotar(alvo.lead_id, f"Disparo falhou: {e}")
-                except ErroDoPainel:
+                    painel.anotar(alvo.lead_id, f"Disparo falhou: {motivo}")
+                except Exception:
                     pass
                 if not self._dormir(5):
                     break
                 continue
 
             enviados += 1
-            somar_enviado()
+            try:
+                somar_enviado()
+            except Exception as e:
+                anotar_no_log(f"nao consegui gravar a contagem do dia: {e}")
+            anotar_no_log(f"enviado para {alvo.nome} ({alvo.numero})")
             self.avisar(Aviso("enviado", alvo.nome, i, total, alvo))
 
             try:
@@ -229,7 +267,12 @@ class Disparo:
                 # parar tudo — só precisa aparecer, senão manda de novo depois
                 self.avisar(Aviso("falhou", f"enviei, mas não marquei no painel: {e}", i, total, alvo))
 
-            whatsapp.fechar_conversa()
+            try:
+                whatsapp.fechar_conversa()
+            except Exception as e:
+                # fechar a conversa é higiene, não parte do envio: falhar
+                # aqui nunca pode custar o resto da fila
+                anotar_no_log(f"nao consegui fechar a conversa: {e}")
 
             if i >= total:
                 break
