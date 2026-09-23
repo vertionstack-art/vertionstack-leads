@@ -8,5 +8,6 @@
   "descanso_a_cada": 12,
   "descanso_minutos": 15,
   "confirmar_cada_envio": true,
-  "incluir_telefone_fixo": false
+  "incluir_telefone_fixo": false,
+  "folga_chat_segundos": 1.2
 }

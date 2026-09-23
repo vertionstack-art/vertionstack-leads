@@ -105,6 +105,12 @@ Tudo no `config.json`:
 | `limite_por_dia` | teto diário |
 | `descanso_a_cada` / `descanso_minutos` | pausa longa a cada N envios |
 | `incluir_telefone_fixo` | `true` tenta mandar em fixo também |
+| `folga_chat_segundos` | quanto esperar o chat montar antes de digitar (padrão 1,2) |
+
+Cada mensagem leva por volta de **4 segundos** para sair. Se no seu PC
+alguma falhar com *"o WhatsApp não está na frente"*, aumente o
+`folga_chat_segundos` para 2 ou 2,5 — é o tempo que o app leva para
+montar a conversa.
 
 Vale variar o `modelo` de vez em quando. Mandar exatamente o mesmo texto
 para centenas de números é um dos sinais mais fáceis de detectar.

@@ -141,30 +141,57 @@ def abrir_conversa(numero: str, texto: str = "") -> None:
     os.startfile(link)  # noqa: S606 — link de protocolo, não executável
 
 
-def enviar(numero: str, texto: str, espera_abrir: float = 7.0, espera_colar: float = 1.2) -> None:
+def _esperar_janela(teto: float) -> bool:
+    """
+    Espera a janela aparecer, e segue assim que ela aparecer.
+
+    Medido neste PC, o WhatsApp vem para a frente em 0,0 a 0,3 segundo. O
+    código dormia 7 segundos fixos por mensagem — quase tudo desperdício.
+    O teto continua existindo para o caso de a máquina estar carregada.
+    """
+    limite = time.time() + teto
+    while time.time() < limite:
+        if _janela_do_whatsapp() is not None:
+            return True
+        _trazer_para_frente(tentativas=1)
+        time.sleep(0.15)
+    return False
+
+
+def enviar(numero: str, texto: str, teto_abrir: float = 12.0, folga_chat: float = 1.2,
+           espera_colar: float = 0.8) -> None:
     """
     Abre a conversa, escreve a mensagem e aperta Enter.
 
-    As esperas existem porque o app não avisa quando terminou de carregar:
-    a primeira dá tempo de a janela aparecer e o chat montar, e a segunda
-    dá tempo de a colagem chegar inteira na caixa. Mexer cedo demais manda
-    mensagem pela metade, ou não manda nada.
+    O chat é aberto **com** o texto na URL de propósito, e não vazio: é
+    isso que joga o foco do teclado para dentro da caixa de mensagem. Sem
+    esse foco, o Ctrl+A seguinte selecionaria a conversa inteira em vez do
+    conteúdo da caixa — testei, e o Delete não apaga nada enquanto o
+    Ctrl+V também não cola. Tentar acertar a caixa com um clique por
+    coordenada foi pior ainda: 40 pixels de erro e o clique cai no corpo
+    do chat.
+
+    Com o foco garantido, o texto que veio pela URL é apagado e reposto
+    pela área de transferência. Parece redundante e não é: quando já havia
+    rascunho naquela conversa, o WhatsApp acrescenta em vez de substituir,
+    e a mensagem sairia duplicada.
     """
     ok, falta = dependencias_ok()
     if not ok:
         raise ErroDoWhatsApp(falta)
 
-    abrir_conversa(numero)
-    time.sleep(espera_abrir)
-    _trazer_para_frente()
+    abrir_conversa(numero, texto)
+    if not _esperar_janela(teto_abrir):
+        _exigir_janela("ao abrir a conversa")
+
+    # a janela já apareceu; esta folga é para o chat terminar de montar
+    time.sleep(folga_chat)
     _exigir_janela("ao abrir a conversa")
 
-    # o foco cai na caixa de mensagem quando o chat abre pelo protocolo;
-    # daqui para a frente é tudo em cima dela
     pyautogui.hotkey("ctrl", "a")
-    time.sleep(0.15)
+    time.sleep(0.12)
     pyautogui.press("delete")
-    time.sleep(0.25)
+    time.sleep(0.18)
 
     guardado = None
     try:

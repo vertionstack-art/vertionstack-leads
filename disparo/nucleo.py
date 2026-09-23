@@ -40,6 +40,9 @@ PADRAO = {
     "descanso_a_cada": 12,
     "descanso_minutos": 15,
     "incluir_telefone_fixo": False,
+    # quanto esperar o WhatsApp. Medido neste PC a janela vem em 0,3s e o
+    # chat monta em 1s; num computador mais lento vale aumentar a folga.
+    "folga_chat_segundos": 1.2,
 }
 
 
@@ -199,7 +202,11 @@ class Disparo:
             self.avisar(Aviso("enviando", alvo.nome, i, total, alvo))
 
             try:
-                whatsapp.enviar(alvo.numero, alvo.texto)
+                whatsapp.enviar(
+                    alvo.numero,
+                    alvo.texto,
+                    folga_chat=float(self.cfg.get("folga_chat_segundos") or 1.2),
+                )
             except whatsapp.ErroDoWhatsApp as e:
                 falhas += 1
                 self.avisar(Aviso("falhou", str(e), i, total, alvo))
