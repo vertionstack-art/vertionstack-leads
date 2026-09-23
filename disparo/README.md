@@ -48,12 +48,13 @@ número. É o app do Windows, não o site.
 pip install -r requirements.txt
 ```
 
-**3.** Copie o arquivo `config.exemplo.json` e renomeie a cópia para
-`config.json`.
+**3.** Pronto. A chave você cola dentro do próprio programa, no campo
+**Sua chave**, na primeira vez que abrir — ele guarda sozinho para as
+próximas. É a mesma chave que está nas configurações da extensão.
 
-**4.** Abra o `config.json` no Bloco de Notas e troque
-`PONHA-AQUI-A-SUA-CHAVE` pela sua chave — é a mesma que você colocou nas
-configurações da extensão.
+> Se preferir deixar tudo pronto antes, dá para copiar o
+> `config.exemplo.json` para `config.json` e editar no Bloco de Notas. Mas
+> não é necessário.
 
 ---
 
