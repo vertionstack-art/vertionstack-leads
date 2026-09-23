@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
-import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
+import { temperaturaDoLead, CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
@@ -122,6 +122,7 @@ export default function Painel({
   const [dePessoa, setDePessoa] = useState('');
   const [equipe, setEquipe] = useState<string[]>([]);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes' | 'temperatura'>('recentes');
+  const [niveis, setNiveis] = useState<Nivel[]>([]);
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -153,10 +154,11 @@ export default function Painel({
     if (siteQuebrado) p.set('quebrado', '1');
     if (dePessoa) p.set('de', dePessoa);
     p.set('ordem', ordem);
+    if (niveis.length) p.set('temp', niveis.join(','));
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -231,6 +233,45 @@ export default function Painel({
     return () => clearInterval(t);
   }, [carregar]);
 
+  /*
+   * Apagar é irreversível e não tem desfazer: o lead sai do banco e, se
+   * veio do Maps, só volta com outra varredura — junto com a anotação, a
+   * proposta e o link da prévia que estavam nele.
+   */
+  const [apagando, setApagando] = useState(false);
+  const [confirmandoLote, setConfirmandoLote] = useState(false);
+  const [textoConfirma, setTextoConfirma] = useState('');
+
+  async function apagarLote() {
+    setApagando(true);
+    try {
+      const r = await fetch('/api/leads?' + query, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ esperado: total }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        setErro(j.erro || 'Não consegui apagar.');
+        return;
+      }
+      setConfirmandoLote(false);
+      setTextoConfirma('');
+      setPagina(0);
+      await carregar();
+    } catch {
+      setErro('Falha de rede ao apagar.');
+    } finally {
+      setApagando(false);
+    }
+  }
+
+  /** algum filtro está reduzindo a lista? muda o texto e o risco do botão de apagar */
+  const temFiltro = Boolean(
+    buscaDebounce || kinds.length || statusFiltro.length || cidade || categoria ||
+    comTelefone || siteQuebrado || dePessoa || niveis.length,
+  );
+
   function alternar<T>(lista: T[], set: (v: T[]) => void, valor: T) {
     set(lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
     setPagina(0);
@@ -250,7 +291,23 @@ export default function Painel({
   }
 
   async function apagar(id: string, nome: string) {
-    if (!confirm(`Apagar "${nome}" da lista?`)) return;
+    /*
+     * Avisa o que some junto. Apagar um lead que já tem proposta montada e
+     * prévia publicada custa muito mais que apagar um nome vindo da
+     * varredura, e "Apagar da lista?" não deixava essa diferença clara.
+     */
+    const lead = leads.find((l) => l.id === id);
+    const extras = [
+      lead?.proposta ? 'a proposta montada' : null,
+      lead?.previaUrl ? 'o link da prévia' : null,
+      lead?.notes ? 'a anotação' : null,
+    ].filter(Boolean);
+
+    const aviso = extras.length
+      ? String.fromCharCode(10, 10) + 'Some junto: ' + extras.join(', ') + '. Não dá para desfazer.'
+      : String.fromCharCode(10, 10) + 'Não dá para desfazer.';
+
+    if (!confirm(`Apagar "${nome}" de vez?` + aviso)) return;
     await fetch('/api/leads/' + encodeURIComponent(id), { method: 'DELETE' });
     setLeads((atual) => atual.filter((l) => l.id !== id));
     setTotal((t) => t - 1);
@@ -485,7 +542,26 @@ export default function Painel({
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-zinc-100 pt-3">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
+            {(
+              [
+                ['quente', 'Quentes', 'bg-red-50 text-red-700 ring-red-200'],
+                ['morno', 'Mornos', 'bg-amber-50 text-amber-800 ring-amber-200'],
+                ['frio', 'Frios', 'bg-zinc-100 text-zinc-500 ring-zinc-200'],
+              ] as [Nivel, string, string][]
+            ).map(([n, rotulo, classe]) => (
+              <button
+                key={n}
+                onClick={() => { alternar(niveis, setNiveis, n); setPagina(0); }}
+                title={`Mostrar só os leads ${rotulo.toLowerCase()}`}
+                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-semibold ring-1 transition ${
+                  niveis.includes(n) ? 'bg-roxo-600 text-white ring-roxo-600' : classe + ' ring-inset hover:ring-roxo-300'
+                }`}
+              >
+                {rotulo} <span className="opacity-60">{resumo['temp_' + n] || 0}</span>
+              </button>
+            ))}
+            <span className="mx-2 w-px self-stretch bg-zinc-200" />
             {TIPOS.map((t) => (
               <button
                 key={t.kind}
@@ -790,6 +866,62 @@ export default function Painel({
               </tbody>
             </table>
           </div>
+
+          {/* -------------------------------------- excluir em lote */}
+          {total > 0 && (
+            <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4">
+              {!confirmandoLote ? (
+                <button
+                  onClick={() => { setConfirmandoLote(true); setTextoConfirma(''); }}
+                  className="text-[12px] text-zinc-500 underline underline-offset-2 transition hover:text-red-600"
+                >
+                  {temFiltro
+                    ? `Excluir os ${total} leads desta lista`
+                    : `Excluir todos os ${total} leads`}
+                </button>
+              ) : (
+                <div className="rounded-xl border border-red-300 bg-red-50 p-4">
+                  <p className="text-[13px] font-semibold text-red-900">
+                    {temFiltro
+                      ? `Apagar os ${total} leads que estão filtrados agora?`
+                      : `Apagar TODOS os ${total} leads?`}
+                  </p>
+                  <p className="mt-1 text-[12px] leading-snug text-red-800">
+                    Some tudo junto: anotações, propostas montadas e links de prévia. Não dá para
+                    desfazer, e o que veio do Maps só volta com outra varredura.
+                    {!temFiltro && ' Nenhum filtro está ativo — isso é a base inteira.'}
+                  </p>
+
+                  <label className="mt-3 block text-[12px] text-red-900">
+                    Para confirmar, digite <strong>EXCLUIR</strong>:
+                    <input
+                      value={textoConfirma}
+                      onChange={(e) => setTextoConfirma(e.target.value)}
+                      autoFocus
+                      aria-label="Digite EXCLUIR para confirmar"
+                      className="mt-1 block min-h-[40px] w-40 rounded-lg border border-red-300 bg-white px-3 text-[13px] outline-none focus:border-red-600"
+                    />
+                  </label>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={apagarLote}
+                      disabled={apagando || textoConfirma.trim().toUpperCase() !== 'EXCLUIR'}
+                      className="min-h-[40px] rounded-lg bg-red-600 px-4 text-[13px] font-semibold text-white transition hover:bg-red-700 disabled:bg-zinc-300"
+                    >
+                      {apagando ? 'Apagando…' : `Apagar ${total}`}
+                    </button>
+                    <button
+                      onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
+                      className="min-h-[40px] rounded-lg border border-zinc-300 bg-white px-4 text-[13px] text-zinc-700"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {!leads.length && !carregando && (
             <div className="px-6 py-16 text-center">

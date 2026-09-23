@@ -3,7 +3,7 @@ import {
   listarLeads,
   salvarLeads,
   normalizarLead,
-  apagarTudo,
+  apagarPorFiltro,
   temBanco,
   type Filtros,
   type Status,
@@ -17,6 +17,7 @@ export const dynamic = 'force-dynamic';
 
 const KINDS: WebsiteKind[] = ['none', 'social', 'marketplace', 'weak', 'site'];
 const STATUS: Status[] = ['novo', 'contatado', 'negociando', 'fechado', 'descartado'];
+const NIVEIS = ['quente', 'morno', 'frio'] as const;
 
 function lista<T extends string>(param: string | null, validos: readonly T[]): T[] | undefined {
   if (!param) return undefined;
@@ -35,6 +36,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     comTelefone: url.searchParams.get('fone') === '1',
     siteQuebrado: url.searchParams.get('quebrado') === '1',
     responsavel: url.searchParams.get('de') || undefined,
+    temperatura: lista(url.searchParams.get('temp'), NIVEIS),
     limit: Number(url.searchParams.get('limit')) || 200,
     offset: Number(url.searchParams.get('offset')) || 0,
     ordem: (url.searchParams.get('ordem') as Filtros['ordem']) || 'recentes',
@@ -126,10 +128,41 @@ export async function GET(req: Request) {
 
 // ------------------------------------------------------------- limpar
 
-export async function DELETE() {
+/**
+ * Apaga os leads que os filtros da URL selecionam. Sem filtro, apaga tudo.
+ *
+ * Pede a contagem esperada no corpo e recusa quando ela não bate com o que
+ * a consulta encontrou. É a única proteção que funciona aqui: a tela mostra
+ * "excluir os 12 da lista", e se alguém tiver mexido nos leads entre ver o
+ * número e confirmar, a operação para em vez de apagar um conjunto maior
+ * do que o que foi visto.
+ */
+export async function DELETE(req: Request) {
   if (!(await estaLogado())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
   }
-  const n = await apagarTudo();
-  return NextResponse.json({ ok: true, apagados: n });
+
+  const corpo = (await req.json().catch(() => ({}))) as { esperado?: number };
+  if (typeof corpo.esperado !== 'number' || corpo.esperado < 0) {
+    return NextResponse.json(
+      { ok: false, erro: 'Informe quantos leads você espera apagar.' },
+      { status: 400 },
+    );
+  }
+
+  const filtros = filtrosDaUrl(new URL(req.url));
+  const pagina = await listarLeads({ ...filtros, limit: 1, offset: 0 });
+
+  if (pagina.total !== corpo.esperado) {
+    return NextResponse.json(
+      {
+        ok: false,
+        erro: `A lista mudou: agora são ${pagina.total} leads, não ${corpo.esperado}. Confira e tente de novo.`,
+      },
+      { status: 409 },
+    );
+  }
+
+  const apagados = await apagarPorFiltro(filtros);
+  return NextResponse.json({ ok: true, apagados });
 }

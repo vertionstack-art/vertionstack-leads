@@ -11,7 +11,7 @@
 import { neon } from '@neondatabase/serverless';
 import { classifyWebsite, type WebsiteKind } from './classify';
 import type { SiteStatus } from './verificar-site';
-import { temperaturaDoLead } from './temperatura';
+import { temperaturaDoLead, type Nivel } from './temperatura';
 
 const URL_BANCO =
   process.env.DATABASE_URL ||
@@ -95,6 +95,8 @@ export interface Filtros {
   siteQuebrado?: boolean;
   /** quem está cuidando: um nome, ou 'ninguem' para os sem dono */
   responsavel?: string;
+  /** níveis de temperatura a mostrar; vazio ou ausente mostra todos */
+  temperatura?: Nivel[];
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes' | 'temperatura';
@@ -495,6 +497,33 @@ export async function apagarLead(id: string): Promise<boolean> {
   return r.length > 0;
 }
 
+/**
+ * Apaga exatamente os leads que um conjunto de filtros seleciona.
+ *
+ * Existe em vez de um "apagar tudo" seco porque limpar a base inteira
+ * raramente é o que se quer: o caso comum é varrer os frios, ou os de uma
+ * cidade que não compensou. Sem filtro nenhum, isto é o apagar tudo.
+ *
+ * Recebe os ids já resolvidos pela mesma função que monta a lista na tela,
+ * então o que some é o que estava à vista — e não um conjunto diferente
+ * porque a consulta de apagar interpretou o filtro de outro jeito.
+ */
+export async function apagarPorFiltro(f: Filtros): Promise<number> {
+  const alvos = await todosOsLeads({ ...f, limit: 2000, offset: 0 });
+  const ids = alvos.map((l) => l.id);
+  if (!ids.length) return 0;
+
+  if (!sql) {
+    let n = 0;
+    for (const id of ids) if (memoria.delete(id)) n++;
+    return n;
+  }
+
+  await garantirSchema();
+  const r = await sql`delete from leads where id = any(${ids}::text[]) returning id`;
+  return r.length;
+}
+
 export async function apagarTudo(): Promise<number> {
   if (!sql) {
     const n = memoria.size;
@@ -524,6 +553,9 @@ function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
     out = out.filter((l) =>
       [l.name, l.category, l.address, l.phone, l.city].some((c) => (c || '').toLowerCase().includes(q)),
     );
+  }
+  if (f.temperatura?.length) {
+    out = out.filter((l) => f.temperatura!.includes(temperaturaDoLead(l).nivel));
   }
   const ordem = f.ordem || 'recentes';
   out = [...out].sort((a, b) => {
@@ -577,7 +609,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
    * a nota é calculada aqui e a página é recortada depois. O teto de 5.000
    * existe para uma base grande não virar uma varredura silenciosa.
    */
-  const porTemperatura = ordem === 'temperatura';
+  const porTemperatura = ordem === 'temperatura' || Boolean(f.temperatura?.length);
   const limitSql = porTemperatura ? 5000 : limit;
   const offsetSql = porTemperatura ? 0 : offset;
 
@@ -642,16 +674,55 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   for (const r of porPessoa as { quem: string; n: number }[]) resumo['de_' + r.quem] = r.n;
   resumo.site_quebrado = (quebrados[0] as { n: number }).n;
 
-  const mapeados = (linhas as any[]).map(daLinha);
-  const pagina = porTemperatura
-    ? [...mapeados]
-        .sort((a, b) => temperaturaDoLead(b).pontos - temperaturaDoLead(a).pontos)
-        .slice(offset, offset + limit)
-    : mapeados;
+  /*
+   * Contagem por temperatura para os botões de filtro mostrarem número.
+   * Não dá para agregar em SQL porque a nota é regra em TypeScript, então
+   * vem só o punhado de colunas que o cálculo usa — bem mais barato que
+   * trazer a tabela inteira, e o suficiente para classificar.
+   */
+  const paraTemperatura = await sql`
+    select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
+    from leads limit 5000
+  `;
+  for (const r of paraTemperatura as Record<string, unknown>[]) {
+    const nivel = temperaturaDoLead({
+      websiteKind: r.website_kind,
+      siteStatus: r.site_status,
+      siteVerificadoEm: r.site_verificado_em,
+      reviews: r.reviews,
+      rating: r.rating,
+      instagram: r.instagram,
+      phone: r.phone,
+      category: r.category,
+    } as unknown as Lead).nivel;
+    resumo['temp_' + nivel] = (resumo['temp_' + nivel] || 0) + 1;
+  }
+
+  let mapeados = (linhas as any[]).map(daLinha);
+
+  /*
+   * Quando a temperatura entra — como filtro ou como ordenação —, o total
+   * da paginação precisa ser o do conjunto já filtrado, senão o rodapé diz
+   * "200 leads" numa lista de doze quentes.
+   */
+  let totalReal: number | null = null;
+  if (f.temperatura?.length) {
+    mapeados = mapeados.filter((l) => f.temperatura!.includes(temperaturaDoLead(l).nivel));
+    totalReal = mapeados.length;
+  }
+
+  const pagina =
+    ordem === 'temperatura'
+      ? [...mapeados]
+          .sort((a, b) => temperaturaDoLead(b).pontos - temperaturaDoLead(a).pontos)
+          .slice(offset, offset + limit)
+      : porTemperatura
+        ? mapeados.slice(offset, offset + limit)
+        : mapeados;
 
   return {
     leads: pagina,
-    total: (totalRow[0] as { n: number }).n,
+    total: totalReal ?? (totalRow[0] as { n: number }).n,
     resumo,
     cidades: (cidades as { city: string }[]).map((r) => r.city),
     categorias: (categorias as { category: string }[]).map((r) => r.category),
@@ -672,6 +743,7 @@ function resumoDe(todos: Lead[]): Record<string, number> {
     if (l.isLead) r.oportunidades++;
     r['de_' + (l.responsavel || 'ninguem')] = (r['de_' + (l.responsavel || 'ninguem')] || 0) + 1;
     if (l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus)) r.site_quebrado++;
+    r['temp_' + temperaturaDoLead(l).nivel] = (r['temp_' + temperaturaDoLead(l).nivel] || 0) + 1;
   }
   return r;
 }
