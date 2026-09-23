@@ -38,6 +38,21 @@ aceita correr com o número que é o seu canal de vendas.
 
 ---
 
+## Gerar o .exe para outra máquina
+
+```bash
+python empacotar.py
+```
+
+Sai um `Vertion Disparo.zip` de ~20 MB com o programa inteiro dentro: quem
+receber não precisa de Python nem de instalar nada, só de Windows com o
+WhatsApp do PC conectado.
+
+O script corta OpenCV, PyQt5 e numpy do pacote — eles vêm de carona com o
+pyautogui e somam mais de 170 MB de coisa que este programa nunca usa.
+
+---
+
 ## Instalação (uma vez só)
 
 **1.** Tenha o **WhatsApp instalado no PC** e já conectado com o seu
@@ -155,6 +170,7 @@ disparou sem querer, tire o mouse do canto e comece de novo.
 | Arquivo | O que faz |
 |---|---|
 | `app.py` | a janela |
+| `empacotar.py` | gera o .exe e o zip para distribuir |
 | `nucleo.py` | a lógica do disparo, sem tela |
 | `painel.py` | busca a fila e carimba quem recebeu |
 | `telefone.py` | descarta número que não serve |

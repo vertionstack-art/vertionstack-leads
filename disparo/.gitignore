@@ -2,3 +2,8 @@ config.json
 enviados.json
 __pycache__/
 disparo.log
+build/
+dist/
+pacote/
+*.spec
+*.zip

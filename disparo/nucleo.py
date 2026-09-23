@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import random
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -26,7 +27,21 @@ import telefone
 import whatsapp
 from painel import ErroDoPainel, Painel
 
-AQUI = Path(__file__).parent
+def _pasta_do_programa() -> Path:
+    """
+    Onde ficam config.json, enviados.json e o log.
+
+    Empacotado como .exe pelo PyInstaller, `__file__` aponta para uma pasta
+    temporária que o Windows apaga ao fechar — a configuração e a contagem
+    do dia sumiriam a cada execução. Quando está congelado, o que vale é a
+    pasta onde o .exe está de verdade.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+
+AQUI = _pasta_do_programa()
 CONFIG = AQUI / "config.json"
 HISTORICO = AQUI / "enviados.json"
 REGISTRO = AQUI / "disparo.log"
