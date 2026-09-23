@@ -34,8 +34,8 @@ class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Vertion Disparo")
-        self.geometry("880x660")
-        self.minsize(760, 560)
+        self.geometry("880x760")
+        self.minsize(780, 660)
         self.configure(bg=FUNDO)
 
         self.cfg = nucleo.carregar_config()
@@ -85,6 +85,32 @@ class App(tk.Tk):
         )
         self.b_carregar.grid(row=1, column=2, sticky="e")
         cfg_box.columnconfigure(0, weight=1)
+
+        # ----------------------------------------------------------- ritmo
+        ritmo = tk.LabelFrame(self, text=" Ritmo ", bg=FUNDO, fg=CINZA, font=("Segoe UI", 9), padx=14, pady=10)
+        ritmo.pack(fill="x", padx=16, pady=(0, 6))
+
+        def campo(coluna: int, rotulo: str, valor) -> tk.Entry:
+            quadro = tk.Frame(ritmo, bg=FUNDO)
+            quadro.grid(row=0, column=coluna, sticky="w", padx=(0, 18))
+            tk.Label(quadro, text=rotulo, bg=FUNDO, fg=CINZA, font=("Segoe UI", 8)).pack(anchor="w")
+            e = tk.Entry(quadro, width=7, font=("Segoe UI", 10), justify="center")
+            e.insert(0, str(valor))
+            e.pack(anchor="w")
+            return e
+
+        self.e_pausa_min = campo(0, "Pausa mínima (seg)", self.cfg.get("pausa_min_segundos"))
+        self.e_pausa_max = campo(1, "Pausa máxima (seg)", self.cfg.get("pausa_max_segundos"))
+        self.e_limite = campo(2, "Máximo por dia", self.cfg.get("limite_por_dia"))
+        self.e_descanso_cada = campo(3, "Descanso a cada", self.cfg.get("descanso_a_cada"))
+        self.e_descanso_min = campo(4, "Descanso (min)", self.cfg.get("descanso_minutos"))
+
+        tk.Label(
+            ritmo,
+            text="A pausa é sorteada entre a mínima e a máxima — intervalo fixo é o que mais "
+                 "denuncia disparo automático. Quanto maior, mais seguro para o seu número.",
+            bg=FUNDO, fg=CINZA, font=("Segoe UI", 8), wraplength=800, justify="left",
+        ).grid(row=1, column=0, columnspan=6, sticky="w", pady=(8, 0))
 
         # ----------------------------------------------------------- lista
         lista_box = tk.LabelFrame(self, text=" Quem vai receber ", bg=FUNDO, fg=CINZA, font=("Segoe UI", 9), padx=10, pady=8)
@@ -178,6 +204,25 @@ class App(tk.Tk):
         cfg = dict(self.cfg)
         cfg["painel_url"] = self.e_url.get().strip()
         cfg["chave"] = self.e_chave.get().strip()
+
+        # campo vazio ou com letra não pode virar zero nem derrubar o
+        # programa: continua valendo o que já valia
+        def numero(entrada: tk.Entry, atual, minimo=0):
+            try:
+                v = type(atual)(entrada.get().strip().replace(",", "."))
+            except (ValueError, TypeError):
+                return atual
+            return max(minimo, v)
+
+        cfg["pausa_min_segundos"] = numero(self.e_pausa_min, cfg["pausa_min_segundos"], 5)
+        cfg["pausa_max_segundos"] = numero(self.e_pausa_max, cfg["pausa_max_segundos"], 5)
+        cfg["limite_por_dia"] = numero(self.e_limite, cfg["limite_por_dia"], 1)
+        cfg["descanso_a_cada"] = numero(self.e_descanso_cada, cfg["descanso_a_cada"])
+        cfg["descanso_minutos"] = numero(self.e_descanso_min, cfg["descanso_minutos"])
+
+        # máxima menor que mínima faria o sorteio devolver valor negativo
+        if cfg["pausa_max_segundos"] < cfg["pausa_min_segundos"]:
+            cfg["pausa_max_segundos"] = cfg["pausa_min_segundos"]
         return cfg
 
     def _marcados(self) -> list[nucleo.Alvo]:
@@ -283,6 +328,9 @@ class App(tk.Tk):
     # ------------------------------------------------------------- envio
 
     def _comecar(self) -> None:
+        # relê o ritmo agora: dá para ajustar depois de carregar a fila
+        self.cfg = self._cfg_da_tela()
+        nucleo.salvar_config(self.cfg)
         alvos = self._marcados()
         cabe = max(0, int(self.cfg.get("limite_por_dia", 0)) - nucleo.enviados_hoje())
         alvos = alvos[:cabe]
@@ -290,9 +338,12 @@ class App(tk.Tk):
             return
 
         aviso = (
-            f"Vou mandar para {len(alvos)} comércios.\n\n"
+            f"Vou mandar para {len(alvos)} comércios, com pausa de "
+            f"{self.cfg['pausa_min_segundos']} a {self.cfg['pausa_max_segundos']} segundos "
+            f"entre uma e outra.\n\n"
             f"Enquanto roda, NÃO mexa no mouse nem no teclado — o programa "
-            f"controla o teclado de verdade para apertar Enter no WhatsApp.\n\n"
+            f"controla o teclado de verdade para apertar Enter no WhatsApp. "
+            f"Levar o mouse ao canto superior esquerdo é o freio de emergência.\n\n"
             f"Pode parar quando quiser no botão Parar.\n\nComeçar?"
         )
         if not messagebox.askyesno("Confirmar", aviso):

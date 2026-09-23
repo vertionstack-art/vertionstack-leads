@@ -28,12 +28,13 @@ Por isso o programa já vem com três freios ligados:
 
 | Freio | Padrão | Para quê |
 |---|---|---|
-| Pausa entre mensagens | 45 a 110 segundos, sorteada | intervalo fixo é assinatura de robô |
+| Pausa entre mensagens | sorteada dentro da faixa que você define | intervalo fixo é assinatura de robô |
 | Teto por dia | 40 | continua contando se você fechar e abrir |
 | Descanso | 15 min a cada 12 envios | quebra a sequência longa |
 
-**Quanto mais devagar, mais seguro.** Se for começar agora, comece com o
-teto em 15 ou 20 por dia na primeira semana.
+Tudo isso se ajusta na caixa **Ritmo**, dentro do programa. **Quanto mais
+devagar, mais seguro** — não existe número certo, existe o risco que você
+aceita correr com o número que é o seu canal de vendas.
 
 ---
 
@@ -63,13 +64,15 @@ próximas. É a mesma chave que está nas configurações da extensão.
 Dê **duplo clique em `Vertion Disparo.bat`**. A janela abre.
 
 1. Confira o endereço do painel e a chave (ficam salvos para a próxima).
-2. Clique em **Carregar fila**.
-3. A lista mostra quem vai receber. Os que aparecem em cinza têm número
+2. Ajuste o **Ritmo**, se quiser — a pausa entre uma mensagem e outra sai
+   sorteada entre a mínima e a máxima. Também fica salvo.
+3. Clique em **Carregar fila**.
+4. A lista mostra quem vai receber. Os que aparecem em cinza têm número
    que não serve, e a coluna da direita diz o motivo — telefone fixo, 0800,
    DDD que não existe, sem telefone.
-4. Clique no quadradinho da esquerda para tirar alguém desta rodada.
-5. Confira a mensagem na caixa de baixo.
-6. **Começar a enviar**.
+5. Clique no quadradinho da esquerda para tirar alguém desta rodada.
+6. Confira a mensagem na caixa de baixo.
+7. **Começar a enviar**.
 
 **Enquanto roda, não mexa no mouse nem no teclado.** O programa controla o
 teclado de verdade para apertar Enter no WhatsApp — se você clicar em
