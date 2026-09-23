@@ -377,6 +377,15 @@ export default function Painel({
             >
               Baixar CSV
             </a>
+            {total > 0 && (
+              <button
+                onClick={() => { setConfirmandoLote(true); setTextoConfirma(''); }}
+                title={temFiltro ? 'Apagar os leads que estão filtrados agora' : 'Apagar todos os leads'}
+                className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-600 transition hover:border-red-400 hover:bg-red-50 hover:text-red-700 md:min-h-0 md:py-1.5"
+              >
+                {temFiltro ? `Excluir os ${total}` : 'Excluir todos'}
+              </button>
+            )}
             <button
               onClick={carregar}
               className="min-h-[40px] rounded-lg bg-roxo-600 px-3 text-xs font-medium text-white transition hover:bg-roxo-700 md:min-h-0 md:py-1.5"
@@ -868,62 +877,6 @@ export default function Painel({
             </table>
           </div>
 
-          {/* -------------------------------------- excluir em lote */}
-          {total > 0 && (
-            <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4">
-              {!confirmandoLote ? (
-                <button
-                  onClick={() => { setConfirmandoLote(true); setTextoConfirma(''); }}
-                  className="text-[12px] text-zinc-500 underline underline-offset-2 transition hover:text-red-600"
-                >
-                  {temFiltro
-                    ? `Excluir os ${total} leads desta lista`
-                    : `Excluir todos os ${total} leads`}
-                </button>
-              ) : (
-                <div className="rounded-xl border border-red-300 bg-red-50 p-4">
-                  <p className="text-[13px] font-semibold text-red-900">
-                    {temFiltro
-                      ? `Apagar os ${total} leads que estão filtrados agora?`
-                      : `Apagar TODOS os ${total} leads?`}
-                  </p>
-                  <p className="mt-1 text-[12px] leading-snug text-red-800">
-                    Some tudo junto: anotações, propostas montadas e links de prévia. Não dá para
-                    desfazer, e o que veio do Maps só volta com outra varredura.
-                    {!temFiltro && ' Nenhum filtro está ativo — isso é a base inteira.'}
-                  </p>
-
-                  <label className="mt-3 block text-[12px] text-red-900">
-                    Para confirmar, digite <strong>EXCLUIR</strong>:
-                    <input
-                      value={textoConfirma}
-                      onChange={(e) => setTextoConfirma(e.target.value)}
-                      autoFocus
-                      aria-label="Digite EXCLUIR para confirmar"
-                      className="mt-1 block min-h-[40px] w-40 rounded-lg border border-red-300 bg-white px-3 text-[13px] outline-none focus:border-red-600"
-                    />
-                  </label>
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      onClick={apagarLote}
-                      disabled={apagando || textoConfirma.trim().toUpperCase() !== 'EXCLUIR'}
-                      className="min-h-[40px] rounded-lg bg-red-600 px-4 text-[13px] font-semibold text-white transition hover:bg-red-700 disabled:bg-zinc-300"
-                    >
-                      {apagando ? 'Apagando…' : `Apagar ${total}`}
-                    </button>
-                    <button
-                      onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
-                      className="min-h-[40px] rounded-lg border border-zinc-300 bg-white px-4 text-[13px] text-zinc-700"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
           {!leads.length && !carregando && (
             <div className="px-6 py-16 text-center">
               <p className="text-[15px] font-medium text-zinc-700">
@@ -955,6 +908,57 @@ export default function Painel({
 
         {cadastrando && (
           <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
+        )}
+
+        {/* ---------------------------- confirmar exclusão em lote */}
+        {confirmandoLote && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+            onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-[16px] font-semibold text-red-900">
+                {temFiltro ? `Apagar os ${total} leads desta lista?` : `Apagar TODOS os ${total} leads?`}
+              </h2>
+              <p className="mt-2 text-[13px] leading-snug text-zinc-600">
+                Some tudo junto: anotações, propostas montadas e links de prévia. Não dá para desfazer,
+                e o que veio do Maps só volta com outra varredura.
+                {temFiltro
+                  ? ' Só os que estão filtrados agora vão sair.'
+                  : ' Nenhum filtro está ativo — isso é a base inteira.'}
+              </p>
+
+              <label className="mt-4 block text-[13px] text-zinc-800">
+                Para confirmar, digite <strong>EXCLUIR</strong>:
+                <input
+                  value={textoConfirma}
+                  onChange={(e) => setTextoConfirma(e.target.value)}
+                  autoFocus
+                  aria-label="Digite EXCLUIR para confirmar"
+                  className="mt-1.5 block min-h-[44px] w-44 rounded-lg border border-zinc-300 px-3 text-[14px] outline-none focus:border-red-600"
+                />
+              </label>
+
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  onClick={apagarLote}
+                  disabled={apagando || textoConfirma.trim().toUpperCase() !== 'EXCLUIR'}
+                  className="min-h-[44px] rounded-lg bg-red-600 px-5 text-[13.5px] font-semibold text-white transition hover:bg-red-700 disabled:bg-zinc-300"
+                >
+                  {apagando ? 'Apagando…' : `Apagar ${total}`}
+                </button>
+                <button
+                  onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
+                  className="min-h-[44px] rounded-lg border border-zinc-300 px-5 text-[13.5px] text-zinc-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {promptDe && (
