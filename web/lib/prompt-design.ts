@@ -17,6 +17,7 @@
 
 import type { Lead } from './db';
 import { focoDoRamo } from './foco-ramo';
+import { briefingParaPrompt, lerBriefing } from './briefing';
 
 /** só os dígitos, no formato que o link do WhatsApp aceita */
 function whatsappDe(telefone: string | null): string | null {
@@ -28,6 +29,7 @@ function whatsappDe(telefone: string | null): string | null {
 
 export function montarPromptDesign(lead: Lead, nomeEmpresa = 'Vertion Stack'): string {
   const zap = whatsappDe(lead.phone);
+  const briefing = briefingParaPrompt(lerBriefing(lead.briefing));
   const linha = (rotulo: string, valor: string | null | undefined) => (valor ? `- **${rotulo}:** ${valor}` : null);
 
   const dados = [
@@ -75,9 +77,25 @@ E sempre:
 - Endereço, horário e telefone fáceis de achar.
 - **Desenhe primeiro para o celular.** É lá que ele vai abrir. Se ficar bom no celular e razoável no computador, está certo; o contrário não serve.
 
-## DIREÇÃO VISUAL
+${
+    briefing
+      ? `## O QUE EU JÁ SEI SOBRE ESTE COMÉRCIO
 
-Escolha uma direção que combine com o ramo e com o público **deste** comércio, e não a que está na moda. Barbearia de bairro, clínica e pizzaria não se parecem, e página de pequeno negócio com cara de startup de tecnologia não convence ninguém.
+Isto não veio do Google: é o que eu levantei conversando ou olhando. Vale mais que qualquer suposição sua, e o que estiver aqui manda no que você vai desenhar.
+
+${briefing}
+
+`
+      : ''
+  }## DIREÇÃO VISUAL
+
+${
+    briefing
+      ? 'Respeite a direção pedida acima. Dentro dela você decide paleta exata, tipografia e ritmo — mas não troque a direção por outra que ache melhor.'
+      : 'Escolha uma direção que combine com o ramo e com o público **deste** comércio, e não a que está na moda.'
+  }
+
+Barbearia de bairro, clínica e pizzaria não se parecem, e página de pequeno negócio com cara de startup de tecnologia não convence ninguém.
 
 Antes de desenhar, me diga em três linhas: a direção que escolheu, a paleta e a tipografia — e por quê, considerando o ramo e a cidade.
 

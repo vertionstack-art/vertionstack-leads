@@ -79,6 +79,15 @@ export interface Lead {
    * e "já mandei" são momentos diferentes, e misturar os dois faria o
    * programa reenviar para quem acabou de responder.
    */
+  /**
+   * O que você preencheu à mão sobre o comércio para a prévia sair boa.
+   *
+   * O Maps entrega nome, telefone e endereço; o que faz a landing parecer
+   * feita para aquele negócio — cor da marca, o que destacar, os serviços
+   * reais, referências visuais — não vem de lugar nenhum e precisa ser
+   * digitado uma vez.
+   */
+  briefing: unknown | null;
   contato: boolean;
   /** quando a mensagem saiu de verdade; null enquanto não saiu */
   contatadoEm: string | null;
@@ -158,6 +167,7 @@ export async function garantirSchema() {
   await sql`alter table leads add column if not exists origem text not null default 'maps'`;
   await sql`alter table leads add column if not exists previa_url text`;
   await sql`alter table leads add column if not exists cnpj jsonb`;
+  await sql`alter table leads add column if not exists briefing jsonb`;
   await sql`alter table leads add column if not exists contato boolean not null default false`;
   await sql`alter table leads add column if not exists contatado_em timestamptz`;
   await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
@@ -229,6 +239,7 @@ export function normalizarLead(
     origem,
     previaUrl: texto(cru.previaUrl, 500),
     cnpj: null,
+    briefing: null,
     contato: false,
     contatadoEm: null,
     siteStatus: null,
@@ -271,6 +282,7 @@ function daLinha(r: any): Lead {
     origem: r.origem || 'maps',
     previaUrl: r.previa_url,
     cnpj: r.cnpj ?? null,
+    briefing: r.briefing ?? null,
     contato: r.contato === true,
     contatadoEm: r.contatado_em ? new Date(r.contatado_em).toISOString() : null,
     coletadoPor: r.coletado_por,
@@ -314,6 +326,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
           origem: antigo.origem,
           previaUrl: antigo.previaUrl || l.previaUrl,
           cnpj: antigo.cnpj ?? l.cnpj,
+          briefing: antigo.briefing ?? l.briefing,
           contato: antigo.contato,
           contatadoEm: antigo.contatadoEm,
           coletadoPor: antigo.coletadoPor || l.coletadoPor,
@@ -385,7 +398,7 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
  */
 export async function atualizarLead(
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; contato?: boolean; contatadoEm?: string | null },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown; contato?: boolean; contatadoEm?: string | null },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -424,6 +437,9 @@ export async function atualizarLead(
       cnpj        = case when ${patch.cnpj !== undefined}
                          then ${patch.cnpj === null ? null : JSON.stringify(patch.cnpj)}::jsonb
                          else cnpj end,
+      briefing    = case when ${patch.briefing !== undefined}
+                         then ${patch.briefing === null ? null : JSON.stringify(patch.briefing)}::jsonb
+                         else briefing end,
       contato     = case when ${patch.contato !== undefined}
                          then ${patch.contato ?? false} else contato end,
       contatado_em = case when ${patch.contatadoEm !== undefined}

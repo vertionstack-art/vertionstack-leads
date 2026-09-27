@@ -28,6 +28,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     proposta?: unknown;
     previaUrl?: string | null;
     cnpj?: unknown;
+    briefing?: unknown;
     contato?: boolean;
     contatadoEm?: string | null;
   };
@@ -49,6 +50,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
             : null
           : undefined,
       cnpj: corpo.cnpj,
+      briefing: corpo.briefing,
       contato: typeof corpo.contato === 'boolean' ? corpo.contato : undefined,
       contatadoEm: corpo.contatadoEm,
     },

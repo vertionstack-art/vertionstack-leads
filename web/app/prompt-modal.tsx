@@ -5,6 +5,8 @@ import type { Lead } from '@/lib/db';
 import { montarPrompt } from '@/lib/prompt-lead';
 import { montarPromptSite } from '@/lib/prompt-site';
 import { montarPromptDesign } from '@/lib/prompt-design';
+import BriefingDesign from './briefing-design';
+import { lerBriefing, preenchidos, type Briefing } from '@/lib/briefing';
 import { montarPromptGringa } from '@/lib/prompt-gringa';
 
 export type Variante = 'abordagem' | 'design' | 'site' | 'gringa';
@@ -54,11 +56,13 @@ export default function PromptModal({
   variante = 'abordagem',
   aoFechar,
   aoSalvarPrevia,
+  aoSalvarBriefing,
 }: {
   lead: Lead;
   variante?: Variante;
   aoFechar: () => void;
   aoSalvarPrevia: (url: string) => Promise<void>;
+  aoSalvarBriefing: (b: unknown) => Promise<void>;
 }) {
   const t = TEXTOS[variante];
   const [copiado, setCopiado] = useState(false);
@@ -72,6 +76,31 @@ export default function PromptModal({
    * nova nem misturar duas moedas no mesmo campo.
    */
   const [precoUsd, setPrecoUsd] = useState('');
+
+  /*
+   * O briefing vive no estado enquanto a janela está aberta e o prompt se
+   * refaz a cada tecla — é isso que deixa ver o efeito do que se digita.
+   * A gravação é explícita, no botão, para não mandar uma requisição por
+   * letra digitada.
+   */
+  const [briefing, setBriefing] = useState<Briefing>(() => lerBriefing(lead.briefing));
+  const [salvandoBriefing, setSalvandoBriefing] = useState(false);
+  const [briefingSalvo, setBriefingSalvo] = useState(true);
+
+  function mudarBriefing(b: Briefing) {
+    setBriefing(b);
+    setBriefingSalvo(false);
+  }
+
+  async function guardarBriefing() {
+    setSalvandoBriefing(true);
+    try {
+      await aoSalvarBriefing(briefing);
+      setBriefingSalvo(true);
+    } finally {
+      setSalvandoBriefing(false);
+    }
+  }
   const [guardandoPrevia, setGuardandoPrevia] = useState(false);
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -105,7 +134,7 @@ export default function PromptModal({
 
   const prompt =
     variante === 'design'
-      ? montarPromptDesign(lead)
+      ? montarPromptDesign({ ...lead, briefing })
       : variante === 'site'
       ? montarPromptSite(lead)
       : variante === 'gringa'
@@ -242,6 +271,29 @@ export default function PromptModal({
           </div>
         )}
 
+        {/* -------------------------------------------- briefing */}
+        {variante === 'design' && (
+          <div className="max-h-[42vh] overflow-auto border-b border-zinc-200 bg-zinc-50 px-6 py-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                Sobre este comércio
+              </h3>
+              <button
+                onClick={guardarBriefing}
+                disabled={salvandoBriefing || briefingSalvo}
+                className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold transition ${
+                  briefingSalvo
+                    ? 'bg-zinc-100 text-zinc-400'
+                    : 'bg-roxo-600 text-white hover:bg-roxo-700'
+                }`}
+              >
+                {salvandoBriefing ? 'Guardando…' : briefingSalvo ? 'Guardado' : 'Guardar'}
+              </button>
+            </div>
+            <BriefingDesign briefing={briefing} aoMudar={mudarBriefing} />
+          </div>
+        )}
+
         {/* ----------------------------------------------------- texto */}
         <div className="min-h-0 flex-1 overflow-auto bg-zinc-50 p-4">
           <textarea
@@ -261,13 +313,20 @@ export default function PromptModal({
               : `${prompt.length.toLocaleString('pt-BR')} caracteres — copie e cole.`}
           </p>
           <div className="flex items-center gap-2">
+            {variante === 'design' && briefing.anexaImagens && (
+              <span className="mr-1 text-[11.5px] leading-snug text-amber-700">
+                Não esqueça de arrastar as imagens
+                <br />
+                na conversa do Claude.
+              </span>
+            )}
             <button
               onClick={copiar}
               className={`rounded-lg px-5 py-2 text-[13px] font-semibold text-white transition ${
                 copiado ? 'bg-emerald-600' : 'bg-roxo-600 hover:bg-roxo-700'
               }`}
             >
-              {copiado ? '✓ Copiado!' : '1. Copiar prompt'}
+              {copiado ? '✓ Copiado!' : variante === 'design' ? '1. Copiar tudo' : '1. Copiar prompt'}
             </button>
             <a
               href={t.url}
@@ -280,7 +339,7 @@ export default function PromptModal({
                   : 'border border-zinc-300 text-zinc-700 hover:border-roxo-400 hover:text-roxo-700'
               }`}
             >
-              2. {t.destino} ↗
+              2. {variante === 'design' ? 'Gerar landing no Claude' : t.destino} ↗
             </a>
           </div>
         </div>
