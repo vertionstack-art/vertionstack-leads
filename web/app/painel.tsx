@@ -660,7 +660,7 @@ export default function Painel({
                   <th className="px-4 py-2.5 font-semibold">Onde fica</th>
                   <th className="px-4 py-2.5 text-center font-semibold">Reputação</th>
                   <th className="px-4 py-2.5 font-semibold">Status</th>
-                  <th className="px-4 py-2.5" />
+                  <th className="sticky right-0 z-10 bg-zinc-50 px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -668,7 +668,7 @@ export default function Painel({
                   const t = tipoDe(lead.websiteKind);
                   const zap = linkWhatsApp(lead.phone);
                   return (
-                    <tr key={lead.id} className="align-top transition hover:bg-roxo-50/40">
+                    <tr key={lead.id} className="group align-top transition hover:bg-roxo-50/40">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium leading-snug">{lead.name}</span>
@@ -823,8 +823,23 @@ export default function Painel({
                         )}
                       </td>
 
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <div className="flex justify-end gap-1.5">
+                      {/*
+                        Grudada na direita e em grade de três.
+                        Em fila única, com CONTACT, COPY, DESIGN, PROPOSTA e
+                        às vezes ENTREGA e COPY GRINGA, esta célula sozinha
+                        pedia 315px — um terço da tabela — e o resto saía da
+                        tela. A barra de rolagem existia, mas fica embaixo da
+                        tabela inteira: com duzentos leads, a mil pixels de
+                        distância de quem precisa dela.
+                      */}
+                      <td className="sticky right-0 z-10 bg-white px-3 py-3 align-top shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.08)] transition group-hover:bg-roxo-50">
+                        {/*
+                          A largura mora no div, não na célula: `w-` numa <td>
+                          é só sugestão e a tabela reparte o espaço como quer —
+                          a célula encolheu para 106px e os botões vazaram por
+                          cima do texto do lead.
+                        */}
+                        <div className="grid w-[186px] grid-cols-2 gap-1">
                           <button
                             onClick={() => alternarFila(lead)}
                             title={
@@ -832,7 +847,7 @@ export default function Painel({
                                 ? 'Está na fila de contato — clique para tirar'
                                 : 'Pôr na fila que o programa de disparo vai ler'
                             }
-                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
                               lead.contato
                                 ? 'border-sky-500 bg-sky-500 text-white hover:bg-sky-600'
                                 : 'border-sky-300 bg-sky-50 text-sky-700 hover:border-sky-500'
@@ -843,7 +858,7 @@ export default function Painel({
                           <button
                             onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                             title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
-                            className="rounded-md border border-roxo-300 bg-roxo-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
+                            className="rounded-md border border-roxo-300 bg-roxo-50 px-1 py-1 text-[10.5px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
                           >
                             COPY
                           </button>
@@ -851,7 +866,7 @@ export default function Painel({
                             <button
                               onClick={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
                               title={`Lead de fora do Brasil (${origemDoLead(lead).motivo}). Gera o prompt do e-mail para colar na SkynetChat.`}
-                              className="rounded-md border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-sky-700 transition hover:border-sky-500 hover:bg-sky-100"
+                              className="rounded-md border border-sky-300 bg-sky-50 px-1 py-1 text-[10.5px] font-semibold tracking-wide text-sky-700 transition hover:border-sky-500 hover:bg-sky-100"
                             >
                               COPY GRINGA
                             </button>
@@ -859,7 +874,7 @@ export default function Painel({
                           <button
                             onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                             title="Antes da venda: prompt para desenhar a prévia no Claude Design"
-                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
                               lead.previaUrl
                                 ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
                                 : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
@@ -879,7 +894,7 @@ export default function Painel({
                           <button
                             onClick={() => setPropostaDe(lead)}
                             title="Monta os três planos de proposta para este lead"
-                            className={`rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide transition ${
+                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
                               lead.proposta
                                 ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
                                 : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
@@ -888,7 +903,7 @@ export default function Painel({
                             {lead.proposta ? '✓ PROPOSTA' : 'PROPOSTA'}
                           </button>
                         </div>
-                        <div className="mt-1.5">
+                        <div className="mt-1.5 w-[186px]">
                           {lead.mapsUrl && (
                             <a
                               href={lead.mapsUrl}
