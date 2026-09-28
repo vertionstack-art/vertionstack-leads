@@ -6,7 +6,7 @@ import { montarPrompt } from '@/lib/prompt-lead';
 import { montarPromptSite } from '@/lib/prompt-site';
 import { montarPromptDesign } from '@/lib/prompt-design';
 import BriefingDesign from './briefing-design';
-import { lerBriefing, preenchidos, type Briefing } from '@/lib/briefing';
+import { lerBriefing, preenchidos, respondidas, type Briefing } from '@/lib/briefing';
 import { questionarioPara, textoDaSolicitacao } from '@/lib/solicitacao';
 import { montarPromptGringa } from '@/lib/prompt-gringa';
 
@@ -96,6 +96,15 @@ export default function PromptModal({
   const [pedidoCopiado, setPedidoCopiado] = useState(false);
   const pedido = textoDaSolicitacao(lead.name, lead.category, lead.previaUrl);
   const nichoDoPedido = questionarioPara(lead.category).nicho;
+
+  const perguntas = questionarioPara(lead.category).perguntas;
+
+  function responder(pergunta: string, texto: string) {
+    const respostas = { ...(briefing.respostas ?? {}) };
+    if (texto.trim()) respostas[pergunta] = texto;
+    else delete respostas[pergunta];
+    mudarBriefing({ ...briefing, respostas });
+  }
 
   async function copiarPedido() {
     try {
@@ -321,6 +330,9 @@ export default function PromptModal({
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[12.5px] font-semibold text-tinta">
                     Perguntas para {nichoDoPedido.toLowerCase()}
+                    <span className="ml-2 font-normal text-zinc-500">
+                      {respondidas(briefing)} de {perguntas.length} respondidas
+                    </span>
                   </p>
                   <button
                     onClick={copiarPedido}
@@ -332,15 +344,32 @@ export default function PromptModal({
                   </button>
                 </div>
                 <p className="mb-2 text-[11.5px] leading-snug text-zinc-500">
-                  As perguntas mudam conforme o ramo do comércio. O que ele responder você digita
-                  nos campos abaixo.
+                  As perguntas mudam conforme o ramo do comércio. Copie e mande no WhatsApp; quando
+                  ele responder, escreva embaixo de cada uma — vai tudo para o prompt.
                 </p>
-                <textarea
-                  readOnly
-                  value={pedido}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className="h-52 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-[12px] leading-relaxed text-zinc-800 outline-none focus:border-roxo-400"
-                />
+                <div className="max-h-[46vh] space-y-2.5 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  {perguntas.map((pergunta, i) => {
+                    const resposta = briefing.respostas?.[pergunta] || '';
+                    return (
+                      <div key={pergunta}>
+                        <p className="text-[12px] leading-snug text-zinc-700">
+                          <span className="font-semibold text-zinc-500">{i + 1}.</span> {pergunta}
+                        </p>
+                        <textarea
+                          value={resposta}
+                          onChange={(e) => responder(pergunta, e.target.value)}
+                          rows={resposta.length > 60 ? 3 : 1}
+                          placeholder="o que ele respondeu…"
+                          className={`mt-1 w-full resize-y rounded-lg border px-2.5 py-1.5 text-[12.5px] outline-none ${
+                            resposta.trim()
+                              ? 'border-emerald-300 bg-emerald-50/40 focus:border-emerald-500'
+                              : 'border-zinc-300 bg-white focus:border-roxo-500'
+                          }`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 

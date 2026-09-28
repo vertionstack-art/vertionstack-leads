@@ -47,6 +47,15 @@ export interface Briefing {
   observacoes: string;
   /** true quando as imagens vão ser anexadas direto no Claude */
   anexaImagens: boolean;
+  /**
+   * O que o dono respondeu, pergunta a pergunta.
+   *
+   * A chave é o texto da pergunta, e não a posição dela na lista: mexer na
+   * ordem das perguntas depois embaralharia respostas já dadas, enquanto
+   * mudar o texto de uma pergunta apenas deixa aquela resposta sem par na
+   * tela — e ela continua indo para o prompt, que é onde importa.
+   */
+  respostas: Record<string, string>;
 }
 
 export const BRIEFING_VAZIO: Briefing = {
@@ -59,6 +68,7 @@ export const BRIEFING_VAZIO: Briefing = {
   referencias: [],
   observacoes: '',
   anexaImagens: false,
+  respostas: {},
 };
 
 /**
@@ -85,6 +95,14 @@ export function lerBriefing(cru: unknown): Briefing {
       : [],
     observacoes: texto(b.observacoes),
     anexaImagens: b.anexaImagens === true,
+    respostas:
+      b.respostas && typeof b.respostas === 'object' && !Array.isArray(b.respostas)
+        ? Object.fromEntries(
+            Object.entries(b.respostas as Record<string, unknown>)
+              .filter(([, v]) => typeof v === 'string' && v.trim())
+              .map(([k, v]) => [k, v as string]),
+          )
+        : {},
   };
 }
 
@@ -97,6 +115,17 @@ export function preenchidos(b: Briefing): number {
   }
   if (b.referencias.length) n++;
   return n;
+}
+
+/**
+ * Quantas perguntas do questionário já têm resposta.
+ *
+ * Tolera briefing sem o campo: leads gravados antes de as respostas
+ * existirem não têm `respostas`, e `Object.values(undefined)` derruba a
+ * janela inteira em vez de mostrar zero.
+ */
+export function respondidas(b: Briefing): number {
+  return Object.values(b?.respostas ?? {}).filter((r) => (r || '').trim()).length;
 }
 
 export const TOTAL_DE_CAMPOS = 8;
@@ -139,6 +168,24 @@ export function briefingParaPrompt(b: Briefing): string {
   }
 
   if (b.observacoes.trim()) partes.push(`- **Outras observações:** ${b.observacoes.trim()}`);
+
+  /*
+   * As respostas do dono entram por último e em bloco próprio. Elas valem
+   * mais que tudo acima: vieram da boca de quem conhece o negócio, não da
+   * minha leitura do Google Maps.
+   */
+  const respondido = Object.entries(b?.respostas ?? {}).filter(([, r]) => (r || '').trim());
+  if (respondido.length) {
+    const linhas = respondido.map(
+      ([pergunta, resposta]) =>
+        `  - *${pergunta}*\n    ${resposta.trim().split(/\r?\n/).join("\n    ")}`,
+    );
+    partes.push(
+      '- **O que o próprio dono respondeu** (isto veio dele, use como verdade):' +
+        '\n' +
+        linhas.join('\n'),
+    );
+  }
 
   if (b.anexaImagens) {
     partes.push(
