@@ -7,6 +7,7 @@ import { montarPromptSite } from '@/lib/prompt-site';
 import { montarPromptDesign } from '@/lib/prompt-design';
 import BriefingDesign from './briefing-design';
 import { lerBriefing, preenchidos, type Briefing } from '@/lib/briefing';
+import { questionarioPara, textoDaSolicitacao } from '@/lib/solicitacao';
 import { montarPromptGringa } from '@/lib/prompt-gringa';
 
 export type Variante = 'abordagem' | 'design' | 'site' | 'gringa';
@@ -86,6 +87,25 @@ export default function PromptModal({
   const [briefing, setBriefing] = useState<Briefing>(() => lerBriefing(lead.briefing));
   const [salvandoBriefing, setSalvandoBriefing] = useState(false);
   const [briefingSalvo, setBriefingSalvo] = useState(true);
+
+  /*
+   * O questionário que vai para o dono preencher. Fica dentro da janela do
+   * design porque é ali que você vê os campos vazios e percebe o que falta.
+   */
+  const [vendoPedido, setVendoPedido] = useState(false);
+  const [pedidoCopiado, setPedidoCopiado] = useState(false);
+  const pedido = textoDaSolicitacao(lead.name, lead.category, lead.previaUrl);
+  const nichoDoPedido = questionarioPara(lead.category).nicho;
+
+  async function copiarPedido() {
+    try {
+      await navigator.clipboard.writeText(pedido);
+    } catch {
+      // navegador que bloqueia a área de transferência
+    }
+    setPedidoCopiado(true);
+    setTimeout(() => setPedidoCopiado(false), 2000);
+  }
 
   function mudarBriefing(b: Briefing) {
     setBriefing(b);
@@ -279,6 +299,12 @@ export default function PromptModal({
                 Sobre este comércio
               </h3>
               <button
+                onClick={() => setVendoPedido((v) => !v)}
+                className="ml-auto mr-2 rounded-lg border border-zinc-300 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+              >
+                {vendoPedido ? 'Fechar pedido' : 'Pedir ao cliente'}
+              </button>
+              <button
                 onClick={guardarBriefing}
                 disabled={salvandoBriefing || briefingSalvo}
                 className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold transition ${
@@ -290,6 +316,34 @@ export default function PromptModal({
                 {salvandoBriefing ? 'Guardando…' : briefingSalvo ? 'Guardado' : 'Guardar'}
               </button>
             </div>
+            {vendoPedido && (
+              <div className="mb-4 rounded-xl border border-roxo-200 bg-white p-4">
+                <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-[12.5px] font-semibold text-tinta">
+                    Perguntas para {nichoDoPedido.toLowerCase()}
+                  </p>
+                  <button
+                    onClick={copiarPedido}
+                    className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold text-white transition ${
+                      pedidoCopiado ? 'bg-emerald-600' : 'bg-roxo-600 hover:bg-roxo-700'
+                    }`}
+                  >
+                    {pedidoCopiado ? '✓ Copiado!' : 'Copiar e mandar no WhatsApp'}
+                  </button>
+                </div>
+                <p className="mb-2 text-[11.5px] leading-snug text-zinc-500">
+                  As perguntas mudam conforme o ramo do comércio. O que ele responder você digita
+                  nos campos abaixo.
+                </p>
+                <textarea
+                  readOnly
+                  value={pedido}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="h-52 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-[12px] leading-relaxed text-zinc-800 outline-none focus:border-roxo-400"
+                />
+              </div>
+            )}
+
             <BriefingDesign briefing={briefing} aoMudar={mudarBriefing} />
           </div>
         )}
