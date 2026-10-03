@@ -181,7 +181,9 @@ export async function tratarAviso(evento: Stripe.Event): Promise<boolean> {
     // cartão: cada fatura paga (a primeira e as renovações) estende o plano
     case 'invoice.paid': {
       const fatura = evento.data.object as Stripe.Invoice;
-      const ref = fatura.parent?.subscription_details?.subscription;
+      // contas com versão antiga da API mandam a assinatura direto na fatura
+      const antiga = (fatura as unknown as { subscription?: string | { id: string } }).subscription;
+      const ref = fatura.parent?.subscription_details?.subscription ?? antiga;
       const subId = typeof ref === 'string' ? ref : ref?.id;
       if (!subId) break;
       const sub = await stripe().subscriptions.retrieve(subId);
