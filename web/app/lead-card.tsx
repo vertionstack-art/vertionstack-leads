@@ -40,7 +40,6 @@ export default function LeadCard({
   onSalvarNota,
   onCancelarNota,
   onApagar,
-  onFila,
 }: {
   lead: Lead;
   usuario: string;
@@ -61,7 +60,6 @@ export default function LeadCard({
   onSalvarNota: () => void;
   onCancelarNota: () => void;
   onApagar: () => void;
-  onFila: () => void;
 }) {
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
   // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
@@ -164,22 +162,6 @@ export default function LeadCard({
           Sem telefone cadastrado
         </p>
       )}
-
-      <button
-        onClick={onFila}
-        aria-pressed={lead.contato}
-        className={`mt-2 flex w-full ${TOQUE} items-center justify-center gap-1.5 rounded-full text-[12.5px] font-bold ${
-          lead.contato ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta active:bg-zinc-200'
-        }`}
-      >
-        {lead.contato ? (
-          <>
-            <Check aria-hidden className="h-4 w-4" /> na fila de contato
-          </>
-        ) : (
-          'CONTACT — pôr na fila'
-        )}
-      </button>
 
       {/* ações */}
       {gringa && (

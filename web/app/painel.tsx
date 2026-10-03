@@ -225,7 +225,6 @@ export default function Painel({
   const [equipe, setEquipe] = useState<string[]>([]);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes' | 'temperatura'>('recentes');
   const [niveis, setNiveis] = useState<Nivel[]>([]);
-  const [naFila, setNaFila] = useState(false);
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -258,11 +257,10 @@ export default function Painel({
     if (dePessoa) p.set('de', dePessoa);
     p.set('ordem', ordem);
     if (niveis.length) p.set('temp', niveis.join(','));
-    if (naFila) p.set('fila', '1');
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, naFila, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -373,16 +371,8 @@ export default function Painel({
   /** algum filtro está reduzindo a lista? muda o texto e o risco do botão de apagar */
   const temFiltro = Boolean(
     buscaDebounce || kinds.length || statusFiltro.length || cidade || categoria ||
-    comTelefone || siteQuebrado || dePessoa || niveis.length || naFila,
+    comTelefone || siteQuebrado || dePessoa || niveis.length,
   );
-
-  /** põe ou tira o lead da fila que o programa de disparo vai ler */
-  async function alternarFila(lead: Lead) {
-    const novo = !lead.contato;
-    setLeads((atual) => atual.map((l) => (l.id === lead.id ? { ...l, contato: novo } : l)));
-    await salvarPatch(lead.id, { contato: novo });
-    setResumo((r) => ({ ...r, na_fila: Math.max(0, (r.na_fila || 0) + (novo ? 1 : -1)) }));
-  }
 
   function alternar<T>(lista: T[], set: (v: T[]) => void, valor: T) {
     set(lista.includes(valor) ? lista.filter((v) => v !== valor) : [...lista, valor]);
@@ -391,7 +381,7 @@ export default function Painel({
 
   async function salvarPatch(
     id: string,
-    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown; contato?: boolean },
+    patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown },
   ) {
     setLeads((atual) => atual.map((l) => (l.id === id ? { ...l, ...patch } as Lead : l)));
     const r = await fetch('/api/leads/' + encodeURIComponent(id), {
@@ -437,13 +427,12 @@ export default function Painel({
   const ultimaPagina = (pagina + 1) * PAGINA >= total;
 
   const totalMapeado = resumo.total || 0;
-  const naFilaQtd = resumo.na_fila || 0;
   const somaNiveis = NIVEIS.reduce((s, n) => s + (resumo['temp_' + n.nivel] || 0), 0);
   const todasOportunidades = kinds.length === 4 && !kinds.includes('site');
 
   function limparFiltros() {
     setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria('');
-    setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setNiveis([]); setNaFila(false); setPagina(0);
+    setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setNiveis([]); setPagina(0);
   }
 
   async function sair() {
@@ -451,30 +440,38 @@ export default function Painel({
     location.href = '/login';
   }
 
-  /** o cartão preto: a próxima coisa a fazer fora da lista; no celular ele desce para depois dos leads */
-  const cartaoFila = (extra: string) => (
+  /*
+   * O cartão preto: o que fazer antes de ligar, fora da lista. Antes era a
+   * fila do disparador (CONTACT), que saiu junto com o programa de disparo.
+   * No celular ele desce para depois dos leads.
+   */
+  const cartaoAcao = (extra: string) => (
   <aside className={`relative isolate min-h-[200px] flex-col overflow-hidden rounded-[24px] bg-tinta p-5 text-white ${extra}`}>
     <svg aria-hidden viewBox="0 0 160 120" className="absolute -right-20 -top-14 -z-10 h-[150px] w-[200px] text-white/15" fill="none" stroke="currentColor" strokeWidth="1">
       <rect x="40" y="20" width="110" height="80" rx="14" transform="rotate(-12 95 60)" />
       <rect x="20" y="34" width="110" height="80" rx="14" transform="rotate(-4 75 74)" />
     </svg>
     <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em]">
-      Fila do{' '}
-      <span className="inline-block -rotate-2 rounded-full border border-white/70 px-2.5 py-0.5 text-[18px]">disparador</span>
+      Confira os{' '}
+      <span className="inline-block -rotate-2 rounded-full border border-white/70 px-2.5 py-0.5 text-[18px]">sites</span>
     </h2>
-    <p className="mt-2 max-w-[220px] text-[13px] leading-relaxed text-white/70">
-      {naFilaQtd
-        ? `${naFilaQtd} ${naFilaQtd === 1 ? 'lead esperando' : 'leads esperando'} o programa de disparo mandar o WhatsApp.`
-        : 'Nenhum lead na fila. Marque CONTACT nos que valem a mensagem.'}
+    <p className="mt-2 max-w-[240px] text-[13px] leading-relaxed text-white/70">
+      {faltamVerif > 0 || verificando
+        ? `${faltamVerif} ${faltamVerif === 1 ? 'site cadastrado ainda não foi conferido' : 'sites cadastrados ainda não foram conferidos'}. Site fora do ar vira lead quente.`
+        : 'Todos os sites cadastrados já foram conferidos.'}
     </p>
     <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
-      <button
-        onClick={() => { setNaFila((v) => !v); setPagina(0); }}
-        aria-pressed={naFila}
-        className="min-h-[40px] rounded-full bg-menta px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-white"
-      >
-        {naFila ? 'Mostrar todos' : 'Ver a fila'}
-      </button>
+      {(faltamVerif > 0 || verificando) && (
+        <button
+          onClick={verificarSites}
+          disabled={verificando}
+          title="Abre cada site cadastrado para ver se está mesmo no ar"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-ceu px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-white disabled:opacity-60"
+        >
+          <ShieldCheck aria-hidden className="h-4 w-4" />
+          {verificando ? 'Conferindo…' : `Conferir ${faltamVerif} sites`}
+        </button>
+      )}
       <a
         href="/extensao"
         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white"
@@ -482,17 +479,6 @@ export default function Painel({
         <Puzzle aria-hidden className="h-4 w-4" />
         Extensão
       </a>
-      {(faltamVerif > 0 || verificando) && (
-        <button
-          onClick={verificarSites}
-          disabled={verificando}
-          title="Abre cada site cadastrado para ver se está mesmo no ar"
-          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white disabled:opacity-60"
-        >
-          <ShieldCheck aria-hidden className="h-4 w-4" />
-          {verificando ? 'Conferindo…' : `Conferir ${faltamVerif} sites`}
-        </button>
-      )}
     </div>
   </aside>
   );
@@ -825,7 +811,7 @@ export default function Painel({
               </div>
             </div>
 
-            {cartaoFila('hidden md:flex')}
+            {cartaoAcao('hidden md:flex')}
           </section>
 
           {/* --------------------------------------------------- tabela */}
@@ -845,7 +831,6 @@ export default function Painel({
                   onStatus={(st) => salvarPatch(lead.id, { status: st })}
                   onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                   onApagar={() => apagar(lead.id, lead.name)}
-                  onFila={() => alternarFila(lead)}
                   onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
                   onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                   onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
@@ -859,7 +844,7 @@ export default function Painel({
                 />
               ))}
             </div>
-            {cartaoFila('mt-6 flex md:hidden')}
+            {cartaoAcao('mt-6 flex md:hidden')}
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-[13px]">
@@ -1042,7 +1027,7 @@ export default function Painel({
 
                         {/*
                           Grudada na direita e em grade de dois.
-                          Em fila única, com CONTACT, COPY, DESIGN, PROPOSTA e
+                          Em fila única, com COPY, DESIGN, PROPOSTA e
                           às vezes ENTREGA e COPY GRINGA, esta célula sozinha
                           pedia 315px — um terço da tabela — e o resto saía da
                           tela. A largura mora no div, não na célula: `w-` numa
@@ -1050,14 +1035,6 @@ export default function Painel({
                         */}
                         <td className="sticky right-0 z-10 bg-white px-3 py-4 align-top shadow-[-10px_0_12px_-12px_rgba(11,11,15,0.18)] transition-colors duration-150 group-hover:bg-zinc-50">
                           <div className="grid w-[190px] grid-cols-2 gap-1.5">
-                            <Acao
-                              onClick={() => alternarFila(lead)}
-                              titulo={lead.contato ? 'Está na fila de contato — clique para tirar' : 'Pôr na fila que o programa de disparo vai ler'}
-                              feito={lead.contato}
-
-                            >
-                              CONTACT
-                            </Acao>
                             <Acao
                               onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                               titulo="Gera o prompt de abordagem deste lead para colar no ChatGPT"

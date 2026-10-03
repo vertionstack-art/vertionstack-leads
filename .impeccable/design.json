@@ -21,7 +21,7 @@
       "rosa": { "role": "tertiary", "displayName": "Rose (quente)", "canonical": "#fbe1e1", "tonalRamp": ["#450a0a", "#7f1d1d", "#b33a3a", "#d97070", "#eea4a4", "#f6c9c9", "#fbe1e1", "#fef3f3"] },
       "manteiga": { "role": "tertiary", "displayName": "Butter (morno)", "canonical": "#f7efcb", "tonalRamp": ["#451a03", "#78350f", "#a8741c", "#cfa43e", "#e6cc7a", "#f0dfa6", "#f7efcb", "#fcf8e8"] },
       "lavanda": { "role": "tertiary", "displayName": "Lavender (frio)", "canonical": "#e8e3fa", "tonalRamp": ["#2e1065", "#4c1d95", "#6d4fc2", "#9580dc", "#bbaced", "#d6cdf6", "#e8e3fa", "#f6f4fe"] },
-      "menta": { "role": "tertiary", "displayName": "Mint (contact queue)", "canonical": "#d9f0e0", "tonalRamp": ["#022c22", "#064e3b", "#2f7d57", "#5aa97e", "#8fcaa5", "#bde3c9", "#d9f0e0", "#f0faf3"] },
+      "menta": { "role": "tertiary", "displayName": "Mint (reserved)", "canonical": "#d9f0e0", "tonalRamp": ["#022c22", "#064e3b", "#2f7d57", "#5aa97e", "#8fcaa5", "#bde3c9", "#d9f0e0", "#f0faf3"] },
       "neutral-100": { "role": "neutral", "displayName": "Zinc 100", "canonical": "#f4f4f5", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
       "neutral-200": { "role": "neutral", "displayName": "Zinc 200 hairline", "canonical": "#e4e4e7", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
       "neutral-300": { "role": "neutral", "displayName": "Zinc 300 hairline", "canonical": "#d4d4d8", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
@@ -118,7 +118,7 @@
       "name": "Dark Action Card",
       "kind": "card",
       "refersTo": "card-action-dark",
-      "description": "Black card grouping queue actions; mint marks the queue, outlines for the rest.",
+      "description": "Black card with the pre-call actions (Conferir sites, Extensão); pale sky marks the primary pill, outlines for the rest.",
       "html": "<aside class=\"ds-dark\"><h2>Fila do disparador</h2><p>2 leads esperando o programa de disparo mandar o WhatsApp.</p><div class=\"ds-dark-actions\"><button class=\"ds-dark-mint\">Ver a fila</button><button class=\"ds-dark-outline\">Conferir 7 sites</button></div></aside>",
       "css": ".ds-dark { display: flex; flex-direction: column; width: 400px; min-height: 200px; padding: 20px; border-radius: 24px; background: #0b0b0f; color: #fff; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-dark h2 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; letter-spacing: -0.02em; } .ds-dark p { margin: 8px 0 0; max-width: 220px; font-size: 13px; line-height: 1.625; color: rgba(255,255,255,0.7); } .ds-dark-actions { margin-top: auto; padding-top: 20px; display: flex; flex-wrap: wrap; gap: 6px; } .ds-dark-mint, .ds-dark-outline { min-height: 40px; border-radius: 9999px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color 200ms ease, border-color 200ms ease; } .ds-dark-mint { padding: 0 16px; border: none; background: #d9f0e0; color: #0b0b0f; } .ds-dark-mint:hover { background: #fff; } .ds-dark-outline { padding: 0 14px; border: 1px solid rgba(255,255,255,0.3); background: transparent; color: #fff; } .ds-dark-outline:hover { border-color: #fff; } .ds-dark button:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }"
     },
@@ -143,7 +143,7 @@
       "Lucide line icons only."
     ],
     "rules": [
-      { "name": "The Fixed Owner Rule", "body": "Every pastel field belongs to one meaning: rose, butter and lavender are temperature (quente, morno, frio); mint is the contact queue; pale sky is the opportunities summary. A pastel never appears as decoration or as a generic alert color.", "section": "colors" },
+      { "name": "The Fixed Owner Rule", "body": "Every pastel field belongs to one meaning: rose, butter and lavender are temperature (quente, morno, frio); pale sky is the opportunities summary and the dark-card primary pill; mint is reserved. A pastel never appears as decoration or as a generic alert color.", "section": "colors" },
       { "name": "The Ink Is the Verb Rule", "body": "If it acts, it is black. A row action is gray (zinc-100) while pending and turns black with a lucide Check when done. Purple never fills an action button.", "section": "colors" },
       { "name": "The Dot Carries the Color Rule", "body": "Presence-digital and status chips are neutral (white, zinc-200 ring); only a 8px dot is colored. Presence dots match the summary bar exactly: Sem site tinta, Só rede social roxo-600, Só marketplace roxo-400, Site fraco roxo-200, Tem site hollow (white with a zinc-300 ring).", "section": "colors" },
       { "name": "The Sentence Case Rule", "body": "Labels are 13px bold in sentence case. No uppercase, letter-spaced labels or eyebrows above headings.", "section": "typography" },
@@ -152,7 +152,7 @@
       { "name": "The Pill Rule", "body": "If it is a button, a select or a one-line input, it is fully rounded. Multi-line fields and containers use the 16px corner.", "section": "shapes" }
     ],
     "dos": [
-      "Do keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, menta contact queue, ceu opportunities summary.",
+      "Do keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, ceu opportunities summary and the dark-card primary pill; menta reserved.",
       "Do make every button, select and single-line input a full pill; give textareas and panels 16px corners, cards 24px, the sheet 28px, the rail 26px.",
       "Do show a row action as zinc-100 while pending and tinta with a lucide Check once done.",
       "Do color only the dot on presence and status chips; keep presence dots identical to the summary bar.",

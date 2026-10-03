@@ -148,8 +148,8 @@ components:
     textColor: "{colors.sheet}"
     rounded: "{rounded.card}"
     padding: "20px"
-  button-queue:
-    backgroundColor: "{colors.menta}"
+  button-on-dark:
+    backgroundColor: "{colors.ceu}"
     textColor: "{colors.tinta}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
@@ -206,7 +206,7 @@ A white-purple-black brand palette set on a cool lavender floor, with five paste
 - **Rose** (rosa): temperature "quente" only (card and chip).
 - **Butter** (manteiga): temperature "morno" only.
 - **Lavender** (lavanda): temperature "frio" only.
-- **Mint** (menta): the contact queue only (the "Ver a fila" pill on the dark card).
+- **Mint** (menta): reserved, unassigned since the contact queue was removed (03/10/2026). Give it one owner before using it.
 
 Chip text on pastel uses the matching deep tone (red-900 on rose, amber-900 on butter, roxo-900 on lavender).
 
@@ -218,7 +218,7 @@ Chip text on pastel uses the matching deep tone (red-900 on rose, amber-900 on b
 - **Zinc 500** (neutral-500): table headers, secondary meta text.
 
 ### Named Rules
-**The Fixed Owner Rule.** Every pastel field belongs to one meaning: rose, butter and lavender are temperature (quente, morno, frio); mint is the contact queue; pale sky is the opportunities summary. A pastel never appears as decoration or as a generic alert color.
+**The Fixed Owner Rule.** Every pastel field belongs to one meaning: rose, butter and lavender are temperature (quente, morno, frio); pale sky is the opportunities summary and the primary pill on the dark card; mint is reserved. A pastel never appears as decoration or as a generic alert color.
 
 **The Ink Is the Verb Rule.** If it acts, it is black. A row action is gray (zinc-100) while pending and turns black with a lucide Check when done. Purple never fills an action button.
 
@@ -284,7 +284,7 @@ Confident and quiet: black or outlined, always pills.
 - **Shape:** full pill (9999px).
 - **Primary:** tinta fill, white 13px bold label, 44px tall, 20px side padding; hover tinta-70; disabled zinc-300.
 - **Secondary:** white with a zinc-300 hairline, ink label; hover darkens the border.
-- **On dark:** white/30 outline pills with white bold labels, hover full-white border; the queue pill is mint.
+- **On dark:** white/30 outline pills with white bold labels, hover full-white border; the primary pill is pale sky.
 - **Destructive:** red-600 fill, only inside the typed-confirmation dialog.
 - **Focus:** the global roxo-600 outline, 2px, 2px offset.
 
@@ -322,7 +322,7 @@ A 40px black rounded square (12px) with the business initial in white extra-bold
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, menta contact queue, ceu opportunities summary.
+- **Do** keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, ceu opportunities summary and the dark-card primary pill; menta reserved.
 - **Do** make every button, select and single-line input a full pill; give textareas and panels 16px corners, cards 24px, the sheet 28px, the rail 26px.
 - **Do** show a row action as zinc-100 while pending and tinta with a lucide Check once done.
 - **Do** color only the dot on presence and status chips; keep presence dots identical to the summary bar.
