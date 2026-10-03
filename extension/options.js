@@ -12,7 +12,7 @@ function mostrar(texto, ok) {
 async function carregar() {
   const { config } = await chrome.storage.local.get('config');
   const c = config || {};
-  $('apiUrl').value = c.apiUrl || 'https://vertionstack-leads.vercel.app';
+  $('apiUrl').value = c.apiUrl || 'https://leads.vertionstack.com';
   $('apiKey').value = c.apiKey || '';
 }
 

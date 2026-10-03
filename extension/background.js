@@ -315,5 +315,5 @@ chrome.runtime.onInstalled.addListener(async () => {
   await getAparelho();
   const atual = await getConfig();
   // a chave agora vem do painel (Minha conta); só o endereço já vem preenchido
-  if (!atual.apiUrl) await chrome.storage.local.set({ config: { ...atual, apiUrl: 'https://vertionstack-leads.vercel.app' } });
+  if (!atual.apiUrl) await chrome.storage.local.set({ config: { ...atual, apiUrl: 'https://leads.vertionstack.com' } });
 });
