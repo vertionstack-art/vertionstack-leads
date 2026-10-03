@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import BotaoCopiar from './copiar';
-import { estaLogado, exigeChave } from '@/lib/auth';
+import { sessaoAtual } from '@/lib/conta';
 import info from '@/lib/extensao-info.json';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ async function origemDoPainel() {
 }
 
 export default async function PaginaExtensao() {
-  if (!(await estaLogado())) redirect('/login');
+  if (!(await sessaoAtual())) redirect('/login');
 
   const origem = await origemDoPainel();
 
@@ -137,12 +137,12 @@ export default async function PaginaExtensao() {
 
             <Passo n={5} titulo="Aponte a extensão para este painel">
               Clique no ícone roxo na barra do Chrome, depois na engrenagem. Preencha o endereço
-              do painel e a chave de acesso — os dois estão logo abaixo.
+              do painel e a sua chave de acesso — os dois estão logo abaixo.
             </Passo>
 
             <Passo n={6} titulo="Teste a conexão">
               Ainda nas configurações da extensão, clique em <em>Testar conexão</em>. Se aparecer{' '}
-              <em>“Conectado. O painel está gravando no banco de dados.”</em>, está pronto.
+              <em>“Conectado”</em> com o seu nome, está pronto.
             </Passo>
           </ol>
         </section>
@@ -170,20 +170,12 @@ export default async function PaginaExtensao() {
                 Chave de acesso
               </dt>
               <dd className="text-[13.5px] leading-relaxed text-zinc-600">
-                {exigeChave ? (
-                  <>
-                    É o valor da variável <Tecla>INGEST_TOKEN</Tecla> que está cadastrada na Vercel.
-                    Por segurança ela não pode ser exibida aqui — a Vercel guarda esse tipo de
-                    valor de forma que nem o painel consegue ler de volta. Use a mesma chave que
-                    você cadastrou lá.
-                  </>
-                ) : (
-                  <span className="block rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-amber-900">
-                    <b>Nenhuma chave configurada.</b> Hoje qualquer pessoa que descubra o endereço
-                    do painel consegue despejar dados nele. Crie a variável{' '}
-                    <Tecla>INGEST_TOKEN</Tecla> na Vercel e faça um novo deploy.
-                  </span>
-                )}
+                É só sua: gere em{' '}
+                <Link href="/conta" className="font-semibold text-roxo-700 underline underline-offset-2">
+                  Minha conta
+                </Link>
+                , copie e cole na extensão. Ela vale em até 2 computadores; para usar num terceiro,
+                libere um dos antigos na mesma página.
               </dd>
             </div>
           </dl>

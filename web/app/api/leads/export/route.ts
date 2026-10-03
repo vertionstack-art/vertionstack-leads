@@ -1,5 +1,5 @@
 import { todosOsLeads } from '@/lib/db';
-import { estaLogado } from '@/lib/auth';
+import { sessaoAtual } from '@/lib/conta';
 import { filtrosDaUrl } from '../route';
 
 export const runtime = 'nodejs';
@@ -26,16 +26,19 @@ const COLUNAS: [keyof Awaited<ReturnType<typeof todosOsLeads>>[number], string][
 
 /** Excel brasileiro espera ponto-e-vírgula como separador e BOM no começo. */
 function celula(v: unknown): string {
-  const s = v === null || v === undefined ? '' : String(v);
+  let s = v === null || v === undefined ? '' : String(v);
+  // nome de comércio começando com "=" viraria fórmula no Excel de quem abre o arquivo
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
 export async function GET(req: Request) {
-  if (!(await estaLogado())) {
+  const sessao = await sessaoAtual();
+  if (!sessao || sessao.bloqueada) {
     return new Response('Não autorizado.', { status: 401 });
   }
 
-  const leads = await todosOsLeads(filtrosDaUrl(new URL(req.url)));
+  const leads = await todosOsLeads(sessao.contaId, filtrosDaUrl(new URL(req.url)));
 
   const linhas = [COLUNAS.map((c) => c[1]).join(';')];
   for (const lead of leads) {

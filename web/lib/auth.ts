@@ -1,159 +1,46 @@
 /**
- * Quem entra no painel e quem pode mandar leads para ele.
+ * Porteiro das rotas: quem está logado, e se a requisição veio mesmo do
+ * nosso site.
  *
- * Duas portas, cada uma com sua chave:
- *
- *  - pessoas entram com usuário e senha  (variável USUARIOS)
- *  - extensões mandam leads com uma chave (variável INGEST_TOKEN)
- *
- * Nas duas variáveis dá para cadastrar mais de uma pessoa, separando por
- * vírgula no formato `nome:valor`:
- *
- *   USUARIOS=lucas:umaSenha,joao:outraSenha
- *   INGEST_TOKEN=lucas:vl_aaa...,joao:vl_bbb...
- *
- * Cada um com sua chave própria é o que permite o painel dizer quem
- * coletou cada lead e quem está cuidando dele. Também deixa tirar o acesso
- * de uma pessoa sem trocar o de todo mundo.
- *
- * O formato antigo de valor único continua valendo: uma DASHBOARD_PASSWORD
- * sozinha vira o usuário "equipe", e um INGEST_TOKEN sem nome vira o
- * coletor "equipe". Ninguém precisa refazer o que já estava configurado.
+ * O login de verdade é do Supabase Auth (lib/conta.ts resolve a sessão em
+ * conta e plano). Aqui ficam só os atalhos que as rotas usam.
  */
 
-import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { sessaoAtual, type Sessao } from './conta';
 
-export const COOKIE = 'vl_sessao';
+export type { Sessao };
 
-export interface Pessoa {
-  nome: string;
-  segredo: string;
-}
-
-/**
- * Lê "nome:valor,nome:valor" ou um valor solto.
- * O valor pode conter ":" (uma senha com dois-pontos, por exemplo), então
- * a divisão acontece só no primeiro separador.
- */
-function lerLista(bruto: string, nomePadrao: string): Pessoa[] {
-  const texto = (bruto || '').trim();
-  if (!texto) return [];
-
-  return texto
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map((parte) => {
-      const corte = parte.indexOf(':');
-      if (corte === -1) return { nome: nomePadrao, segredo: parte };
-      const nome = parte.slice(0, corte).trim().toLowerCase();
-      const segredo = parte.slice(corte + 1).trim();
-      return nome && segredo ? { nome, segredo } : null;
-    })
-    .filter((p): p is Pessoa => p !== null);
-}
-
-const USUARIOS = lerLista(process.env.USUARIOS || process.env.DASHBOARD_PASSWORD || '', 'equipe');
-const COLETORES = lerLista(process.env.INGEST_TOKEN || '', 'equipe');
-
-export const exigeSenha = USUARIOS.length > 0;
-export const exigeChave = COLETORES.length > 0;
-
-/** os nomes cadastrados, para o painel poder oferecer o filtro por pessoa */
-export const nomesDaEquipe = Array.from(
-  new Set([...USUARIOS.map((u) => u.nome), ...COLETORES.map((c) => c.nome)]),
-).sort();
-
-/**
- * O dono é o primeiro nome cadastrado em USUARIOS.
- *
- * Alguém precisa decidir quem entra e quem é bloqueado, e num time de
- * duas pessoas criar um sistema de papéis seria peso sem uso: quem montou
- * o painel é quem cuida dele.
- */
-export const dono = USUARIOS[0]?.nome || 'equipe';
-
-export async function ehDono(): Promise<boolean> {
-  const quem = await usuarioAtual();
-  return quem !== null && quem === dono;
-}
-
-/** comparação em tempo constante, para não vazar o segredo pelo tempo de resposta */
-function iguais(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let dif = 0;
-  for (let i = 0; i < a.length; i++) dif |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return dif === 0;
-}
-
-async function hash(texto: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('vertion-leads:' + texto));
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-// ------------------------------------------------------ extensão
-
-/** devolve o nome de quem mandou os leads, ou null se a chave não confere */
-export function quemEnviou(req: Request): string | null {
-  if (!exigeChave) return 'equipe';
-  const enviada = req.headers.get('x-api-key') || '';
-  const dono = COLETORES.find((c) => iguais(enviada, c.segredo));
-  return dono ? dono.nome : null;
-}
-
-export function chaveValida(req: Request): boolean {
-  return quemEnviou(req) !== null;
-}
-
-// --------------------------------------------------------- painel
-
-/**
- * O cookie guarda "nome.assinatura", e a assinatura é o hash do nome com a
- * senha da pessoa. Assim o próprio cookie diz quem é, e trocar a senha de
- * alguém invalida a sessão dela sem mexer na de mais ninguém.
- */
-async function assinatura(p: Pessoa): Promise<string> {
-  return hash(p.nome + ':' + p.segredo);
-}
-
-export async function entrar(nome: string, senha: string): Promise<string | null> {
-  const alvo = (nome || '').trim().toLowerCase();
-
-  // com uma pessoa só cadastrada, o nome é opcional na tela de login
-  const candidatos = alvo ? USUARIOS.filter((u) => u.nome === alvo) : USUARIOS;
-
-  for (const u of candidatos) {
-    if (iguais(senha, u.segredo)) return `${u.nome}.${await assinatura(u)}`;
+/** a sessão, ou uma resposta 401 pronta para devolver */
+export async function exigirSessao(): Promise<{ sessao: Sessao; erro?: never } | { sessao?: never; erro: NextResponse }> {
+  const sessao = await sessaoAtual();
+  if (!sessao) return { erro: NextResponse.json({ ok: false, erro: 'Entre na sua conta de novo.' }, { status: 401 }) };
+  if (sessao.bloqueada) {
+    return { erro: NextResponse.json({ ok: false, erro: 'Esta conta está suspensa. Fale com o suporte.' }, { status: 403 }) };
   }
-  return null;
+  return { sessao };
 }
 
-/** o nome de quem está logado, ou null */
-export async function usuarioAtual(): Promise<string | null> {
-  if (!exigeSenha) return 'equipe';
-
-  const jar = await cookies();
-  const valor = jar.get(COOKIE)?.value || '';
-  const corte = valor.lastIndexOf('.');
-  if (corte === -1) return null;
-
-  const nome = valor.slice(0, corte);
-  const assinado = valor.slice(corte + 1);
-
-  const u = USUARIOS.find((x) => x.nome === nome);
-  if (!u) return null;
-
-  return iguais(assinado, await assinatura(u)) ? u.nome : null;
+/**
+ * Pedido que muda alguma coisa precisa ter saído do nosso próprio site.
+ *
+ * Sem isto, uma página qualquer na internet poderia fazer o navegador de
+ * quem está logado mandar um "apagar todos os leads" — o cookie iria junto.
+ * O navegador sempre manda Origin em POST/PATCH/DELETE, e ele não é
+ * falsificável por uma página de terceiros.
+ */
+export function origemConfere(req: Request): boolean {
+  const origem = req.headers.get('origin');
+  if (!origem) return true; // ferramentas fora do navegador (a extensão usa chave, não cookie)
+  try {
+    const o = new URL(origem);
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || '';
+    return o.host === host;
+  } catch {
+    return false;
+  }
 }
 
-export async function estaLogado(): Promise<boolean> {
-  return (await usuarioAtual()) !== null;
-}
-
-/** aceita quem tem sessão no navegador OU a chave de uma extensão */
-export async function podeLer(req: Request): Promise<boolean> {
-  if (await estaLogado()) return true;
-  return exigeChave && chaveValida(req);
+export function recusarOrigem(): NextResponse {
+  return NextResponse.json({ ok: false, erro: 'Pedido recusado.' }, { status: 403 });
 }

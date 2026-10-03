@@ -1,23 +1,22 @@
 import { NextResponse } from 'next/server';
-import { temBanco } from '@/lib/db';
-import { chaveValida, exigeChave, exigeSenha } from '@/lib/auth';
+import { coletorDaChave, cotaDaConta } from '@/lib/conta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** A extensão bate aqui no "Testar conexão" para saber se está tudo de pé. */
+/**
+ * A extensão bate aqui no "Testar conexão" e antes de começar uma coleta:
+ * confere a chave, o computador, e devolve quanto da cota ainda sobra.
+ */
 export async function GET(req: Request) {
-  const chaveOk = chaveValida(req);
+  const r = await coletorDaChave(req);
+  if (!r.ok) return NextResponse.json({ ok: false, motivo: r.motivo, erro: r.erro }, { status: r.status });
 
-  return NextResponse.json(
-    {
-      ok: chaveOk,
-      database: temBanco ? 'postgres' : 'memoria',
-      protegido: { chave: exigeChave, senha: exigeSenha },
-      aviso: temBanco
-        ? null
-        : 'Sem DATABASE_URL: os leads não vão persistir. Conecte um banco Postgres na Vercel.',
-    },
-    { status: chaveOk ? 200 : 401 },
-  );
+  const cota = await cotaDaConta(r.coletor.contaId, r.coletor.ilimitado);
+  return NextResponse.json({
+    ok: true,
+    nome: r.coletor.nome,
+    plano: r.coletor.plano,
+    cota: { ...cota, restantes: cota.ilimitado ? null : cota.restantes },
+  });
 }

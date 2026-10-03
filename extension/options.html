@@ -27,14 +27,14 @@
 
   <div class="campo">
     <label class="rotulo" for="apiUrl">Endereço do painel</label>
-    <input id="apiUrl" type="text" placeholder="https://seu-projeto.vercel.app" />
-    <p class="dica">Só o endereço principal, sem barra no final. Para testar na sua máquina use <code>http://localhost:3000</code>.</p>
+    <input id="apiUrl" type="text" placeholder="https://vertionstack-leads.vercel.app" />
+    <p class="dica">Já vem preenchido. Só mude se alguém do suporte pedir.</p>
   </div>
 
   <div class="campo">
     <label class="rotulo" for="apiKey">Chave de acesso</label>
     <input id="apiKey" type="text" placeholder="vl_..." />
-    <p class="dica">Essa mesma chave precisa estar cadastrada no painel, na variável <code>INGEST_TOKEN</code>. Ela impede que qualquer um mande dados pro seu painel.</p>
+    <p class="dica">Pegue no painel, em <em>Minha conta → Chave da extensão</em>. Ela é só sua e vale em até 2 computadores.</p>
   </div>
 
   <div class="botoes">
@@ -47,11 +47,10 @@
   <div class="passos">
     <b>Como preencher</b>
     <ol>
-      <li>Publique o painel na Vercel e copie o endereço que ela te der.</li>
-      <li>Cole esse endereço no primeiro campo aqui.</li>
-      <li>Copie a chave do segundo campo (já veio gerada).</li>
-      <li>Na Vercel, em <em>Settings → Environment Variables</em>, crie <code>INGEST_TOKEN</code> e cole a mesma chave.</li>
-      <li>Volte aqui e clique em <em>Testar conexão</em>.</li>
+      <li>Entre no painel com a sua conta.</li>
+      <li>Abra <em>Minha conta</em> e clique em <em>Gerar minha chave</em>.</li>
+      <li>Copie a chave e cole no segundo campo aqui.</li>
+      <li>Clique em <em>Testar conexão</em>. Aparece o seu nome e quanto da cota da semana já foi usado.</li>
     </ol>
   </div>
 

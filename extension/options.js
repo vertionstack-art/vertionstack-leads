@@ -12,8 +12,8 @@ function mostrar(texto, ok) {
 async function carregar() {
   const { config } = await chrome.storage.local.get('config');
   const c = config || {};
-  $('apiUrl').value = c.apiUrl || '';
-  $('apiKey').value = c.apiKey || ('vl_' + crypto.randomUUID().replace(/-/g, ''));
+  $('apiUrl').value = c.apiUrl || 'https://vertionstack-leads.vercel.app';
+  $('apiKey').value = c.apiKey || '';
 }
 
 async function salvar() {
@@ -39,15 +39,15 @@ $('testar').addEventListener('click', async () => {
   const r = await chrome.runtime.sendMessage({ type: 'TEST_API' });
 
   if (r && r.ok) {
-    const banco = r.corpo && r.corpo.database;
-    mostrar(
-      'Conectado. ' + (banco === 'postgres'
-        ? 'O painel está gravando no banco de dados.'
-        : 'Atenção: o painel está sem banco configurado — os dados não vão persistir.'),
-      banco === 'postgres'
-    );
+    const c = r.corpo || {};
+    const cota = c.cota || {};
+    const plano = cota.ilimitado
+      ? 'Coleta sem limite.'
+      : `Plano grátis: ${cota.usados ?? 0} de ${cota.limite ?? 10} leads novos usados nesta semana.`;
+    mostrar(`Conectado como ${c.nome || 'você'}. ${plano}`, true);
   } else {
-    mostrar('Não conectou: ' + ((r && (r.erro || ('HTTP ' + r.status))) || 'sem resposta'), false);
+    const erro = (r && ((r.corpo && r.corpo.erro) || r.erro || ('O painel respondeu ' + r.status))) || 'sem resposta';
+    mostrar('Não conectou: ' + erro, false);
   }
 });
 

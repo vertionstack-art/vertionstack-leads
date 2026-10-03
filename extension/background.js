@@ -36,6 +36,21 @@ async function setEstado(patch) {
   return novo;
 }
 
+/**
+ * Identificador deste computador, gerado uma vez na instalação. O painel
+ * aceita cada chave em no máximo 2 computadores; é por ele que conta.
+ */
+async function getAparelho() {
+  const { aparelhoId } = await chrome.storage.local.get('aparelhoId');
+  if (aparelhoId) return aparelhoId;
+  const novo = crypto.randomUUID();
+  await chrome.storage.local.set({ aparelhoId: novo });
+  return novo;
+}
+
+/** erro do painel que não adianta tentar de novo: chave errada, conta suspensa, cota da semana */
+class ErroDefinitivo extends Error {}
+
 async function getConfig() {
   const { config } = await chrome.storage.local.get('config');
   return {
@@ -76,7 +91,8 @@ async function enviarLote(lote) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey || ''
+      'x-api-key': apiKey || '',
+      'x-aparelho': await getAparelho()
     },
     body: JSON.stringify({
       source: 'chrome-extension',
@@ -86,11 +102,15 @@ async function enviarLote(lote) {
     })
   });
 
+  const corpo = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    const texto = await resp.text().catch(() => '');
-    throw new Error(`HTTP ${resp.status} — ${texto.slice(0, 200)}`);
+    const msg = corpo.erro || `O painel respondeu ${resp.status}.`;
+    // 401/402/403/426: chave, cota ou conta — reenviar não muda nada
+    if ([401, 402, 403, 426].includes(resp.status)) throw new ErroDefinitivo(msg);
+    throw new Error(msg);
   }
-  return resp.json().catch(() => ({ ok: true }));
+  if (corpo.barradosPelaCota) throw new ErroDefinitivo(corpo.erro || 'Limite da semana atingido.');
+  return corpo;
 }
 
 /** tenta esvaziar a fila; o que falhar continua guardado */
@@ -110,6 +130,12 @@ async function processarFila() {
       }
       enviados += lote.leads.length;
     } catch (err) {
+      if (err instanceof ErroDefinitivo) {
+        // não fica na fila: os leads seguem guardados aqui para exportar em CSV
+        await setEstado({ lastError: err.message });
+        if (/limite/i.test(err.message)) await abortar();
+        continue;
+      }
       lote.tentativas = (lote.tentativas || 0) + 1;
       restantes.push(lote);
       await setEstado({ lastError: String(err.message || err) });
@@ -269,7 +295,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           const { apiUrl, apiKey } = await getConfig();
           if (!apiUrl) { sendResponse({ ok: false, erro: 'Endereço do painel está vazio.' }); break; }
           const alvo = apiUrl.replace(/\/+$/, '') + '/api/health';
-          const r = await fetch(alvo, { headers: { 'x-api-key': apiKey || '' } });
+          const r = await fetch(alvo, { headers: { 'x-api-key': apiKey || '', 'x-aparelho': await getAparelho() } });
           const corpo = await r.json().catch(() => ({}));
           sendResponse({ ok: r.ok && corpo.ok !== false, status: r.status, corpo });
         } catch (err) {
@@ -286,10 +312,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
 chrome.runtime.onInstalled.addListener(async () => {
+  await getAparelho();
   const atual = await getConfig();
-  if (!atual.apiKey) {
-    // gera uma chave inicial para o usuario copiar no painel
-    const chave = 'vl_' + crypto.randomUUID().replace(/-/g, '');
-    await chrome.storage.local.set({ config: { ...atual, apiKey: chave } });
-  }
+  // a chave agora vem do painel (Minha conta); só o endereço já vem preenchido
+  if (!atual.apiUrl) await chrome.storage.local.set({ config: { ...atual, apiUrl: 'https://vertionstack-leads.vercel.app' } });
 });

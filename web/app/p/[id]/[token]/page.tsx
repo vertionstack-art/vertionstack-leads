@@ -1,7 +1,8 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { buscarLead } from '@/lib/db';
-import { tokenConfere } from '@/lib/token-proposta';
+import { lerCaminho } from '@/lib/token-proposta';
+import { contaLegada } from '@/lib/conta';
 import { montarProposta, moeda, normalizarMarcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
@@ -21,15 +22,20 @@ export async function generateMetadata({
   params: Promise<{ id: string; token: string }>;
 }) {
   const { id, token } = await params;
-  const idLimpo = decodeURIComponent(id);
-  if (!tokenConfere(idLimpo, token)) return { title: 'Proposta' };
-
-  const lead = await buscarLead(idLimpo);
+  const lead = await leadDoLink(id, token);
   return {
     title: lead ? `Proposta - ${lead.name}` : 'Proposta',
     description: lead ? `Proposta comercial para ${lead.name}.` : undefined,
     robots: { index: false, follow: false },
   };
+}
+
+/** confere o token e acha o lead na conta certa; link adulterado não acha nada */
+async function leadDoLink(segmento: string, token: string) {
+  const alvo = lerCaminho(segmento, token);
+  if (!alvo) return null;
+  const conta = 'conta' in alvo ? alvo.conta : await contaLegada();
+  return conta ? buscarLead(conta, alvo.id) : null;
 }
 
 const EMPRESA = {
@@ -74,16 +80,16 @@ export default async function PaginaProposta({
 }) {
   const { id, token } = await params;
   const { fechado: pediuFechado } = await searchParams;
-  const idLimpo = decodeURIComponent(id);
-
-  if (!tokenConfere(idLimpo, token)) notFound();
+  const alvo = lerCaminho(id, token);
+  if (!alvo) notFound();
+  const idLimpo = alvo.id;
 
   const cabecalhos = await headers();
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) notFound();
   // saber que o cliente abriu a proposta vale tanto quanto saber quem entrou
   await registrarAcesso(cabecalhos, `proposta:${idLimpo}`, 'ok');
 
-  const lead = await buscarLead(idLimpo);
+  const lead = await leadDoLink(id, token);
   if (!lead || !lead.proposta) notFound();
 
   const cfg = lead.proposta as {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
-  MessageCircle, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2,
+  MessageCircle, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
@@ -51,6 +51,8 @@ const NIVEIS: { nivel: Nivel; rotulo: string; dica: string; fundo: string; Icone
 ];
 
 const PAGINA = 100;
+
+const ROTULO_PLANO = { gratis: 'Grátis', pago: 'Assinante', cortesia: 'Cortesia' } as const;
 
 /** como cada resultado da verificação aparece na tabela */
 const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean }> = {
@@ -193,19 +195,29 @@ function Acao({
 
 // ------------------------------------------------------------- tela
 
+export interface CotaResumo {
+  usados: number;
+  limite: number;
+  ilimitado: boolean;
+  renovaEm: string;
+}
+
 export default function Painel({
-  semBanco,
-  semSenha,
   usuario,
+  plano,
+  cota: cotaInicial,
 }: {
-  semBanco: boolean;
-  semSenha: boolean;
   usuario: string;
+  plano: 'gratis' | 'pago' | 'cortesia';
+  bloqueada?: boolean;
+  cota: CotaResumo;
 }) {
   // A tela de acessos (/admin) de propósito não tem link aqui: quem usa
   // chega por endereço direto. A proteção continua sendo o servidor, que
   // só responde ao dono — esconder o botão não protegeria nada sozinho.
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [cota, setCota] = useState<CotaResumo>(cotaInicial);
+  const renovaTexto = new Date(cota.renovaEm).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
   const [total, setTotal] = useState(0);
   const [resumo, setResumo] = useState<Record<string, number>>({});
   const [cidades, setCidades] = useState<string[]>([]);
@@ -275,6 +287,7 @@ export default function Painel({
       setCidades(d.cidades);
       setCategorias(d.categorias);
       if (d.equipe) setEquipe(d.equipe);
+      if (d.cota) setCota(d.cota);
     } catch (e) {
       setErro(String((e as Error).message));
     } finally {
@@ -571,6 +584,10 @@ export default function Painel({
                   <a href={'/api/leads/export?' + query} className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Download aria-hidden className="h-4 w-4 text-zinc-500" /> Baixar CSV
                   </a>
+                  <a href="/conta" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <UserRound aria-hidden className="h-4 w-4 text-zinc-500" /> Minha conta
+                    <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-bold text-zinc-600">{ROTULO_PLANO[plano]}</span>
+                  </a>
                   <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
                   </a>
@@ -584,17 +601,31 @@ export default function Painel({
 
           {/* ------------------------------------------------- avisos */}
           <div className="mt-6 space-y-3 empty:hidden">
-            {semBanco && (
-              <div className="rounded-2xl bg-manteiga px-5 py-3.5 text-[13px] leading-relaxed text-amber-950">
-                <b>Sem banco de dados.</b> Os leads que chegarem não vão sobreviver a um novo deploy nem a uma pausa
-                do servidor. Na Vercel, vá em <em>Storage → Create Database → Neon</em> e conecte ao projeto; a
-                variável <code className="rounded bg-white/70 px-1">DATABASE_URL</code> aparece sozinha.
-              </div>
-            )}
-            {semSenha && (
-              <div className="rounded-2xl bg-rosa px-5 py-3.5 text-[13px] leading-relaxed text-red-950">
-                <b>Painel sem senha.</b> Qualquer pessoa com o endereço vê seus leads. Crie a variável{' '}
-                <code className="rounded bg-white/70 px-1">DASHBOARD_PASSWORD</code> na Vercel.
+            {!cota.ilimitado && (
+              <div
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed ${
+                  cota.usados >= cota.limite ? 'bg-zinc-100 text-tinta ring-2 ring-inset ring-tinta' : 'bg-zinc-100 text-tinta'
+                }`}
+              >
+                <span>
+                  {cota.usados >= cota.limite ? (
+                    <>
+                      <b>Você usou os {cota.limite} leads grátis desta semana.</b> A extensão volta a coletar{' '}
+                      {renovaTexto}. Para coletar sem limite, assine.
+                    </>
+                  ) : (
+                    <>
+                      <b>Plano grátis:</b> {cota.usados} de {cota.limite} leads novos usados nesta semana. Renova{' '}
+                      {renovaTexto}.
+                    </>
+                  )}
+                </span>
+                <a
+                  href="/conta"
+                  className="inline-flex min-h-[38px] shrink-0 items-center rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-tinta-70"
+                >
+                  Ver planos
+                </a>
               </div>
             )}
             {erro && (

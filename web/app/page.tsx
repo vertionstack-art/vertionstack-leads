@@ -1,15 +1,14 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { usuarioAtual, exigeSenha } from '@/lib/auth';
-import { temBanco } from '@/lib/db';
+import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
-  const usuario = await usuarioAtual();
-  if (!usuario) redirect('/login');
+  const sessao = await sessaoAtual();
+  if (!sessao) redirect('/login');
 
   /*
    * Registrar só o login deixava de fora justamente o caso comum: quem já
@@ -19,6 +18,16 @@ export default async function Home() {
    */
   const cabecalhos = await headers();
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) redirect('/login');
-  await registrarAcesso(cabecalhos, 'painel', 'ok', usuario, 15);
-  return <Painel semBanco={!temBanco} semSenha={!exigeSenha} usuario={usuario} />;
+  await registrarAcesso(cabecalhos, 'painel', 'ok', sessao.email, 15);
+
+  const cota = await cotaDaConta(sessao.contaId, sessao.ilimitado);
+
+  return (
+    <Painel
+      usuario={sessao.nome}
+      plano={sessao.plano}
+      bloqueada={sessao.bloqueada}
+      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm }}
+    />
+  );
 }

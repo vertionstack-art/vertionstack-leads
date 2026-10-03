@@ -9,12 +9,17 @@
  */
 
 import { NextResponse } from 'next/server';
-import { estaLogado } from '@/lib/auth';
+import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { estourou } from '@/lib/limite';
 import { consultarCnpj } from '@/lib/cnpj';
 
 export async function POST(req: Request) {
-  if (!(await estaLogado())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
+  if (!origemConfere(req)) return recusarOrigem();
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  // a consulta reserva aguenta 3 por minuto para todo mundo junto; cada conta fica com 10 por minuto
+  if (await estourou('cnpj:' + s.sessao.contaId, 10, 60)) {
+    return NextResponse.json({ ok: false, erro: 'Consultas demais em pouco tempo. Espere um minuto.' }, { status: 429 });
   }
 
   let corpo: { cnpj?: string };

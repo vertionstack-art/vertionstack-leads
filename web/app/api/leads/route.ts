@@ -4,12 +4,14 @@ import {
   salvarLeads,
   normalizarLead,
   apagarPorFiltro,
-  temBanco,
+  idsNovos,
   type Filtros,
   type Status,
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
-import { quemEnviou, podeLer, estaLogado, usuarioAtual, nomesDaEquipe } from '@/lib/auth';
+import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { coletorDaChave, cotaDaConta, devolverCota, equipeDaConta, reservarCota } from '@/lib/conta';
+import { estourou } from '@/lib/limite';
 import { caminhoDaProposta } from '@/lib/token-proposta';
 
 export const runtime = 'nodejs';
@@ -18,6 +20,7 @@ export const dynamic = 'force-dynamic';
 const KINDS: WebsiteKind[] = ['none', 'social', 'marketplace', 'weak', 'site'];
 const STATUS: Status[] = ['novo', 'contatado', 'negociando', 'fechado', 'descartado'];
 const NIVEIS = ['quente', 'morno', 'frio'] as const;
+const ORDENS = ['recentes', 'nome', 'avaliacoes', 'temperatura'] as const;
 
 function lista<T extends string>(param: string | null, validos: readonly T[]): T[] | undefined {
   if (!param) return undefined;
@@ -25,22 +28,26 @@ function lista<T extends string>(param: string | null, validos: readonly T[]): T
   return itens.length ? itens : undefined;
 }
 
+function texto(v: string | null, max = 120): string | undefined {
+  return v ? v.slice(0, max) : undefined;
+}
+
 export function filtrosDaUrl(url: URL): Filtros {
+  const ordem = url.searchParams.get('ordem');
   return {
-    busca: url.searchParams.get('q') || undefined,
+    busca: texto(url.searchParams.get('q')),
     kinds: lista(url.searchParams.get('kind'), KINDS),
     status: lista(url.searchParams.get('status'), STATUS),
-    city: url.searchParams.get('city') || undefined,
-    category: url.searchParams.get('category') || undefined,
+    city: texto(url.searchParams.get('city')),
+    category: texto(url.searchParams.get('category')),
     somenteLeads: url.searchParams.get('leads') === '1',
     comTelefone: url.searchParams.get('fone') === '1',
     siteQuebrado: url.searchParams.get('quebrado') === '1',
-    naFila: url.searchParams.get('fila') === '1',
-    responsavel: url.searchParams.get('de') || undefined,
+    responsavel: texto(url.searchParams.get('de'), 60),
     temperatura: lista(url.searchParams.get('temp'), NIVEIS),
-    limit: Number(url.searchParams.get('limit')) || 200,
-    offset: Number(url.searchParams.get('offset')) || 0,
-    ordem: (url.searchParams.get('ordem') as Filtros['ordem']) || 'recentes',
+    limit: Math.min(Math.max(Number(url.searchParams.get('limit')) || 200, 1), 2000),
+    offset: Math.max(Number(url.searchParams.get('offset')) || 0, 0),
+    ordem: (ORDENS as readonly string[]).includes(ordem || '') ? (ordem as Filtros['ordem']) : 'recentes',
   };
 }
 
@@ -50,19 +57,30 @@ export async function POST(req: Request) {
   /*
    * Duas portas para o mesmo lugar: a extensão chega com a chave, e quem
    * está no painel chega com a sessão do navegador — este segundo caso é o
-   * cadastro feito à mão, de um comércio que veio por indicação ou que
-   * você conheceu na rua, e que nunca passaria por uma varredura do Maps.
+   * cadastro feito à mão, de um comércio que veio por indicação.
+   *
+   * As duas gastam a mesma cota semanal: senão o plano grátis teria uma
+   * porta sem limite.
    */
-  const porChave = quemEnviou(req);
-  const porSessao = porChave ? null : await usuarioAtual();
-  const coletor = porChave || porSessao;
-  const manual = !porChave && Boolean(porSessao);
+  let contaId: string;
+  let coletor: string;
+  let ilimitado: boolean;
+  let manual = false;
 
-  if (!coletor) {
-    return NextResponse.json(
-      { ok: false, erro: 'Chave inválida. Confira o INGEST_TOKEN na Vercel e a chave nas configurações da extensão.' },
-      { status: 401 },
-    );
+  if (req.headers.get('x-api-key')) {
+    const r = await coletorDaChave(req);
+    if (!r.ok) return NextResponse.json({ ok: false, motivo: r.motivo, erro: r.erro }, { status: r.status });
+    ({ contaId, nome: coletor, ilimitado } = r.coletor);
+    // a extensão manda em lotes; 60 lotes por minuto por conta é muito acima do uso normal
+    if (await estourou(`ingest:${contaId}`, 60, 60)) {
+      return NextResponse.json({ ok: false, erro: 'Envios demais em pouco tempo. Espere um minuto.' }, { status: 429 });
+    }
+  } else {
+    if (!origemConfere(req)) return recusarOrigem();
+    const s = await exigirSessao();
+    if (s.erro) return s.erro;
+    ({ contaId, nome: coletor, ilimitado } = s.sessao);
+    manual = true;
   }
 
   let corpo: unknown;
@@ -76,94 +94,104 @@ export async function POST(req: Request) {
   if (!Array.isArray(brutos)) {
     return NextResponse.json({ ok: false, erro: 'Esperava um campo "leads" com uma lista.' }, { status: 400 });
   }
-  if (brutos.length > 1000) {
-    return NextResponse.json({ ok: false, erro: 'Lote grande demais (máximo 1000 por vez).' }, { status: 413 });
+  if (brutos.length > 500) {
+    return NextResponse.json({ ok: false, erro: 'Lote grande demais (máximo 500 por vez).' }, { status: 413 });
   }
 
   const limpos = brutos
-    .map((b) => normalizarLead(b as Record<string, unknown>, coletor, manual ? 'manual' : 'maps'))
+    .map((b) => normalizarLead((b || {}) as Record<string, unknown>, coletor, manual ? 'manual' : 'maps'))
     .filter((l): l is NonNullable<typeof l> => l !== null);
 
   // dentro do mesmo lote pode vir o mesmo comércio duas vezes
   const unicos = Array.from(new Map(limpos.map((l) => [l.id, l])).values());
 
   try {
-    const r = await salvarLeads(unicos);
-    return NextResponse.json({
-      ok: true,
-      ...r,
-      ignorados: brutos.length - unicos.length,
-      persistido: temBanco,
-      coletor,
-    });
+    const novos = await idsNovos(contaId, unicos.map((l) => l.id));
+    const concedidos = await reservarCota(contaId, novos.length, ilimitado);
+    const r = await salvarLeads(contaId, unicos, concedidos);
+    // reservou mais do que gravou (outro envio gravou o mesmo comércio no meio)
+    if (!ilimitado) await devolverCota(contaId, concedidos - r.novos);
+    const cota = await cotaDaConta(contaId, ilimitado);
+
+    const estourouCota = r.barradosPelaCota > 0;
+    return NextResponse.json(
+      {
+        ok: !estourouCota || r.novos + r.atualizados > 0,
+        ...r,
+        ignorados: brutos.length - unicos.length,
+        coletor,
+        cota: { ...cota, restantes: cota.ilimitado ? null : cota.restantes },
+        motivo: estourouCota ? 'cota' : undefined,
+        erro: estourouCota
+          ? `Limite do plano grátis: ${cota.limite} leads novos por semana. Assine para coletar sem limite.`
+          : undefined,
+      },
+      { status: estourouCota && r.novos + r.atualizados === 0 ? 402 : 200 },
+    );
   } catch (err) {
     console.error('[leads POST]', err);
-    return NextResponse.json(
-      { ok: false, erro: 'Falha ao gravar no banco: ' + String((err as Error).message) },
-      { status: 500 },
-    );
+    return NextResponse.json({ ok: false, erro: 'Falha ao gravar. Tente de novo.' }, { status: 500 });
   }
 }
 
 // -------------------------------------------------------- lê no painel
 
 export async function GET(req: Request) {
-  if (!(await podeLer(req))) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
-  }
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  const { contaId, ilimitado } = s.sessao;
 
   try {
-    const pagina = await listarLeads(filtrosDaUrl(new URL(req.url)));
+    const [pagina, equipe, cota] = await Promise.all([
+      listarLeads(contaId, filtrosDaUrl(new URL(req.url))),
+      equipeDaConta(contaId),
+      cotaDaConta(contaId, ilimitado),
+    ]);
     return NextResponse.json({
       ok: true,
       ...pagina,
-      leads: pagina.leads.map((l) => ({ ...l, linkProposta: caminhoDaProposta(l.id) })),
-      persistido: temBanco,
-      equipe: nomesDaEquipe,
+      leads: pagina.leads.map((l) => ({ ...l, linkProposta: caminhoDaProposta(contaId, l.id) })),
+      equipe,
+      cota: { usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm },
     });
   } catch (err) {
     console.error('[leads GET]', err);
-    return NextResponse.json({ ok: false, erro: String((err as Error).message) }, { status: 500 });
+    return NextResponse.json({ ok: false, erro: 'Não consegui carregar os leads.' }, { status: 500 });
   }
 }
 
 // ------------------------------------------------------------- limpar
 
 /**
- * Apaga os leads que os filtros da URL selecionam. Sem filtro, apaga tudo.
+ * Apaga os leads que os filtros da URL selecionam. Sem filtro, apaga tudo
+ * — da conta de quem pediu, nunca de outra.
  *
  * Pede a contagem esperada no corpo e recusa quando ela não bate com o que
- * a consulta encontrou. É a única proteção que funciona aqui: a tela mostra
- * "excluir os 12 da lista", e se alguém tiver mexido nos leads entre ver o
- * número e confirmar, a operação para em vez de apagar um conjunto maior
- * do que o que foi visto.
+ * a consulta encontrou: a tela mostra "excluir os 12 da lista", e se a
+ * lista mudou entre ver o número e confirmar, a operação para.
  */
 export async function DELETE(req: Request) {
-  if (!(await estaLogado())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
-  }
+  if (!origemConfere(req)) return recusarOrigem();
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  const { contaId } = s.sessao;
 
   const corpo = (await req.json().catch(() => ({}))) as { esperado?: number };
   if (typeof corpo.esperado !== 'number' || corpo.esperado < 0) {
-    return NextResponse.json(
-      { ok: false, erro: 'Informe quantos leads você espera apagar.' },
-      { status: 400 },
-    );
+    return NextResponse.json({ ok: false, erro: 'Informe quantos leads você espera apagar.' }, { status: 400 });
   }
 
   const filtros = filtrosDaUrl(new URL(req.url));
-  const pagina = await listarLeads({ ...filtros, limit: 1, offset: 0 });
+  const pagina = await listarLeads(contaId, { ...filtros, limit: 1, offset: 0 });
 
   if (pagina.total !== corpo.esperado) {
     return NextResponse.json(
-      {
-        ok: false,
-        erro: `A lista mudou: agora são ${pagina.total} leads, não ${corpo.esperado}. Confira e tente de novo.`,
-      },
+      { ok: false, erro: `A lista mudou: agora são ${pagina.total} leads, não ${corpo.esperado}. Confira e tente de novo.` },
       { status: 409 },
     );
   }
 
-  const apagados = await apagarPorFiltro(filtros);
+  const apagados = await apagarPorFiltro(contaId, filtros);
   return NextResponse.json({ ok: true, apagados });
 }
+

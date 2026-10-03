@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { paraVerificar, faltamVerificar, marcarVerificacao } from '@/lib/db';
 import { verificarSite } from '@/lib/verificar-site';
-import { estaLogado } from '@/lib/auth';
+import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -18,19 +18,19 @@ export const maxDuration = 60;
 const POR_VEZ = 10;
 
 export async function GET() {
-  if (!(await estaLogado())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
-  }
-  return NextResponse.json({ ok: true, faltam: await faltamVerificar() });
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  return NextResponse.json({ ok: true, faltam: await faltamVerificar(s.sessao.contaId) });
 }
 
-export async function POST() {
-  if (!(await estaLogado())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
-  }
+export async function POST(req: Request) {
+  if (!origemConfere(req)) return recusarOrigem();
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  const conta = s.sessao.contaId;
 
   try {
-    const lote = await paraVerificar(POR_VEZ);
+    const lote = await paraVerificar(conta, POR_VEZ);
 
     if (!lote.length) {
       return NextResponse.json({ ok: true, verificados: 0, faltam: 0, resultados: [] });
@@ -42,7 +42,7 @@ export async function POST() {
         try {
           const v = await verificarSite(lead.website);
           if (!v) return null;
-          await marcarVerificacao(lead.id, {
+          await marcarVerificacao(conta, lead.id, {
             status: v.status,
             detalhe: v.detalhe,
             viraLead: v.viraLead,
@@ -50,7 +50,7 @@ export async function POST() {
           return { id: lead.id, nome: lead.name, status: v.status, viraLead: v.viraLead };
         } catch (err) {
           // um site problemático não pode derrubar o lote inteiro
-          await marcarVerificacao(lead.id, {
+          await marcarVerificacao(conta, lead.id, {
             status: 'bloqueado',
             detalhe: 'Não consegui checar: ' + String((err as Error).message).slice(0, 120),
             viraLead: false,
@@ -65,7 +65,7 @@ export async function POST() {
     return NextResponse.json({
       ok: true,
       verificados: feitos.length,
-      faltam: await faltamVerificar(),
+      faltam: await faltamVerificar(conta),
       novasOportunidades: feitos.filter((r) => r && r.viraLead).length,
       resultados: feitos,
     });

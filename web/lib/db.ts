@@ -1,27 +1,21 @@
 /**
- * Camada de dados.
+ * Camada de dados dos leads.
  *
- * Em produção usa Postgres (Neon, que é o banco que a Vercel oferece
- * de graça). Sem DATABASE_URL, cai para um armazenamento em memória:
- * serve para rodar na sua máquina e testar a extensão antes de criar
- * o banco — mas na Vercel esse modo perde tudo entre uma visita e outra,
- * porque cada requisição pode cair num servidor diferente.
+ * Toda função recebe a conta como primeiro argumento e toda consulta filtra
+ * por ela. Não existe caminho que leia ou grave lead sem conta: é isso que
+ * impede alguém de ver o lead de outra pessoa trocando o id na URL — o id
+ * sozinho não acha nada fora da própria conta.
+ *
+ * A conta vem sempre da sessão (ou da chave da extensão) resolvida no
+ * servidor, nunca de algo que o navegador mande.
  */
 
-import { neon } from '@neondatabase/serverless';
 import { classifyWebsite, type WebsiteKind } from './classify';
 import type { SiteStatus } from './verificar-site';
 import { temperaturaDoLead, type Nivel } from './temperatura';
+import { db, json, temBanco } from './sql';
 
-const URL_BANCO =
-  process.env.DATABASE_URL ||
-  process.env.POSTGRES_URL ||
-  process.env.NEON_DATABASE_URL ||
-  '';
-
-export const temBanco = Boolean(URL_BANCO);
-
-const sql = temBanco ? neon(URL_BANCO) : null;
+export { temBanco };
 
 export type Status = 'novo' | 'contatado' | 'negociando' | 'fechado' | 'descartado';
 
@@ -114,78 +108,12 @@ export interface Filtros {
   siteQuebrado?: boolean;
   /** quem está cuidando: um nome, ou 'ninguem' para os sem dono */
   responsavel?: string;
-  /** só os que estão na fila de contato */
-  naFila?: boolean;
   /** níveis de temperatura a mostrar; vazio ou ausente mostra todos */
   temperatura?: Nivel[];
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes' | 'temperatura';
 }
-
-// ------------------------------------------------------------ schema
-
-let schemaPronto = false;
-
-export async function garantirSchema() {
-  if (!sql || schemaPronto) return;
-
-  await sql`
-    create table if not exists leads (
-      id            text primary key,
-      name          text not null,
-      category      text,
-      search_term   text,
-      city          text,
-      phone         text,
-      address       text,
-      website       text,
-      website_kind  text not null default 'none',
-      website_label text,
-      is_lead       boolean not null default true,
-      rating        real,
-      reviews       integer,
-      maps_url      text,
-      lat           double precision,
-      lng           double precision,
-      hours         text,
-      status        text not null default 'novo',
-      notes         text,
-      created_at    timestamptz not null default now(),
-      updated_at    timestamptz not null default now()
-    )
-  `;
-
-  // colunas da verificação de site, acrescentadas depois da primeira versão
-  await sql`alter table leads add column if not exists site_status text`;
-  await sql`alter table leads add column if not exists site_detalhe text`;
-  await sql`alter table leads add column if not exists site_verificado_em timestamptz`;
-  await sql`alter table leads add column if not exists coletado_por text`;
-  await sql`alter table leads add column if not exists responsavel text`;
-  await sql`alter table leads add column if not exists proposta jsonb`;
-  await sql`alter table leads add column if not exists instagram text`;
-  await sql`alter table leads add column if not exists origem text not null default 'maps'`;
-  await sql`alter table leads add column if not exists previa_url text`;
-  await sql`alter table leads add column if not exists cnpj jsonb`;
-  await sql`alter table leads add column if not exists briefing jsonb`;
-  await sql`alter table leads add column if not exists contato boolean not null default false`;
-  await sql`alter table leads add column if not exists contatado_em timestamptz`;
-  await sql`create index if not exists leads_kind_idx on leads (website_kind)`;
-  await sql`create index if not exists leads_status_idx on leads (status)`;
-  await sql`create index if not exists leads_city_idx on leads (city)`;
-  await sql`create index if not exists leads_created_idx on leads (created_at desc)`;
-  await sql`create index if not exists leads_site_status_idx on leads (site_status)`;
-  await sql`create index if not exists leads_responsavel_idx on leads (responsavel)`;
-
-  schemaPronto = true;
-}
-
-// --------------------------------------------------- modo sem banco
-
-type Memoria = Map<string, Lead>;
-
-const globalRef = globalThis as unknown as { __vlMemoria?: Memoria };
-const memoria: Memoria = globalRef.__vlMemoria || (globalRef.__vlMemoria = new Map());
 
 // ------------------------------------------------------------ util
 
@@ -214,6 +142,11 @@ export function normalizarLead(
     const s = v === null || v === undefined ? '' : String(v).trim();
     return s ? s.slice(0, max) : null;
   };
+  // só endereço http(s): um "javascript:..." no campo do Maps viraria link clicável no painel
+  const link = (v: unknown, max = 900): string | null => {
+    const s = texto(v, max);
+    return s && /^https?:\/\//i.test(s) ? s : null;
+  };
 
   return {
     id: normalizarId(chave),
@@ -229,15 +162,15 @@ export function normalizarLead(
     isLead: veredito.isLead,
     rating: num(cru.rating),
     reviews: num(cru.reviews),
-    mapsUrl: texto(cru.mapsUrl, 900),
+    mapsUrl: link(cru.mapsUrl),
     lat: num(cru.lat),
     lng: num(cru.lng),
     hours: texto(cru.hours, 200),
     status: 'novo',
     notes: null,
-    instagram: texto(cru.instagram, 300),
+    instagram: link(cru.instagram, 300),
     origem,
-    previaUrl: texto(cru.previaUrl, 500),
+    previaUrl: link(cru.previaUrl, 500),
     cnpj: null,
     briefing: null,
     contato: false,
@@ -267,11 +200,11 @@ function daLinha(r: any): Lead {
     websiteKind: r.website_kind,
     websiteLabel: r.website_label,
     isLead: r.is_lead,
-    rating: r.rating,
-    reviews: r.reviews,
+    rating: r.rating === null ? null : Number(r.rating),
+    reviews: r.reviews === null ? null : Number(r.reviews),
     mapsUrl: r.maps_url,
-    lat: r.lat,
-    lng: r.lng,
+    lat: r.lat === null ? null : Number(r.lat),
+    lng: r.lng === null ? null : Number(r.lng),
     hours: r.hours,
     status: r.status,
     notes: r.notes,
@@ -281,13 +214,13 @@ function daLinha(r: any): Lead {
     instagram: r.instagram,
     origem: r.origem || 'maps',
     previaUrl: r.previa_url,
-    cnpj: r.cnpj ?? null,
-    briefing: r.briefing ?? null,
+    cnpj: json(r.cnpj),
+    briefing: json(r.briefing),
     contato: r.contato === true,
     contatadoEm: r.contatado_em ? new Date(r.contatado_em).toISOString() : null,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
-    proposta: r.proposta ?? null,
+    proposta: json(r.proposta),
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -299,70 +232,59 @@ export interface ResultadoGravacao {
   recebidos: number;
   novos: number;
   atualizados: number;
+  /** comércios novos que ficaram de fora porque a cota da semana acabou */
+  barradosPelaCota: number;
+}
+
+/** quais destes ids a conta ainda não tem */
+export async function idsNovos(conta: string, ids: string[]): Promise<string[]> {
+  if (!ids.length) return [];
+  const existentes = await db()`select id from leads where conta_id = ${conta} and id = any(${ids}::text[])`;
+  const tem = new Set(existentes.map((r) => r.id as string));
+  return ids.filter((id) => !tem.has(id));
 }
 
 /**
  * Grava o lote. Um comércio já conhecido tem os dados do Maps atualizados,
  * mas o status e as anotações que você escreveu ficam intactos — senão uma
  * nova varredura apagaria seu trabalho de prospecção.
+ *
+ * `permitidosNovos` é quantos comércios novos a cota deixa entrar; os que
+ * passarem disso são descartados aqui (atualizar um já conhecido não gasta
+ * cota). `undefined` significa sem limite.
  */
-export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
-  if (!leads.length) return { recebidos: 0, novos: 0, atualizados: 0 };
+export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?: number): Promise<ResultadoGravacao> {
+  if (!leads.length) return { recebidos: 0, novos: 0, atualizados: 0, barradosPelaCota: 0 };
 
-  if (!sql) {
-    let novos = 0;
-    let atualizados = 0;
-    for (const l of leads) {
-      const antigo = memoria.get(l.id);
-      if (antigo) {
-        memoria.set(l.id, {
-          ...l,
-          status: antigo.status,
-          notes: antigo.notes,
-          siteStatus: antigo.siteStatus,
-          siteDetalhe: antigo.siteDetalhe,
-          siteVerificadoEm: antigo.siteVerificadoEm,
-          instagram: l.instagram || antigo.instagram,
-          origem: antigo.origem,
-          previaUrl: antigo.previaUrl || l.previaUrl,
-          cnpj: antigo.cnpj ?? l.cnpj,
-          briefing: antigo.briefing ?? l.briefing,
-          contato: antigo.contato,
-          contatadoEm: antigo.contatadoEm,
-          coletadoPor: antigo.coletadoPor || l.coletadoPor,
-          responsavel: antigo.responsavel,
-          proposta: antigo.proposta,
-          createdAt: antigo.createdAt,
-        });
-        atualizados++;
-      } else {
-        memoria.set(l.id, l);
-        novos++;
+  const novosIds = new Set(await idsNovos(conta, leads.map((l) => l.id)));
+  let vagas = permitidosNovos ?? Infinity;
+  let barrados = 0;
+  const aceitos: Lead[] = [];
+  for (const l of leads) {
+    if (novosIds.has(l.id)) {
+      if (vagas <= 0) {
+        barrados++;
+        continue;
       }
+      vagas--;
     }
-    return { recebidos: leads.length, novos, atualizados };
+    aceitos.push(l);
   }
 
-  await garantirSchema();
-
-  const jaExistiam = new Set<string>();
-  const ids = leads.map((l) => l.id);
-  const existentes = await sql`select id from leads where id = any(${ids})`;
-  for (const r of existentes as { id: string }[]) jaExistiam.add(r.id);
-
-  for (const l of leads) {
+  const sql = db();
+  for (const l of aceitos) {
     await sql`
       insert into leads (
-        id, name, category, search_term, city, phone, address, website,
+        conta_id, id, name, category, search_term, city, phone, address, website,
         website_kind, website_label, is_lead, rating, reviews, maps_url,
-        lat, lng, hours, status, coletado_por, instagram, origem, updated_at
+        lat, lng, hours, status, coletado_por, instagram, origem, notes, updated_at
       ) values (
-        ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
+        ${conta}, ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
-        'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, now()
+        'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes}, now()
       )
-      on conflict (id) do update set
+      on conflict (conta_id, id) do update set
         name          = excluded.name,
         category      = coalesce(excluded.category, leads.category),
         search_term   = coalesce(excluded.search_term, leads.search_term),
@@ -385,71 +307,45 @@ export async function salvarLeads(leads: Lead[]): Promise<ResultadoGravacao> {
     `;
   }
 
-  const atualizados = jaExistiam.size;
-  return { recebidos: leads.length, novos: leads.length - atualizados, atualizados };
+  const novos = aceitos.filter((l) => novosIds.has(l.id)).length;
+  return { recebidos: leads.length, novos, atualizados: aceitos.length - novos, barradosPelaCota: barrados };
 }
 
 /**
  * Mexer no status ou na anotação marca a pessoa como responsável pelo lead.
- * É assim que os dois sabem quem já pegou quem, sem precisar combinar nada
- * — e sem ligar duas vezes para o mesmo comércio.
+ * É assim que quem divide a conta sabe quem já pegou quem, sem precisar
+ * combinar nada — e sem ligar duas vezes para o mesmo comércio.
  *
  * Voltar um lead para "novo" solta o responsável: ele fica livre de novo.
  */
 export async function atualizarLead(
+  conta: string,
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown; contato?: boolean; contatadoEm?: string | null },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
-
-  if (!sql) {
-    const atual = memoria.get(id);
-    if (!atual) return null;
-
-    /*
-     * Só as chaves realmente enviadas. Espalhar o patch inteiro apagava o
-     * que não vinha nele: salvar a proposta mandava previaUrl: undefined
-     * junto, e o undefined sobrescrevia o link já guardado. No Postgres
-     * isso não acontece porque cada coluna tem seu "case when enviado".
-     */
-    const novo: Lead = { ...atual };
-    for (const [campo, valor] of Object.entries(patch)) {
-      if (valor !== undefined) (novo as unknown as Record<string, unknown>)[campo] = valor;
-    }
-    novo.responsavel = soltar ? null : quem || atual.responsavel;
-    novo.updatedAt = new Date().toISOString();
-
-    memoria.set(id, novo);
-    return novo;
-  }
-
-  await garantirSchema();
-  const linhas = await sql`
+  const linhas = await db()`
     update leads set
       status      = coalesce(${patch.status ?? null}, status),
       notes       = case when ${patch.notes !== undefined} then ${patch.notes ?? null} else notes end,
       proposta    = case when ${patch.proposta !== undefined}
-                         then ${patch.proposta === null ? null : JSON.stringify(patch.proposta)}::jsonb
+                         then ${patch.proposta === null || patch.proposta === undefined ? null : JSON.stringify(patch.proposta)}::jsonb
                          else proposta end,
       previa_url  = case when ${patch.previaUrl !== undefined}
                          then ${patch.previaUrl ?? null} else previa_url end,
       cnpj        = case when ${patch.cnpj !== undefined}
-                         then ${patch.cnpj === null ? null : JSON.stringify(patch.cnpj)}::jsonb
+                         then ${patch.cnpj === null || patch.cnpj === undefined ? null : JSON.stringify(patch.cnpj)}::jsonb
                          else cnpj end,
       briefing    = case when ${patch.briefing !== undefined}
-                         then ${patch.briefing === null ? null : JSON.stringify(patch.briefing)}::jsonb
+                         then ${patch.briefing === null || patch.briefing === undefined ? null : JSON.stringify(patch.briefing)}::jsonb
                          else briefing end,
-      contato     = case when ${patch.contato !== undefined}
-                         then ${patch.contato ?? false} else contato end,
-      contatado_em = case when ${patch.contatadoEm !== undefined}
-                         then ${patch.contatadoEm ?? null}::timestamptz else contatado_em end,
       responsavel = case
                       when ${soltar} then null
                       else coalesce(${quem ?? null}, responsavel)
                     end,
       updated_at  = now()
-    where id = ${id}
+    where conta_id = ${conta} and id = ${id}
     returning *
   `;
   return linhas.length ? daLinha(linhas[0]) : null;
@@ -463,77 +359,49 @@ export async function atualizarLead(
  * tendo um endereço cadastrado no Google.
  */
 export async function marcarVerificacao(
+  conta: string,
   id: string,
   v: { status: string; detalhe: string; viraLead: boolean },
 ): Promise<void> {
-  if (!sql) {
-    const atual = memoria.get(id);
-    if (!atual) return;
-    memoria.set(id, {
-      ...atual,
-      siteStatus: v.status as Lead['siteStatus'],
-      siteDetalhe: v.detalhe,
-      siteVerificadoEm: new Date().toISOString(),
-      isLead: v.viraLead ? true : atual.isLead,
-      updatedAt: new Date().toISOString(),
-    });
-    return;
-  }
-
-  await garantirSchema();
-  await sql`
+  await db()`
     update leads set
       site_status        = ${v.status},
       site_detalhe       = ${v.detalhe},
       site_verificado_em = now(),
       is_lead            = case when ${v.viraLead} then true else is_lead end,
       updated_at         = now()
-    where id = ${id}
+    where conta_id = ${conta} and id = ${id}
   `;
 }
 
 /** os leads que têm site cadastrado e ainda não foram verificados */
-export async function paraVerificar(limite: number): Promise<Lead[]> {
-  if (!sql) {
-    return Array.from(memoria.values())
-      .filter((l) => l.website && !l.siteStatus)
-      .slice(0, limite);
-  }
-  await garantirSchema();
-  const linhas = await sql`
+export async function paraVerificar(conta: string, limite: number): Promise<Lead[]> {
+  const linhas = await db()`
     select * from leads
-    where website is not null and website <> '' and site_status is null
+    where conta_id = ${conta} and website is not null and website <> '' and site_status is null
     order by created_at desc
     limit ${limite}
   `;
-  return (linhas as any[]).map(daLinha);
+  return linhas.map(daLinha);
 }
 
 /** quantos ainda faltam verificar */
-export async function faltamVerificar(): Promise<number> {
-  if (!sql) {
-    return Array.from(memoria.values()).filter((l) => l.website && !l.siteStatus).length;
-  }
-  await garantirSchema();
-  const r = await sql`
+export async function faltamVerificar(conta: string): Promise<number> {
+  const r = await db()`
     select count(*)::int as n from leads
-    where website is not null and website <> '' and site_status is null
+    where conta_id = ${conta} and website is not null and website <> '' and site_status is null
   `;
-  return (r[0] as { n: number }).n;
+  return r[0].n as number;
 }
 
-/** um lead só, pelo id — usado pela página pública da proposta */
-export async function buscarLead(id: string): Promise<Lead | null> {
-  if (!sql) return memoria.get(id) || null;
-  await garantirSchema();
-  const linhas = await sql`select * from leads where id = ${id} limit 1`;
+/** um lead só — usado pela página pública da proposta, que já resolveu a conta pelo token */
+export async function buscarLead(conta: string, id: string): Promise<Lead | null> {
+  const linhas = await db()`select * from leads where conta_id = ${conta} and id = ${id} limit 1`;
   return linhas.length ? daLinha(linhas[0]) : null;
 }
 
-export async function apagarLead(id: string): Promise<boolean> {
-  if (!sql) return memoria.delete(id);
-  await garantirSchema();
-  const r = await sql`delete from leads where id = ${id} returning id`;
+export async function apagarLead(conta: string, id: string): Promise<boolean> {
+  const r = await db()`delete from leads where conta_id = ${conta} and id = ${id} returning id`;
   return r.length > 0;
 }
 
@@ -548,65 +416,15 @@ export async function apagarLead(id: string): Promise<boolean> {
  * então o que some é o que estava à vista — e não um conjunto diferente
  * porque a consulta de apagar interpretou o filtro de outro jeito.
  */
-export async function apagarPorFiltro(f: Filtros): Promise<number> {
-  const alvos = await todosOsLeads({ ...f, limit: 2000, offset: 0 });
+export async function apagarPorFiltro(conta: string, f: Filtros): Promise<number> {
+  const alvos = await todosOsLeads(conta, { ...f, limit: 2000, offset: 0 });
   const ids = alvos.map((l) => l.id);
   if (!ids.length) return 0;
-
-  if (!sql) {
-    let n = 0;
-    for (const id of ids) if (memoria.delete(id)) n++;
-    return n;
-  }
-
-  await garantirSchema();
-  const r = await sql`delete from leads where id = any(${ids}::text[]) returning id`;
-  return r.length;
-}
-
-export async function apagarTudo(): Promise<number> {
-  if (!sql) {
-    const n = memoria.size;
-    memoria.clear();
-    return n;
-  }
-  await garantirSchema();
-  const r = await sql`delete from leads returning id`;
+  const r = await db()`delete from leads where conta_id = ${conta} and id = any(${ids}::text[]) returning id`;
   return r.length;
 }
 
 // ---------------------------------------------------------- leitura
-
-function filtrarEmMemoria(todos: Lead[], f: Filtros): Lead[] {
-  let out = todos;
-  if (f.kinds?.length) out = out.filter((l) => f.kinds!.includes(l.websiteKind));
-  if (f.status?.length) out = out.filter((l) => f.status!.includes(l.status));
-  if (f.somenteLeads) out = out.filter((l) => l.isLead);
-  if (f.comTelefone) out = out.filter((l) => !!l.phone);
-  if (f.naFila) out = out.filter((l) => l.contato);
-  if (f.siteQuebrado) out = out.filter((l) => !!l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus));
-  if (f.responsavel === 'ninguem') out = out.filter((l) => !l.responsavel);
-  else if (f.responsavel) out = out.filter((l) => l.responsavel === f.responsavel);
-  if (f.city) out = out.filter((l) => (l.city || '').toLowerCase().includes(f.city!.toLowerCase()));
-  if (f.category) out = out.filter((l) => (l.category || '').toLowerCase().includes(f.category!.toLowerCase()));
-  if (f.busca) {
-    const q = f.busca.toLowerCase();
-    out = out.filter((l) =>
-      [l.name, l.category, l.address, l.phone, l.city].some((c) => (c || '').toLowerCase().includes(q)),
-    );
-  }
-  if (f.temperatura?.length) {
-    out = out.filter((l) => f.temperatura!.includes(temperaturaDoLead(l).nivel));
-  }
-  const ordem = f.ordem || 'recentes';
-  out = [...out].sort((a, b) => {
-    if (ordem === 'nome') return a.name.localeCompare(b.name, 'pt-BR');
-    if (ordem === 'avaliacoes') return (b.reviews || 0) - (a.reviews || 0);
-    if (ordem === 'temperatura') return temperaturaDoLead(b).pontos - temperaturaDoLead(a).pontos;
-    return b.createdAt.localeCompare(a.createdAt);
-  });
-  return out;
-}
 
 export interface PaginaDeLeads {
   leads: Lead[];
@@ -616,26 +434,12 @@ export interface PaginaDeLeads {
   categorias: string[];
 }
 
-export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
+export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLeads> {
+  const sql = db();
   const limit = Math.min(f.limit ?? 200, 2000);
   const offset = f.offset ?? 0;
 
-  if (!sql) {
-    const todos = Array.from(memoria.values());
-    const filtrados = filtrarEmMemoria(todos, f);
-    return {
-      leads: filtrados.slice(offset, offset + limit),
-      total: filtrados.length,
-      resumo: resumoDe(todos),
-      cidades: unicos(todos.map((l) => l.city)),
-      categorias: unicos(todos.map((l) => l.category)),
-    };
-  }
-
-  await garantirSchema();
-
-  // O driver do Neon monta a query parametrizada; para filtros opcionais
-  // usamos o truque do "parâmetro nulo desliga a condição".
+  // filtros opcionais com o truque do "parâmetro nulo desliga a condição"
   const kinds = f.kinds?.length ? f.kinds : null;
   const statusList = f.status?.length ? f.status : null;
   const busca = f.busca ? `%${f.busca}%` : null;
@@ -654,35 +458,12 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
   const limitSql = porTemperatura ? 5000 : limit;
   const offsetSql = porTemperatura ? 0 : offset;
 
-  const linhas = await sql`
-    select * from leads
-    where (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
+  const onde = sql`
+    conta_id = ${conta}
+      and (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
       and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
-      and (${f.naFila ? true : null}::boolean is null or contato = true)
-      and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
-      and (${f.responsavel ?? null}::text is null
-           or (${f.responsavel === 'ninguem'} and responsavel is null)
-           or responsavel = ${f.responsavel ?? null})
-      and (${city}::text is null or city ilike ${city})
-      and (${category}::text is null or category ilike ${category})
-      and (${busca}::text is null or name ilike ${busca} or address ilike ${busca}
-           or phone ilike ${busca} or category ilike ${busca} or city ilike ${busca})
-    order by
-      case when ${ordem} = 'nome' then name end asc,
-      case when ${ordem} = 'avaliacoes' then reviews end desc nulls last,
-      case when ${ordem} = 'recentes' then created_at end desc
-    limit ${limitSql} offset ${offsetSql}
-  `;
-
-  const totalRow = await sql`
-    select count(*)::int as n from leads
-    where (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
-      and (${statusList}::text[] is null or status = any(${statusList}::text[]))
-      and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
-      and (${f.comTelefone ? true : null}::boolean is null or (phone is not null and phone <> ''))
-      and (${f.naFila ? true : null}::boolean is null or contato = true)
       and (${f.siteQuebrado ? true : null}::boolean is null or site_status = any(${SITE_QUEBRADO}::text[]))
       and (${f.responsavel ?? null}::text is null
            or (${f.responsavel === 'ninguem'} and responsavel is null)
@@ -693,50 +474,54 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
            or phone ilike ${busca} or category ilike ${busca} or city ilike ${busca})
   `;
 
-  const porTipo = await sql`select website_kind, count(*)::int as n from leads group by website_kind`;
-  const porStatus = await sql`select status, count(*)::int as n from leads group by status`;
-  // "oportunidade" segue o is_lead, que a verificação de site também altera:
-  // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
-  const oportunidades = await sql`select count(*)::int as n from leads where is_lead = true`;
-  const porPessoa = await sql`
-    select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads group by 1
-  `;
-  const quebrados = await sql`
-    select count(*)::int as n from leads where site_status = any(${SITE_QUEBRADO}::text[])
-  `;
-  const cidades = await sql`select distinct city from leads where city is not null order by city limit 200`;
-  const categorias = await sql`select distinct category from leads where category is not null order by category limit 300`;
+  const [linhas, totalRow, porTipo, porStatus, oportunidades, porPessoa, quebrados, cidades, categorias, paraTemperatura] =
+    await Promise.all([
+      sql`
+        select * from leads where ${onde}
+        order by
+          case when ${ordem} = 'nome' then name end asc,
+          case when ${ordem} = 'avaliacoes' then reviews end desc nulls last,
+          created_at desc
+        limit ${limitSql} offset ${offsetSql}
+      `,
+      sql`select count(*)::int as n from leads where ${onde}`,
+      sql`select website_kind, count(*)::int as n from leads where conta_id = ${conta} group by website_kind`,
+      sql`select status, count(*)::int as n from leads where conta_id = ${conta} group by status`,
+      // "oportunidade" segue o is_lead, que a verificação de site também altera:
+      // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
+      sql`select count(*)::int as n from leads where conta_id = ${conta} and is_lead = true`,
+      sql`select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads where conta_id = ${conta} group by 1`,
+      sql`select count(*)::int as n from leads where conta_id = ${conta} and site_status = any(${SITE_QUEBRADO}::text[])`,
+      sql`select distinct city from leads where conta_id = ${conta} and city is not null order by city limit 200`,
+      sql`select distinct category from leads where conta_id = ${conta} and category is not null order by category limit 300`,
+      /*
+       * Contagem por temperatura para os botões de filtro mostrarem número.
+       * Não dá para agregar em SQL porque a nota é regra em TypeScript, então
+       * vem só o punhado de colunas que o cálculo usa.
+       */
+      sql`
+        select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
+        from leads where conta_id = ${conta} limit 5000
+      `,
+    ]);
 
   const resumo: Record<string, number> = { total: 0 };
-  for (const r of porTipo as { website_kind: string; n: number }[]) {
+  for (const r of porTipo) {
     resumo[r.website_kind] = r.n;
     resumo.total += r.n;
   }
-  for (const r of porStatus as { status: string; n: number }[]) resumo['status_' + r.status] = r.n;
-  resumo.oportunidades = (oportunidades[0] as { n: number }).n;
-  for (const r of porPessoa as { quem: string; n: number }[]) resumo['de_' + r.quem] = r.n;
-  resumo.site_quebrado = (quebrados[0] as { n: number }).n;
+  for (const r of porStatus) resumo['status_' + r.status] = r.n;
+  resumo.oportunidades = oportunidades[0].n;
+  for (const r of porPessoa) resumo['de_' + r.quem] = r.n;
+  resumo.site_quebrado = quebrados[0].n;
 
-  const naFila = await sql`select count(*)::int as n from leads where contato = true`;
-  resumo.na_fila = (naFila[0] as { n: number }).n;
-
-  /*
-   * Contagem por temperatura para os botões de filtro mostrarem número.
-   * Não dá para agregar em SQL porque a nota é regra em TypeScript, então
-   * vem só o punhado de colunas que o cálculo usa — bem mais barato que
-   * trazer a tabela inteira, e o suficiente para classificar.
-   */
-  const paraTemperatura = await sql`
-    select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
-    from leads limit 5000
-  `;
-  for (const r of paraTemperatura as Record<string, unknown>[]) {
+  for (const r of paraTemperatura) {
     const nivel = temperaturaDoLead({
       websiteKind: r.website_kind,
       siteStatus: r.site_status,
       siteVerificadoEm: r.site_verificado_em,
-      reviews: r.reviews,
-      rating: r.rating,
+      reviews: r.reviews === null ? null : Number(r.reviews),
+      rating: r.rating === null ? null : Number(r.rating),
       instagram: r.instagram,
       phone: r.phone,
       category: r.category,
@@ -744,7 +529,7 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
     resumo['temp_' + nivel] = (resumo['temp_' + nivel] || 0) + 1;
   }
 
-  let mapeados = (linhas as any[]).map(daLinha);
+  let mapeados = linhas.map(daLinha);
 
   /*
    * Quando a temperatura entra — como filtro ou como ordenação —, o total
@@ -768,34 +553,16 @@ export async function listarLeads(f: Filtros): Promise<PaginaDeLeads> {
 
   return {
     leads: pagina,
-    total: totalReal ?? (totalRow[0] as { n: number }).n,
+    total: totalReal ?? totalRow[0].n,
     resumo,
-    cidades: (cidades as { city: string }[]).map((r) => r.city),
-    categorias: (categorias as { category: string }[]).map((r) => r.category),
+    cidades: cidades.map((r) => r.city as string),
+    categorias: categorias.map((r) => r.category as string),
   };
-}
-
-function unicos(vals: (string | null)[]): string[] {
-  return Array.from(new Set(vals.filter((v): v is string => !!v))).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 const SITE_QUEBRADO = ['fora_do_ar', 'nao_encontrado', 'em_construcao', 'virou_social', 'certificado_vencido', 'sem_https'];
 
-function resumoDe(todos: Lead[]): Record<string, number> {
-  const r: Record<string, number> = { total: todos.length, oportunidades: 0, site_quebrado: 0 };
-  for (const l of todos) {
-    r[l.websiteKind] = (r[l.websiteKind] || 0) + 1;
-    r['status_' + l.status] = (r['status_' + l.status] || 0) + 1;
-    if (l.isLead) r.oportunidades++;
-    r['de_' + (l.responsavel || 'ninguem')] = (r['de_' + (l.responsavel || 'ninguem')] || 0) + 1;
-    if (l.siteStatus && SITE_QUEBRADO.includes(l.siteStatus)) r.site_quebrado++;
-    if (l.contato) r.na_fila = (r.na_fila || 0) + 1;
-    r['temp_' + temperaturaDoLead(l).nivel] = (r['temp_' + temperaturaDoLead(l).nivel] || 0) + 1;
-  }
-  return r;
-}
-
-export async function todosOsLeads(f: Filtros): Promise<Lead[]> {
-  const p = await listarLeads({ ...f, limit: 2000, offset: 0 });
+export async function todosOsLeads(conta: string, f: Filtros): Promise<Lead[]> {
+  const p = await listarLeads(conta, { ...f, limit: 2000, offset: 0 });
   return p.leads;
 }

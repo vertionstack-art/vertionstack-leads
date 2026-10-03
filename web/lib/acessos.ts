@@ -9,12 +9,9 @@
  * cortar ruído — quem realmente protege o painel é a senha.
  */
 
-import { neon } from '@neondatabase/serverless';
+import { db, temBanco } from './sql';
 
-const URL_BANCO =
-  process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.NEON_DATABASE_URL || '';
-
-const sql = URL_BANCO ? neon(URL_BANCO) : null;
+const sql = temBanco ? db() : null;
 
 export type Resultado = 'ok' | 'senha_errada' | 'bloqueado' | 'chave_errada';
 
@@ -50,31 +47,7 @@ let pronto = false;
 async function garantir() {
   if (!sql || pronto) return;
 
-  await sql`
-    create table if not exists acessos (
-      id         bigserial primary key,
-      ip         text not null,
-      rota       text not null,
-      usuario    text,
-      resultado  text not null default 'ok',
-      cidade     text,
-      pais       text,
-      navegador  text,
-      quando     timestamptz not null default now()
-    )
-  `;
-  await sql`create index if not exists acessos_ip_idx on acessos (ip)`;
-  await sql`create index if not exists acessos_quando_idx on acessos (quando desc)`;
-
-  await sql`
-    create table if not exists bloqueios (
-      ip         text primary key,
-      motivo     text,
-      por        text,
-      quando     timestamptz not null default now()
-    )
-  `;
-
+  // as tabelas nascem na migração do Supabase (supabase/migrations)
   pronto = true;
 }
 
@@ -139,7 +112,7 @@ export async function ipsBloqueados(): Promise<Set<string>> {
 
   await garantir();
   const linhas = await sql`select ip from bloqueios`;
-  const ips = new Set((linhas as { ip: string }[]).map((r) => r.ip));
+  const ips = new Set((linhas as unknown as { ip: string }[]).map((r) => r.ip));
   cacheBloqueios = { ips, ate: Date.now() + 30_000 };
   return ips;
 }

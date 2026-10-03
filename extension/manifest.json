@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vertion Leads — Prospector do Google Maps",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Varre o Google Maps por comércios e separa quem não tem site próprio. Envia tudo para o painel Vertion Leads.",
   "permissions": ["storage", "tabs", "scripting", "downloads"],
   "host_permissions": [

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { ehDono, dono } from '@/lib/auth';
+import { sessaoAtual } from '@/lib/conta';
+import { origemConfere, recusarOrigem } from '@/lib/auth';
 import { bloquear, desbloquear, resumoPorIp, ultimosAcessos } from '@/lib/acessos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  if (!(await ehDono())) {
+  if (!(await sessaoAtual())?.admin) {
     return NextResponse.json({ ok: false, erro: 'So o dono do painel ve isto.' }, { status: 403 });
   }
 
@@ -22,8 +23,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const quem = await ehDono();
-  if (!quem) {
+  if (!origemConfere(req)) return recusarOrigem();
+  const quem = await sessaoAtual();
+  if (!quem?.admin) {
     return NextResponse.json({ ok: false, erro: 'So o dono do painel pode bloquear.' }, { status: 403 });
   }
 
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
   if (corpo.acao === 'liberar') {
     await desbloquear(corpo.ip);
   } else {
-    await bloquear(corpo.ip, (corpo.motivo || '').slice(0, 200), dono);
+    await bloquear(String(corpo.ip).slice(0, 64), (corpo.motivo || '').slice(0, 200), quem.email);
   }
 
   return NextResponse.json({ ok: true, ips: await resumoPorIp(300) });
