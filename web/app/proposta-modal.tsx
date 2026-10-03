@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { ArrowUpRight, Check, X } from 'lucide-react';
 import type { Lead } from '@/lib/db';
 import { formatarCnpj, type DadosCnpj } from '@/lib/cnpj';
 import {
@@ -177,9 +178,9 @@ export default function PropostaModal({
   const nenhumMarcado = Object.values(marcacoes).every((v) => !v);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={aoFechar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/40 p-4" onClick={aoFechar}>
       <div
-        className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_24px_60px_rgba(11,11,15,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* -------------------------------------------------------- topo */}
@@ -194,10 +195,10 @@ export default function PropostaModal({
           </div>
           <button
             onClick={aoFechar}
-            className="shrink-0 rounded-lg px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+            className="shrink-0 rounded-full px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
             aria-label="Fechar"
           >
-            ×
+            <X aria-hidden className="h-4 w-4" />
           </button>
         </div>
 
@@ -205,8 +206,8 @@ export default function PropostaModal({
           {/* ------------------------------------------------ escolhas */}
           <div className="min-h-0 overflow-auto border-r border-zinc-200 p-6">
             {/* CNPJ */}
-            <section className="mb-6 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-              <h3 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+            <section className="mb-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+              <h3 className="mb-1 text-[13px] font-bold text-tinta">
                 CNPJ do cliente (opcional)
               </h3>
               <p className="mb-3 text-[12px] leading-snug text-zinc-500">
@@ -222,12 +223,12 @@ export default function PropostaModal({
                   placeholder="12.345.678/0001-95"
                   inputMode="numeric"
                   aria-label="CNPJ do cliente"
-                  className="min-h-[40px] w-52 rounded-lg border border-zinc-300 bg-white px-3 text-[13px] tabular-nums outline-none focus:border-roxo-500"
+                  className="min-h-[40px] w-52 rounded-full border border-zinc-300 bg-white px-3 text-[13px] tabular-nums outline-none focus:border-roxo-500"
                 />
                 <button
                   onClick={buscarCnpj}
                   disabled={buscandoCnpj || cnpjTexto.replace(/\D/g, '').length !== 14}
-                  className="min-h-[40px] rounded-lg bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:brightness-150 disabled:bg-zinc-300"
+                  className="min-h-[40px] rounded-full bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:brightness-150 disabled:bg-zinc-300"
                 >
                   {buscandoCnpj ? 'Consultando…' : 'Buscar na Receita'}
                 </button>
@@ -248,7 +249,7 @@ export default function PropostaModal({
                   )}
                   {dadosCnpj.atividade && <p className="text-zinc-500">{dadosCnpj.atividade}</p>}
                   {dadosCnpj.irregular ? (
-                    <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800">
+                    <p className="mt-2 rounded-2xl bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800">
                       Situação na Receita: <strong>{dadosCnpj.situacao}</strong>. Empresa fora de atividade
                       não assina contrato — confirme antes de investir tempo.
                     </p>
@@ -264,7 +265,7 @@ export default function PropostaModal({
 
             {/* porte */}
             <section className="mb-6">
-              <h3 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="mb-1 text-[13px] font-bold text-tinta">
                 Porte do cliente
               </h3>
               <p className="mb-3 text-[12px] text-zinc-500">
@@ -276,7 +277,7 @@ export default function PropostaModal({
                   <button
                     key={p}
                     onClick={() => setPorte(p)}
-                    className={`rounded-xl border px-3 py-2.5 text-left transition ${
+                    className={`rounded-2xl border px-3 py-2.5 text-left transition ${
                       porte === p ? 'border-roxo-600 bg-roxo-50 ring-2 ring-roxo-200' : 'border-zinc-200 hover:border-roxo-300'
                     }`}
                   >
@@ -289,7 +290,7 @@ export default function PropostaModal({
 
             {/* formalização */}
             <section className="mb-6">
-              <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="mb-2 text-[13px] font-bold text-tinta">
                 Como a empresa é registrada
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -309,7 +310,7 @@ export default function PropostaModal({
             </section>
 
             {lead.previaUrl && (
-              <p className="mb-3 rounded-xl border border-roxo-200 bg-roxo-50 px-3.5 py-2.5 text-[11.5px] leading-snug text-roxo-900">
+              <p className="mb-3 rounded-2xl border border-roxo-200 bg-roxo-50 px-3.5 py-2.5 text-[11.5px] leading-snug text-roxo-900">
                 A prévia deste comércio entra na proposta e no texto do WhatsApp:{' '}
                 <a
                   href={lead.previaUrl}
@@ -322,7 +323,7 @@ export default function PropostaModal({
               </p>
             )}
 
-            <div className="mb-4 rounded-xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
+            <div className="mb-4 rounded-2xl bg-zinc-50 px-3.5 py-2.5 text-[11.5px] text-zinc-600">
               Clique num serviço para incluir na proposta. Clique de novo para tirar.
               {ramo && escondidos > 0 && (
                 <span className="mt-1.5 block">
@@ -361,7 +362,7 @@ export default function PropostaModal({
                         key={s.id}
                         onClick={() => alternar(s.id)}
                         aria-pressed={incluso}
-                        className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition ${
+                        className={`flex w-full items-start gap-3 rounded-2xl border px-3 py-2 text-left transition ${
                           incluso ? 'border-roxo-300 bg-roxo-50' : 'border-transparent bg-zinc-50 hover:bg-zinc-100'
                         }`}
                       >
@@ -370,7 +371,7 @@ export default function PropostaModal({
                             incluso ? 'border-roxo-600 bg-roxo-600 text-white' : 'border-zinc-300 bg-white text-transparent'
                           }`}
                         >
-                          {incluso ? '✓' : '·'}
+                          {incluso ? <Check aria-hidden className="h-3 w-3" strokeWidth={3} /> : '·'}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className={`block text-[13px] ${incluso ? 'font-medium text-tinta' : 'text-zinc-600'}`}>
@@ -409,8 +410,8 @@ export default function PropostaModal({
               </p>
             ) : (
               <>
-                <div className="mb-3 rounded-xl border border-roxo-400 bg-white p-4 ring-2 ring-roxo-100">
-                  <h4 className="text-[13px] font-semibold uppercase tracking-wide text-zinc-500">
+                <div className="mb-3 rounded-2xl border border-roxo-400 bg-white p-4 ring-2 ring-roxo-100">
+                  <h4 className="text-[13px] font-bold text-tinta">
                     Valor da proposta
                   </h4>
 
@@ -441,7 +442,7 @@ export default function PropostaModal({
                   </div>
 
                   {proposta.avisos.map((a, i) => (
-                    <p key={i} className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
+                    <p key={i} className="mt-2 rounded-2xl bg-amber-50 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
                       {a}
                     </p>
                   ))}
@@ -449,17 +450,17 @@ export default function PropostaModal({
 
                 <button
                   onClick={() => setFechado(!fechado)}
-                  className={`mb-3 min-h-[40px] w-full rounded-xl border text-[12.5px] font-medium transition ${
+                  className={`mb-3 min-h-[40px] w-full rounded-full border text-[12.5px] font-medium transition ${
                     fechado
                       ? 'border-emerald-600 bg-emerald-600 text-white'
                       : 'border-zinc-300 bg-white text-zinc-600 hover:border-emerald-500 hover:text-emerald-700'
                   }`}
                 >
-                  {fechado ? '✓ o cliente fechou' : 'marcar como fechado'}
+                  {fechado ? <><Check aria-hidden className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />o cliente fechou</> : 'marcar como fechado'}
                 </button>
 
-                <div className="mt-4 rounded-xl border border-zinc-200 bg-white p-4">
-                  <label className="block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4">
+                  <label className="block text-[13px] font-bold text-tinta">
                     Desconto de fechamento
                   </label>
                   <div className="mt-2 flex items-center gap-3">
@@ -518,7 +519,7 @@ export default function PropostaModal({
             <button
               onClick={copiarTexto}
               disabled={nenhumMarcado}
-              className="min-h-[44px] rounded-lg border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
+              className="min-h-[44px] rounded-full border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
             >
               {copiado ? 'Copiado!' : 'Copiar texto'}
             </button>
@@ -530,7 +531,7 @@ export default function PropostaModal({
               }}
               disabled={!salvouAlgumaVez}
               title={salvouAlgumaVez ? 'Link da proposta para mandar ao cliente' : 'Salve a proposta primeiro'}
-              className="min-h-[44px] rounded-lg border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
+              className="min-h-[44px] rounded-full border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 disabled:opacity-40"
             >
               {copiadoLink ? 'Link copiado!' : 'Copiar link'}
             </button>
@@ -540,13 +541,13 @@ export default function PropostaModal({
               rel="noopener noreferrer"
               aria-disabled={!salvouAlgumaVez}
               onClick={(e) => { if (!salvouAlgumaVez) e.preventDefault(); }}
-              className={`flex min-h-[44px] items-center rounded-lg border px-4 text-[13px] font-medium transition ${
+              className={`flex min-h-[44px] items-center rounded-full border px-4 text-[13px] font-medium transition ${
                 salvouAlgumaVez
                   ? 'border-zinc-300 text-zinc-700 hover:border-roxo-400 hover:text-roxo-700'
                   : 'pointer-events-none border-zinc-200 text-zinc-300'
               }`}
             >
-              Ver proposta ↗
+              Ver proposta <ArrowUpRight aria-hidden className="inline h-3.5 w-3.5 align-[-2px]" />
             </a>
             {fechado && (
               <a
@@ -555,19 +556,19 @@ export default function PropostaModal({
                 rel="noopener noreferrer"
                 aria-disabled={!salvouAlgumaVez}
                 onClick={(e) => { if (!salvouAlgumaVez) e.preventDefault(); }}
-                className={`flex min-h-[44px] items-center rounded-lg px-4 text-[13px] font-semibold transition ${
+                className={`flex min-h-[44px] items-center rounded-full px-4 text-[13px] font-semibold transition ${
                   salvouAlgumaVez
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                     : 'pointer-events-none bg-zinc-200 text-zinc-400'
                 }`}
               >
-                PDF do fechado ↗
+                PDF do fechado <ArrowUpRight aria-hidden className="inline h-3.5 w-3.5 align-[-2px]" />
               </a>
             )}
             <button
               onClick={salvar}
               disabled={guardando}
-              className="min-h-[44px] rounded-lg bg-roxo-600 px-5 text-[13px] font-semibold text-white transition hover:bg-roxo-700 disabled:opacity-60"
+              className="min-h-[44px] rounded-full bg-tinta px-5 text-[13px] font-semibold text-white transition hover:bg-tinta-70 disabled:opacity-60"
             >
               {guardando ? 'Salvando…' : 'Salvar proposta'}
             </button>

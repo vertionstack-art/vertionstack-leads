@@ -230,7 +230,7 @@ export function temperaturaDoLead(lead: Lead): Temperatura {
 
 /** classes de cor por nível, para a tabela e o cartão usarem o mesmo tom */
 export const CLASSE_NIVEL: Record<Nivel, string> = {
-  quente: 'bg-red-50 text-red-700 ring-red-200',
-  morno: 'bg-amber-50 text-amber-800 ring-amber-200',
-  frio: 'bg-zinc-100 text-zinc-500 ring-zinc-200',
+  quente: 'bg-rosa text-red-900 ring-red-200',
+  morno: 'bg-manteiga text-amber-900 ring-amber-200',
+  frio: 'bg-lavanda text-roxo-900 ring-roxo-200',
 };

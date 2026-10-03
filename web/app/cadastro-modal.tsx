@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 
 /**
  * Cadastro de um comércio à mão.
@@ -110,14 +111,14 @@ export default function CadastroModal({
     }
   }
 
-  const campo = 'min-h-[44px] w-full rounded-lg border border-zinc-300 px-3 text-[13.5px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100';
-  const rotulo = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500';
+  const campo = 'min-h-[44px] w-full rounded-full border border-zinc-300 px-4 text-[13.5px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100';
+  const rotulo = 'mb-1 block text-[13px] font-bold text-tinta';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" onClick={aoFechar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/40 p-4" onClick={aoFechar}>
       <form
         onSubmit={salvar}
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_24px_60px_rgba(11,11,15,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-6 py-4">
@@ -131,15 +132,15 @@ export default function CadastroModal({
             type="button"
             onClick={aoFechar}
             aria-label="Fechar"
-            className="shrink-0 rounded-lg px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+            className="shrink-0 rounded-full px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
           >
-            ×
+            <X aria-hidden className="h-4 w-4" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-6 py-5">
           {erro && (
-            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[12.5px] text-red-800">
+            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[12.5px] text-red-800">
               {erro}
             </div>
           )}
@@ -204,7 +205,7 @@ export default function CadastroModal({
               value={c.notes}
               onChange={set('notes')}
               rows={2}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-[13.5px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+              className="w-full rounded-2xl border border-zinc-300 px-3 py-2 text-[13.5px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
               placeholder="Indicação do João da pizzaria"
             />
           </div>
@@ -214,14 +215,14 @@ export default function CadastroModal({
           <button
             type="button"
             onClick={aoFechar}
-            className="min-h-[44px] rounded-lg border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-zinc-400"
+            className="min-h-[44px] rounded-full border border-zinc-300 px-4 text-[13px] font-medium text-zinc-700 transition hover:border-zinc-400"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={salvando || !c.name.trim()}
-            className="min-h-[44px] rounded-lg bg-roxo-600 px-5 text-[13px] font-semibold text-white transition hover:bg-roxo-700 disabled:bg-zinc-300"
+            className="min-h-[44px] rounded-full bg-tinta px-5 text-[13px] font-semibold text-white transition hover:bg-tinta-70 disabled:bg-zinc-300"
           >
             {salvando ? 'Salvando…' : 'Cadastrar'}
           </button>

@@ -1,6 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
+  MessageCircle, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2,
+} from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
@@ -12,20 +16,38 @@ import type { WebsiteKind } from '@/lib/classify';
 
 // --------------------------------------------------------- constantes
 
-const TIPOS: { kind: WebsiteKind; rotulo: string; classe: string }[] = [
-  { kind: 'none', rotulo: 'Sem site', classe: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  { kind: 'social', rotulo: 'Só rede social', classe: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  { kind: 'marketplace', rotulo: 'Só marketplace', classe: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  { kind: 'weak', rotulo: 'Site fraco', classe: 'bg-amber-50 text-amber-700 ring-amber-200' },
-  { kind: 'site', rotulo: 'Tem site', classe: 'bg-zinc-100 text-zinc-600 ring-zinc-200' },
+/*
+ * Os pastéis têm dono: rosa, manteiga e lavanda são só temperatura, menta é
+ * só a fila. Presença digital e status ficam neutros e se distinguem por um
+ * ponto colorido — senão "morno" e "só marketplace" saíam da mesma cor lado a
+ * lado e ninguém sabia qual era qual.
+ *
+ * `barra` é a cor do pedaço na barra de oportunidades do resumo: do mais
+ * urgente (sem nada, preto) ao que já tem site (branco, quase some). O mesmo
+ * ponto aparece no selo da tabela.
+ */
+const NEUTRO = 'bg-zinc-100 text-tinta ring-transparent';
+const TIPOS: { kind: WebsiteKind; rotulo: string; classe: string; barra: string }[] = [
+  { kind: 'none', rotulo: 'Sem site', classe: NEUTRO, barra: 'bg-tinta' },
+  { kind: 'social', rotulo: 'Só rede social', classe: NEUTRO, barra: 'bg-roxo-600' },
+  { kind: 'marketplace', rotulo: 'Só marketplace', classe: NEUTRO, barra: 'bg-roxo-400' },
+  { kind: 'weak', rotulo: 'Site fraco', classe: NEUTRO, barra: 'bg-roxo-200' },
+  { kind: 'site', rotulo: 'Tem site', classe: 'bg-white text-zinc-600 ring-zinc-200', barra: 'bg-white ring-1 ring-zinc-300' },
 ];
 
-const STATUS: { valor: Status; rotulo: string; classe: string }[] = [
-  { valor: 'novo', rotulo: 'Novo', classe: 'bg-white text-zinc-700 ring-zinc-300' },
-  { valor: 'contatado', rotulo: 'Contatado', classe: 'bg-blue-50 text-blue-700 ring-blue-200' },
-  { valor: 'negociando', rotulo: 'Negociando', classe: 'bg-roxo-100 text-roxo-800 ring-roxo-300' },
-  { valor: 'fechado', rotulo: 'Fechado', classe: 'bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  { valor: 'descartado', rotulo: 'Descartado', classe: 'bg-zinc-100 text-zinc-500 ring-zinc-200' },
+const STATUS: { valor: Status; rotulo: string; classe: string; ponto: string }[] = [
+  { valor: 'novo', rotulo: 'Novo', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-zinc-400' },
+  { valor: 'contatado', rotulo: 'Contatado', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-sky-500' },
+  { valor: 'negociando', rotulo: 'Negociando', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-roxo-600' },
+  { valor: 'fechado', rotulo: 'Fechado', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-emerald-600' },
+  { valor: 'descartado', rotulo: 'Descartado', classe: 'bg-white text-zinc-500 ring-zinc-200', ponto: 'bg-zinc-300' },
+];
+
+/** os três cartões de temperatura, cada um num campo pastel fixo */
+const NIVEIS: { nivel: Nivel; rotulo: string; dica: string; fundo: string; Icone: typeof Flame }[] = [
+  { nivel: 'quente', rotulo: 'Quentes', dica: 'ligar primeiro', fundo: 'bg-rosa', Icone: Flame },
+  { nivel: 'morno', rotulo: 'Mornos', dica: 'vale tentar', fundo: 'bg-manteiga', Icone: Sun },
+  { nivel: 'frio', rotulo: 'Frios', dica: 'por último', fundo: 'bg-lavanda', Icone: Snowflake },
 ];
 
 const PAGINA = 100;
@@ -33,13 +55,13 @@ const PAGINA = 100;
 /** como cada resultado da verificação aparece na tabela */
 const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean }> = {
   ok:             { rotulo: 'no ar',        classe: 'text-zinc-500',                         bom: true },
-  bloqueado:      { rotulo: 'não checado',  classe: 'text-zinc-400',                         bom: true },
-  sem_https:      { rotulo: 'sem HTTPS',    classe: 'text-amber-700 font-medium',            bom: false },
-  em_construcao:  { rotulo: 'site vazio',   classe: 'text-emerald-700 font-medium',          bom: false },
-  nao_encontrado: { rotulo: 'site com erro',classe: 'text-emerald-700 font-medium',          bom: false },
-  fora_do_ar:     { rotulo: 'FORA DO AR',   classe: 'text-emerald-700 font-semibold',        bom: false },
-  virou_social:   { rotulo: 'vai p/ social',classe: 'text-emerald-700 font-medium',          bom: false },
-  certificado_vencido: { rotulo: 'certificado vencido', classe: 'text-emerald-700 font-medium', bom: false },
+  bloqueado:      { rotulo: 'não checado',  classe: 'text-zinc-500',                         bom: true },
+  sem_https:      { rotulo: 'sem HTTPS',    classe: 'text-amber-800 font-semibold',          bom: false },
+  em_construcao:  { rotulo: 'site vazio',   classe: 'text-emerald-800 font-semibold',        bom: false },
+  nao_encontrado: { rotulo: 'site com erro',classe: 'text-emerald-800 font-semibold',        bom: false },
+  fora_do_ar:     { rotulo: 'FORA DO AR',   classe: 'text-emerald-800 font-bold',            bom: false },
+  virou_social:   { rotulo: 'vai p/ social',classe: 'text-emerald-800 font-semibold',        bom: false },
+  certificado_vencido: { rotulo: 'certificado vencido', classe: 'text-emerald-800 font-semibold', bom: false },
 };
 
 // ------------------------------------------------------------- utils
@@ -57,34 +79,114 @@ function tipoDe(kind: WebsiteKind) {
   return TIPOS.find((t) => t.kind === kind) || TIPOS[4];
 }
 
+/** primeira letra que não seja artigo nem símbolo — vira o "logo" do lead na tabela */
+function inicial(nome: string): string {
+  const palavra = nome.trim().split(/\s+/).find((p) => !/^(a|o|as|os|da|do|de|e|&)$/i.test(p)) || nome;
+  return (palavra.match(/[\p{L}\p{N}]/u)?.[0] || '•').toUpperCase();
+}
+
 // ------------------------------------------------------------ pedaços
 
-function Selo({ children, classe }: { children: React.ReactNode; classe: string }) {
+function Selo({ children, classe, ponto }: { children: React.ReactNode; classe: string; ponto?: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset whitespace-nowrap ${classe}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold ring-1 ring-inset whitespace-nowrap ${classe}`}>
+      {ponto && <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ponto}`} />}
       {children}
     </span>
   );
 }
 
-function Cartao({
-  numero, rotulo, destaque, ativo, onClick,
+/** botão da barra lateral preta: só o ícone, com o nome aparecendo ao passar o mouse */
+function ItemTrilho({
+  rotulo, ativo, onClick, href, children,
 }: {
-  numero: number; rotulo: string; destaque?: boolean; ativo?: boolean; onClick?: () => void;
+  rotulo: string; ativo?: boolean; onClick?: () => void; href?: string; children: React.ReactNode;
+}) {
+  const classe = `group relative flex h-12 w-12 items-center justify-center rounded-2xl transition-colors duration-200 ${
+    ativo ? 'bg-white/12 text-white' : 'text-white/55 hover:bg-white/8 hover:text-white'
+  }`;
+  const dica = (
+    <span className="pointer-events-none absolute left-[60px] top-1/2 z-30 -translate-y-1/2 translate-x-[-4px] whitespace-nowrap rounded-lg bg-tinta px-2.5 py-1.5 text-[12px] font-semibold text-white opacity-0 shadow-[0_6px_16px_rgba(11,11,15,0.25)] transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:opacity-100">
+      {rotulo}
+    </span>
+  );
+  if (href) {
+    return (
+      <a href={href} aria-label={rotulo} className={classe}>
+        {ativo && <span className="absolute -left-[14px] h-6 w-[3px] rounded-r-full bg-white" />}
+        {children}
+        {dica}
+      </a>
+    );
+  }
+  return (
+    <button onClick={onClick} aria-label={rotulo} className={classe}>
+      {ativo && <span className="absolute -left-[14px] h-6 w-[3px] rounded-r-full bg-white" />}
+      {children}
+      {dica}
+    </button>
+  );
+}
+
+/** select com cara de pílula, igual aos filtros "24h ▾" da referência */
+function Pilula({
+  value, onChange, children, titulo, largura,
+}: {
+  value: string; onChange: (v: string) => void; children: React.ReactNode; titulo: string; largura?: string;
+}) {
+  return (
+    <label className={`relative inline-flex shrink-0 ${largura || ''}`}>
+      <span className="sr-only">{titulo}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        title={titulo}
+        className="min-h-[40px] w-full cursor-pointer appearance-none truncate rounded-full border border-zinc-200 bg-white py-2 pl-4 pr-9 text-[13px] font-semibold text-tinta outline-none transition-colors hover:border-zinc-400 focus-visible:border-roxo-500"
+      >
+        {children}
+      </select>
+      <ChevronDown aria-hidden className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+    </label>
+  );
+}
+
+/** liga/desliga em forma de pílula — substitui as caixinhas de marcar */
+function Alternador({
+  ligado, onClick, children, titulo,
+}: {
+  ligado: boolean; onClick: () => void; children: React.ReactNode; titulo?: string;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl border px-4 py-3 text-left transition ${
-        ativo
-          ? 'border-roxo-600 bg-roxo-50 ring-2 ring-roxo-200'
-          : 'border-zinc-200 bg-white hover:border-roxo-300'
-      } ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
+      title={titulo}
+      aria-pressed={ligado}
+      className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-colors duration-200 ${
+        ligado ? 'bg-tinta text-white' : 'border border-zinc-200 bg-white text-tinta hover:border-zinc-400'
+      }`}
     >
-      <div className={`text-2xl font-semibold tabular-nums ${destaque ? 'text-roxo-700' : 'text-tinta'}`}>
-        {numero.toLocaleString('pt-BR')}
-      </div>
-      <div className="mt-0.5 text-xs text-zinc-500">{rotulo}</div>
+      {ligado && <Check aria-hidden className="h-3.5 w-3.5" />}
+      {children}
+    </button>
+  );
+}
+
+/** botão de ação de cada lead na tabela: cinza enquanto falta, preto quando feito */
+function Acao({
+  onClick, titulo, feito, children,
+}: {
+  onClick: () => void; titulo: string; feito?: boolean; children: React.ReactNode;
+}) {
+  const cores = feito ? 'bg-tinta text-white hover:bg-tinta-70' : 'bg-zinc-100 text-tinta hover:bg-zinc-200';
+  return (
+    <button
+      onClick={onClick}
+      title={titulo}
+      aria-pressed={feito}
+      className={`inline-flex items-center justify-center gap-1 rounded-full px-2 py-1.5 text-[10.5px] font-bold tracking-wide transition-colors duration-150 ${cores}`}
+    >
+      {feito && <Check aria-hidden className="h-3 w-3" />}
+      {children}
     </button>
   );
 }
@@ -332,744 +434,855 @@ export default function Painel({
   // o servidor já conta as oportunidades pelo is_lead, que a verificação de
   // site também altera; a soma dos tipos ignoraria os sites que caíram
   const quentes = resumo.oportunidades ?? ((resumo.none || 0) + (resumo.social || 0) + (resumo.marketplace || 0) + (resumo.weak || 0));
-  const filtroLimpo = !buscaDebounce && !kinds.length && !statusFiltro.length && !cidade && !categoria && !comTelefone && !siteQuebrado && !dePessoa;
   const ultimaPagina = (pagina + 1) * PAGINA >= total;
 
+  const totalMapeado = resumo.total || 0;
+  const naFilaQtd = resumo.na_fila || 0;
+  const somaNiveis = NIVEIS.reduce((s, n) => s + (resumo['temp_' + n.nivel] || 0), 0);
+  const todasOportunidades = kinds.length === 4 && !kinds.includes('site');
+
+  function limparFiltros() {
+    setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria('');
+    setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setNiveis([]); setNaFila(false); setPagina(0);
+  }
+
+  async function sair() {
+    await fetch('/api/auth', { method: 'DELETE' });
+    location.href = '/login';
+  }
+
+  /** o cartão preto: a próxima coisa a fazer fora da lista; no celular ele desce para depois dos leads */
+  const cartaoFila = (extra: string) => (
+  <aside className={`relative isolate min-h-[200px] flex-col overflow-hidden rounded-[24px] bg-tinta p-5 text-white ${extra}`}>
+    <svg aria-hidden viewBox="0 0 160 120" className="absolute -right-20 -top-14 -z-10 h-[150px] w-[200px] text-white/15" fill="none" stroke="currentColor" strokeWidth="1">
+      <rect x="40" y="20" width="110" height="80" rx="14" transform="rotate(-12 95 60)" />
+      <rect x="20" y="34" width="110" height="80" rx="14" transform="rotate(-4 75 74)" />
+    </svg>
+    <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em]">
+      Fila do{' '}
+      <span className="inline-block -rotate-2 rounded-full border border-white/70 px-2.5 py-0.5 text-[18px]">disparador</span>
+    </h2>
+    <p className="mt-2 max-w-[220px] text-[13px] leading-relaxed text-white/70">
+      {naFilaQtd
+        ? `${naFilaQtd} ${naFilaQtd === 1 ? 'lead esperando' : 'leads esperando'} o programa de disparo mandar o WhatsApp.`
+        : 'Nenhum lead na fila. Marque CONTACT nos que valem a mensagem.'}
+    </p>
+    <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
+      <button
+        onClick={() => { setNaFila((v) => !v); setPagina(0); }}
+        aria-pressed={naFila}
+        className="min-h-[40px] rounded-full bg-menta px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-white"
+      >
+        {naFila ? 'Mostrar todos' : 'Ver a fila'}
+      </button>
+      <a
+        href="/extensao"
+        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white"
+      >
+        <Puzzle aria-hidden className="h-4 w-4" />
+        Extensão
+      </a>
+      {(faltamVerif > 0 || verificando) && (
+        <button
+          onClick={verificarSites}
+          disabled={verificando}
+          title="Abre cada site cadastrado para ver se está mesmo no ar"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white disabled:opacity-60"
+        >
+          <ShieldCheck aria-hidden className="h-4 w-4" />
+          {verificando ? 'Conferindo…' : `Conferir ${faltamVerif} sites`}
+        </button>
+      )}
+    </div>
+  </aside>
+  );
+
   return (
-    <div className="min-h-screen">
-      {/* ------------------------------------------------------ topo */}
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-6 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-roxo-600 ring-4 ring-roxo-100" />
-            <div>
-              <h1 className="text-[15px] font-semibold leading-tight tracking-tight">Vertion Leads</h1>
-              <p className="text-[11px] leading-tight text-zinc-500">comércios sem site próprio</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {(faltamVerif > 0 || verificando) && (
-              <button
-                onClick={verificarSites}
-                disabled={verificando}
-                title="Abre cada site cadastrado para ver se está mesmo no ar"
-                className="flex min-h-[40px] items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-medium text-emerald-800 transition hover:border-emerald-500 disabled:opacity-60 md:min-h-0 md:py-1.5"
-              >
-                {verificando ? 'Conferindo sites…' : `Conferir ${faltamVerif} sites`}
-              </button>
-            )}
-            <button
-              onClick={() => setCadastrando(true)}
-              title="Cadastrar um comércio à mão"
-              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
-            >
-              + Cadastrar
-            </button>
-            <a
-              href="/extensao"
-              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
-            >
-              Extensão
-            </a>
-            <span className="ml-1 border-l border-zinc-200 pl-3 text-xs text-zinc-500">
-              {usuario}
-              <button
-                onClick={async () => { await fetch('/api/auth', { method: 'DELETE' }); location.href = '/login'; }}
-                className="ml-2 inline-flex min-h-[40px] items-center px-1 underline underline-offset-2 hover:text-roxo-700 md:min-h-0"
-              >
-                sair
-              </button>
-            </span>
-            <a
-              href={'/api/leads/export?' + query}
-              className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700 md:min-h-0 md:py-1.5"
-            >
-              Baixar CSV
-            </a>
-            {total > 0 && (
-              <button
-                onClick={() => { setConfirmandoLote(true); setTextoConfirma(''); }}
-                title={temFiltro ? 'Apagar os leads que estão filtrados agora' : 'Apagar todos os leads'}
-                className="flex min-h-[40px] items-center rounded-lg border border-zinc-300 px-3 text-xs font-medium text-zinc-600 transition hover:border-red-400 hover:bg-red-50 hover:text-red-700 md:min-h-0 md:py-1.5"
-              >
-                {temFiltro ? `Excluir os ${total}` : 'Excluir todos'}
-              </button>
-            )}
-            <button
-              onClick={carregar}
-              className="min-h-[40px] rounded-lg bg-roxo-600 px-3 text-xs font-medium text-white transition hover:bg-roxo-700 md:min-h-0 md:py-1.5"
-            >
-              {carregando ? 'Atualizando…' : 'Atualizar'}
-            </button>
-          </div>
+    <div className="min-h-screen md:pl-[104px]">
+      {/* ------------------------------------------- trilho preto (desktop) */}
+      <nav
+        aria-label="Menu"
+        className="fixed inset-y-3 left-3 z-30 hidden w-[80px] flex-col items-center rounded-[26px] bg-tinta py-5 md:flex"
+      >
+        <span className="mb-8 flex h-12 w-12 items-center justify-center rounded-2xl bg-roxo-200 text-[20px] font-extrabold text-tinta">
+          V
+        </span>
+        <div className="flex flex-col items-center gap-2">
+          <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+            <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
+          <ItemTrilho rotulo="Cadastrar comércio" onClick={() => setCadastrando(true)}>
+            <Plus className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
+          <ItemTrilho rotulo="Extensão do Maps" href="/extensao">
+            <Puzzle className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
+          <ItemTrilho rotulo="Baixar CSV" href={'/api/leads/export?' + query}>
+            <Download className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
+          <ItemTrilho rotulo={carregando ? 'Atualizando…' : 'Atualizar'} onClick={carregar}>
+            <RefreshCw className={`h-5 w-5 ${carregando ? 'animate-spin' : ''}`} strokeWidth={1.8} />
+          </ItemTrilho>
         </div>
-      </header>
+        <div className="mt-auto">
+          <ItemTrilho rotulo="Sair" onClick={sair}>
+            <LogOut className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
+        </div>
+      </nav>
 
-      <main className="mx-auto max-w-[1500px] px-6 py-6">
-        {/* --------------------------------------------------- avisos */}
-        {semBanco && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
-            <b>Sem banco de dados.</b> Os leads que chegarem não vão sobreviver a um novo deploy nem a uma pausa
-            do servidor. Na Vercel, vá em <em>Storage → Create Database → Neon</em> e conecte ao projeto; a
-            variável <code className="rounded bg-amber-100 px-1">DATABASE_URL</code> aparece sozinha.
-          </div>
-        )}
-        {semSenha && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-900">
-            <b>Painel sem senha.</b> Qualquer pessoa com o endereço vê seus leads. Crie a variável{' '}
-            <code className="rounded bg-red-100 px-1">DASHBOARD_PASSWORD</code> na Vercel.
-          </div>
-        )}
-        {erro && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-800">{erro}</div>
-        )}
+      {/* ------------------------------------------- doca preta (celular) */}
+      <nav
+        aria-label="Menu"
+        className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-around rounded-[22px] bg-tinta px-2 py-1.5 shadow-[0_10px_30px_rgba(11,11,15,0.25)] md:hidden"
+      >
+        {[
+          { rotulo: 'Painel', Icone: LayoutGrid, acao: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+          { rotulo: 'Cadastrar', Icone: Plus, acao: () => setCadastrando(true) },
+          { rotulo: 'Atualizar', Icone: RefreshCw, acao: carregar },
+        ].map(({ rotulo, Icone, acao }) => (
+          <button key={rotulo} onClick={acao} className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
+            <Icone className="h-5 w-5" strokeWidth={1.8} />
+            {rotulo}
+          </button>
+        ))}
+        <a href="/extensao" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
+          <Puzzle className="h-5 w-5" strokeWidth={1.8} />
+          Extensão
+        </a>
+      </nav>
 
-        {progressoVerif && (
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13px] text-emerald-900">
-            {verificando ? (
-              <>
-                Conferindo os sites: <b>{progressoVerif.feitos}</b> checados
-                {progressoVerif.faltam > 0 && `, ${progressoVerif.faltam} na fila`}.
-                {progressoVerif.achados > 0 && (
-                  <> Já achei <b>{progressoVerif.achados}</b> que não estão de pé.</>
-                )}
-              </>
-            ) : (
-              <>
-                Conferi <b>{progressoVerif.feitos}</b> sites.{' '}
-                {progressoVerif.achados > 0 ? (
+      {/* ------------------------------------------------- folha branca */}
+      <div className="px-3 pb-28 pt-3 md:py-3 md:pl-0 md:pr-3">
+        <div className="min-h-[calc(100vh-24px)] overflow-x-clip rounded-[var(--radius-folha)] bg-white px-5 pb-8 pt-6 md:px-9 md:pt-8">
+          {/* ------------------------------------------------- topo */}
+          <header className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Visão geral</h1>
+              <p className="mt-1.5 text-[13px] font-medium text-zinc-500">Comércios do Maps que ainda não têm site próprio</p>
+            </div>
+
+            <div className="flex w-full items-center gap-2.5 sm:w-auto">
+              <label className="relative flex-1 sm:w-[300px] sm:flex-none">
+                <span className="sr-only">Buscar lead</span>
+                <Search aria-hidden className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+                <input
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  placeholder="Nome, telefone, endereço…"
+                  className="min-h-[44px] w-full rounded-full bg-zinc-100 pl-10 pr-4 text-[13.5px] font-medium outline-none transition-colors placeholder:text-zinc-600 focus:bg-white focus:ring-2 focus:ring-roxo-200"
+                />
+              </label>
+              <details className="group relative">
+                <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 rounded-full bg-zinc-100 py-1 pl-1 pr-3 transition-colors hover:bg-zinc-200 [&::-webkit-details-marker]:hidden">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-roxo-200 text-[14px] font-extrabold uppercase text-tinta">
+                    {usuario.slice(0, 1)}
+                  </span>
+                  <span className="hidden text-[13px] font-bold capitalize sm:inline">{usuario}</span>
+                  <ChevronDown aria-hidden className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="absolute right-0 top-[calc(100%+8px)] z-40 w-52 rounded-2xl bg-white p-1.5 shadow-[0_12px_32px_rgba(11,11,15,0.14)] ring-1 ring-zinc-200">
+                  <a href={'/api/leads/export?' + query} className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Download aria-hidden className="h-4 w-4 text-zinc-500" /> Baixar CSV
+                  </a>
+                  <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
+                  </a>
+                  <button onClick={sair} className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-semibold hover:bg-zinc-100">
+                    <LogOut aria-hidden className="h-4 w-4 text-zinc-500" /> Sair
+                  </button>
+                </div>
+              </details>
+            </div>
+          </header>
+
+          {/* ------------------------------------------------- avisos */}
+          <div className="mt-6 space-y-3 empty:hidden">
+            {semBanco && (
+              <div className="rounded-2xl bg-manteiga px-5 py-3.5 text-[13px] leading-relaxed text-amber-950">
+                <b>Sem banco de dados.</b> Os leads que chegarem não vão sobreviver a um novo deploy nem a uma pausa
+                do servidor. Na Vercel, vá em <em>Storage → Create Database → Neon</em> e conecte ao projeto; a
+                variável <code className="rounded bg-white/70 px-1">DATABASE_URL</code> aparece sozinha.
+              </div>
+            )}
+            {semSenha && (
+              <div className="rounded-2xl bg-rosa px-5 py-3.5 text-[13px] leading-relaxed text-red-950">
+                <b>Painel sem senha.</b> Qualquer pessoa com o endereço vê seus leads. Crie a variável{' '}
+                <code className="rounded bg-white/70 px-1">DASHBOARD_PASSWORD</code> na Vercel.
+              </div>
+            )}
+            {erro && (
+              <div role="alert" className="rounded-2xl bg-rosa px-5 py-3.5 text-[13px] font-medium text-red-950">{erro}</div>
+            )}
+            {progressoVerif && (
+              <div role="status" className="rounded-2xl bg-menta px-5 py-3.5 text-[13px] leading-relaxed text-emerald-950">
+                {verificando ? (
                   <>
-                    <b>{progressoVerif.achados}</b> não estavam no ar e viraram oportunidade — eles
-                    aparecem como <em>site fora do ar</em>, <em>site vazio</em> ou{' '}
-                    <em>vai p/ social</em> na coluna de presença digital.
+                    Conferindo os sites: <b>{progressoVerif.feitos}</b> checados
+                    {progressoVerif.faltam > 0 && `, ${progressoVerif.faltam} na fila`}.
+                    {progressoVerif.achados > 0 && (
+                      <> Já achei <b>{progressoVerif.achados}</b> que não estão de pé.</>
+                    )}
                   </>
                 ) : (
-                  'Todos estavam no ar.'
+                  <>
+                    Conferi <b>{progressoVerif.feitos}</b> sites.{' '}
+                    {progressoVerif.achados > 0 ? (
+                      <>
+                        <b>{progressoVerif.achados}</b> não estavam no ar e viraram oportunidade — eles
+                        aparecem como <em>site fora do ar</em>, <em>site vazio</em> ou{' '}
+                        <em>vai p/ social</em> na coluna de presença digital.
+                      </>
+                    ) : (
+                      'Todos estavam no ar.'
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* --------------------------------------------------- resumo */}
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Cartao
-            numero={resumo.total || 0}
-            rotulo="comércios mapeados"
-            ativo={filtroLimpo}
-            onClick={() => { setKinds([]); setStatusFiltro([]); setBusca(''); setCidade(''); setCategoria(''); setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setPagina(0); }}
-          />
-          <Cartao
-            numero={quentes}
-            rotulo="oportunidades"
-            destaque
-            ativo={kinds.length === 4}
-            onClick={() => { setKinds(['none', 'social', 'marketplace', 'weak']); setSiteQuebrado(false); setPagina(0); }}
-          />
-          {TIPOS.slice(0, 4).map((t) => (
-            <Cartao
-              key={t.kind}
-              numero={resumo[t.kind] || 0}
-              rotulo={t.rotulo.toLowerCase()}
-              ativo={kinds.length === 1 && kinds[0] === t.kind}
-              onClick={() => { setKinds(kinds.length === 1 && kinds[0] === t.kind ? [] : [t.kind]); setPagina(0); }}
-            />
-          ))}
-        </div>
-
-        {/* -------------------------------------------------- filtros */}
-        <div className="mb-4 rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por nome, telefone, endereço…"
-              className="min-h-[44px] min-w-[240px] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
-            />
-
-            <select
-              value={cidade}
-              onChange={(e) => { setCidade(e.target.value); setPagina(0); }}
-              className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
-            >
-              <option value="">Todas as cidades</option>
-              {cidades.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-
-            <select
-              value={categoria}
-              onChange={(e) => { setCategoria(e.target.value); setPagina(0); }}
-              className="min-h-[44px] max-w-[200px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
-            >
-              <option value="">Todas as categorias</option>
-              {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-
-            <select
-              value={ordem}
-              onChange={(e) => { setOrdem(e.target.value as typeof ordem); setPagina(0); }}
-              className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
-            >
-              <option value="temperatura">Mais quentes primeiro</option>
-              <option value="recentes">Mais recentes</option>
-              <option value="avaliacoes">Mais avaliados</option>
-              <option value="nome">Ordem alfabética</option>
-            </select>
-
-            <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-[13px] text-zinc-700">
-              <input
-                type="checkbox"
-                checked={comTelefone}
-                onChange={(e) => { setComTelefone(e.target.checked); setPagina(0); }}
-                className="h-5 w-5 accent-roxo-600"
-              />
-              Só com telefone
-            </label>
-
-            {equipe.length > 1 && (
-              <select
-                value={dePessoa}
-                onChange={(e) => { setDePessoa(e.target.value); setPagina(0); }}
-                className="min-h-[44px] rounded-lg border border-zinc-300 px-3 py-2 text-[13px] outline-none focus:border-roxo-500"
-                title="Quem está cuidando do lead"
-              >
-                <option value="">Todo mundo</option>
-                <option value={usuario}>Meus ({resumo['de_' + usuario] || 0})</option>
-                <option value="ninguem">Sem dono ({resumo.de_ninguem || 0})</option>
-                {equipe.filter((n) => n !== usuario).map((n) => (
-                  <option key={n} value={n}>
-                    De {n} ({resumo['de_' + n] || 0})
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {(resumo.site_quebrado ?? 0) > 0 && (
-              <label
-                className="flex min-h-[44px] cursor-pointer items-center gap-2 text-[13px] text-emerald-800"
-                title="Comércios cujo site cadastrado no Google não está de pé"
-              >
-                <input
-                  type="checkbox"
-                  checked={siteQuebrado}
-                  onChange={(e) => { setSiteQuebrado(e.target.checked); setPagina(0); }}
-                  className="h-5 w-5 accent-emerald-600"
-                />
-                Site não está de pé <span className="text-emerald-600">({resumo.site_quebrado})</span>
-              </label>
+              </div>
             )}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-zinc-100 pt-3">
-            {(
-              [
-                ['quente', 'Quentes', 'bg-red-50 text-red-700 ring-red-200'],
-                ['morno', 'Mornos', 'bg-amber-50 text-amber-800 ring-amber-200'],
-                ['frio', 'Frios', 'bg-zinc-100 text-zinc-500 ring-zinc-200'],
-              ] as [Nivel, string, string][]
-            ).map(([n, rotulo, classe]) => (
-              <button
-                key={n}
-                onClick={() => { alternar(niveis, setNiveis, n); setPagina(0); }}
-                title={`Mostrar só os leads ${rotulo.toLowerCase()}`}
-                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-semibold ring-1 transition ${
-                  niveis.includes(n) ? 'bg-roxo-600 text-white ring-roxo-600' : classe + ' ring-inset hover:ring-roxo-300'
-                }`}
-              >
-                {rotulo} <span className="opacity-60">{resumo['temp_' + n] || 0}</span>
-              </button>
-            ))}
-            <button
-              onClick={() => { setNaFila((v) => !v); setPagina(0); }}
-              title="Mostrar só os leads que estão na fila de contato"
-              className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-semibold ring-1 transition ${
-                naFila
-                  ? 'bg-roxo-600 text-white ring-roxo-600'
-                  : 'bg-sky-50 text-sky-700 ring-inset ring-sky-200 hover:ring-roxo-300'
-              }`}
-            >
-              Contact <span className="opacity-60">{resumo.na_fila || 0}</span>
-            </button>
-            <span className="mx-2 w-px self-stretch bg-zinc-200" />
-            {TIPOS.map((t) => (
-              <button
-                key={t.kind}
-                onClick={() => alternar(kinds, setKinds, t.kind)}
-                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-medium ring-1 transition ${
-                  kinds.includes(t.kind) ? 'bg-roxo-600 text-white ring-roxo-600' : t.classe + ' ring-inset hover:ring-roxo-300'
-                }`}
-              >
-                {t.rotulo} <span className="opacity-60">{resumo[t.kind] || 0}</span>
-              </button>
-            ))}
-            <span className="mx-2 w-px self-stretch bg-zinc-200" />
-            {STATUS.map((s) => (
-              <button
-                key={s.valor}
-                onClick={() => alternar(statusFiltro, setStatusFiltro, s.valor)}
-                className={`min-h-[36px] rounded-full px-3 py-1.5 text-[11.5px] font-medium ring-1 transition ${
-                  statusFiltro.includes(s.valor) ? 'bg-tinta text-white ring-tinta' : s.classe + ' ring-inset hover:ring-zinc-400'
-                }`}
-              >
-                {s.rotulo} <span className="opacity-60">{resumo['status_' + s.valor] || 0}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+          {/* ---------------------------------- resumo: oportunidades + temperatura */}
+          <section className="mt-8 grid gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <div>
+              <h2 className="mb-4 text-[19px] font-extrabold tracking-[-0.02em]">Oportunidades</h2>
+              <div className="flex min-h-[200px] flex-col rounded-[24px] bg-ceu p-6 lg:h-[236px]">
+                <div className="flex items-start justify-between gap-4">
+                  <button
+                    onClick={() => {
+                      setKinds(todasOportunidades ? [] : ['none', 'social', 'marketplace', 'weak']);
+                      setSiteQuebrado(false); setPagina(0);
+                    }}
+                    aria-pressed={todasOportunidades}
+                    title="Mostrar só quem ainda não tem site próprio"
+                    className="text-left"
+                  >
+                    <span className="block text-[40px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">
+                      {quentes.toLocaleString('pt-BR')}
+                    </span>
+                    <span className="mt-2 block text-[13px] font-semibold text-sky-950/70">
+                      sem site próprio, de {totalMapeado.toLocaleString('pt-BR')} mapeados
+                    </span>
+                  </button>
+                  <button
+                    onClick={limparFiltros}
+                    disabled={!temFiltro && !niveis.length}
+                    className="min-h-[36px] shrink-0 rounded-full bg-white px-4 text-[12px] font-bold text-tinta shadow-[0_2px_8px_rgba(11,11,15,0.08)] transition-opacity disabled:opacity-0"
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
 
-        {/* --------------------------------------------------- tabela */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-          {/* no celular a tabela vira cartões: sete colunas em 375px seria
-              rolagem lateral justamente na hora de ligar para o comércio */}
-          <div className="md:hidden">
-            {leads.map((lead) => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                usuario={usuario}
-                statusLista={STATUS}
-                tipo={tipoDe(lead.websiteKind)}
-                siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
-                linkWhatsApp={linkWhatsApp(lead.phone)}
-                onStatus={(st) => salvarPatch(lead.id, { status: st })}
-                onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
-                onApagar={() => apagar(lead.id, lead.name)}
-                onFila={() => alternarFila(lead)}
-                onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
-                onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
-                onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
-                onProposta={() => setPropostaDe(lead)}
-                onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
-                editandoNota={notaAberta === lead.id}
-                rascunho={rascunho}
-                setRascunho={setRascunho}
-                onSalvarNota={() => { salvarPatch(lead.id, { notes: rascunho }); setNotaAberta(null); }}
-                onCancelarNota={() => setNotaAberta(null)}
-              />
-            ))}
-          </div>
-
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-left text-[13px]">
-              <thead className="border-b border-zinc-200 bg-zinc-50 text-[11px] uppercase tracking-wide text-zinc-500">
-                <tr>
-                  <th className="px-4 py-2.5 font-semibold">Comércio</th>
-                  <th className="px-4 py-2.5 font-semibold">Presença digital</th>
-                  <th className="px-4 py-2.5 font-semibold">Contato</th>
-                  <th className="px-4 py-2.5 font-semibold">Onde fica</th>
-                  <th className="px-4 py-2.5 text-center font-semibold">Reputação</th>
-                  <th className="px-4 py-2.5 font-semibold">Status</th>
-                  <th className="sticky right-0 z-10 bg-zinc-50 px-3 py-2.5" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {leads.map((lead) => {
-                  const t = tipoDe(lead.websiteKind);
-                  const zap = linkWhatsApp(lead.phone);
-                  return (
-                    <tr key={lead.id} className="group align-top transition hover:bg-roxo-50/40">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium leading-snug">{lead.name}</span>
-                          {(() => {
-                            const t = temperaturaDoLead(lead);
-                            return (
-                              <span
-                                title={[
-                                  `${t.rotulo} — ${t.pontos} de 100`,
-                                  ...t.motivos.map((m) => '• ' + m),
-                                  ...t.freios.map((f) => '⚠ ' + f),
-                                ].join(String.fromCharCode(10))}
-                                className={`shrink-0 cursor-help rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset ${CLASSE_NIVEL[t.nivel]}`}
-                              >
-                                {t.rotulo}
-                              </span>
-                            );
-                          })()}
-                        </div>
-                        {lead.category && <div className="mt-0.5 text-[11.5px] text-zinc-500">{lead.category}</div>}
-                        {notaAberta === lead.id ? (
-                          <div className="mt-2">
-                            <textarea
-                              value={rascunho}
-                              onChange={(e) => setRascunho(e.target.value)}
-                              rows={3}
-                              autoFocus
-                              placeholder="O que rolou nesse contato…"
-                              className="w-full rounded-lg border border-roxo-300 px-2 py-1.5 text-[12px] outline-none focus:ring-2 focus:ring-roxo-100"
-                            />
-                            <div className="mt-1 flex gap-2">
-                              <button
-                                onClick={() => { salvarPatch(lead.id, { notes: rascunho }); setNotaAberta(null); }}
-                                className="rounded bg-roxo-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-roxo-700"
-                              >
-                                Salvar
-                              </button>
-                              <button onClick={() => setNotaAberta(null)} className="text-[11px] text-zinc-500 hover:text-zinc-800">
-                                cancelar
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
-                            className="mt-1 block max-w-[260px] truncate text-left text-[11.5px] text-roxo-700 hover:underline"
-                          >
-                            {lead.notes ? `“${lead.notes}”` : '+ anotação'}
-                          </button>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <Selo classe={t.classe}>{t.rotulo}</Selo>
-                        {lead.website && (
-                          <a
-                            href={lead.website}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow"
-                            className="mt-1 block max-w-[200px] truncate text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
-                            title={lead.website}
-                          >
-                            {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
-                          </a>
-                        )}
-                        {lead.instagram && (
-                          <a
-                            href={lead.instagram}
-                            target="_blank"
-                            rel="noopener noreferrer nofollow"
-                            className="mt-1 block text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
-                          >
-                            {'@' + lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}
-                          </a>
-                        )}
-                        {lead.siteStatus && SITE_STATUS[lead.siteStatus] && (
-                          <div
-                            className={`mt-1 text-[11px] ${SITE_STATUS[lead.siteStatus].classe}`}
-                            title={lead.siteDetalhe || ''}
-                          >
-                            {SITE_STATUS[lead.siteStatus].bom ? '' : '⚠ '}
-                            {SITE_STATUS[lead.siteStatus].rotulo}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {lead.phone ? (
-                          <div className="flex flex-col gap-1">
-                            <button
-                              onClick={() => copiar(lead.phone!, lead.id)}
-                              className="text-left font-medium tabular-nums text-zinc-800 hover:text-roxo-700"
-                              title="Clique para copiar"
-                            >
-                              {copiado === lead.id ? 'copiado!' : lead.phone}
-                            </button>
-                            {zap && (
-                              <a
-                                href={zap}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-fit rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 hover:bg-emerald-100"
-                              >
-                                WhatsApp
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-[12px] text-zinc-400">sem telefone</span>
-                        )}
-                      </td>
-
-                      <td className="max-w-[240px] px-4 py-3">
-                        <div className="truncate text-zinc-700" title={lead.address || ''}>
-                          {lead.address || '—'}
-                        </div>
-                        {lead.city && <div className="mt-0.5 text-[11.5px] text-zinc-500">{lead.city}</div>}
-                      </td>
-
-                      <td className="px-4 py-3 text-center">
-                        {lead.rating ? (
-                          <>
-                            <div className="font-medium tabular-nums">{lead.rating.toFixed(1)}</div>
-                            <div className="text-[11px] text-zinc-500">{lead.reviews ?? 0} aval.</div>
-                          </>
-                        ) : (
-                          <span className="text-[12px] text-zinc-400">—</span>
-                        )}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <select
-                          value={lead.status}
-                          onChange={(e) => salvarPatch(lead.id, { status: e.target.value as Status })}
-                          className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-[12px] outline-none focus:border-roxo-500"
+                {/* a barra divide a base inteira por presença digital: o preto é quem não tem nada */}
+                <div className="mt-6 lg:mt-auto">
+                  <div className="flex h-3 w-full overflow-hidden rounded-full bg-white/70" aria-hidden>
+                    {totalMapeado > 0 &&
+                      TIPOS.map((t) => {
+                        const n = resumo[t.kind] || 0;
+                        if (!n) return null;
+                        return <span key={t.kind} className={`${t.barra} h-full`} style={{ width: `${(n / totalMapeado) * 100}%` }} />;
+                      })}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {TIPOS.map((t) => {
+                      const ativo = kinds.includes(t.kind);
+                      return (
+                        <button
+                          key={t.kind}
+                          onClick={() => alternar(kinds, setKinds, t.kind)}
+                          aria-pressed={ativo}
+                          className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition-colors duration-150 ${
+                            ativo ? 'bg-tinta text-white' : 'bg-white/60 text-sky-950 hover:bg-white'
+                          }`}
                         >
-                          {STATUS.map((s) => <option key={s.valor} value={s.valor}>{s.rotulo}</option>)}
-                        </select>
-                        {lead.responsavel && (
-                          <div
-                            className={`mt-1 text-[11px] ${
-                              lead.responsavel === usuario ? 'text-roxo-700 font-medium' : 'text-amber-700'
-                            }`}
-                            title={
-                              lead.responsavel === usuario
-                                ? 'Você está cuidando deste'
-                                : `${lead.responsavel} já está cuidando deste — combine antes de ligar`
-                            }
-                          >
-                            {lead.responsavel === usuario ? 'com você' : `com ${lead.responsavel}`}
-                          </div>
-                        )}
-                      </td>
-
-                      {/*
-                        Grudada na direita e em grade de três.
-                        Em fila única, com CONTACT, COPY, DESIGN, PROPOSTA e
-                        às vezes ENTREGA e COPY GRINGA, esta célula sozinha
-                        pedia 315px — um terço da tabela — e o resto saía da
-                        tela. A barra de rolagem existia, mas fica embaixo da
-                        tabela inteira: com duzentos leads, a mil pixels de
-                        distância de quem precisa dela.
-                      */}
-                      <td className="sticky right-0 z-10 bg-white px-3 py-3 align-top shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.08)] transition group-hover:bg-roxo-50">
-                        {/*
-                          A largura mora no div, não na célula: `w-` numa <td>
-                          é só sugestão e a tabela reparte o espaço como quer —
-                          a célula encolheu para 106px e os botões vazaram por
-                          cima do texto do lead.
-                        */}
-                        <div className="grid w-[186px] grid-cols-2 gap-1">
-                          <button
-                            onClick={() => alternarFila(lead)}
-                            title={
-                              lead.contato
-                                ? 'Está na fila de contato — clique para tirar'
-                                : 'Pôr na fila que o programa de disparo vai ler'
-                            }
-                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
-                              lead.contato
-                                ? 'border-sky-500 bg-sky-500 text-white hover:bg-sky-600'
-                                : 'border-sky-300 bg-sky-50 text-sky-700 hover:border-sky-500'
-                            }`}
-                          >
-                            {lead.contato ? '✓ CONTACT' : 'CONTACT'}
-                          </button>
-                          <button
-                            onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
-                            title="Gera o prompt de abordagem deste lead para colar no ChatGPT"
-                            className="rounded-md border border-roxo-300 bg-roxo-50 px-1 py-1 text-[10.5px] font-semibold tracking-wide text-roxo-700 transition hover:border-roxo-500 hover:bg-roxo-100"
-                          >
-                            COPY
-                          </button>
-                          {origemDoLead(lead).estrangeiro && (
-                            <button
-                              onClick={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
-                              title={`Lead de fora do Brasil (${origemDoLead(lead).motivo}). Gera o prompt do e-mail para colar na SkynetChat.`}
-                              className="rounded-md border border-sky-300 bg-sky-50 px-1 py-1 text-[10.5px] font-semibold tracking-wide text-sky-700 transition hover:border-sky-500 hover:bg-sky-100"
-                            >
-                              COPY GRINGA
-                            </button>
-                          )}
-                          <button
-                            onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
-                            title="Antes da venda: prompt para desenhar a prévia no Claude Design"
-                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
-                              lead.previaUrl
-                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
-                                : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
-                            }`}
-                          >
-                            {lead.previaUrl ? '✓ DESIGN' : 'DESIGN'}
-                          </button>
-                          {lead.previaUrl && (
-                            <button
-                              onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
-                              title="Depois da venda: prompt para publicar o site aprovado no Claude Code"
-                              className="rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold tracking-wide text-zinc-600 transition hover:border-roxo-400 hover:text-roxo-700"
-                            >
-                              ENTREGA
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setPropostaDe(lead)}
-                            title="Monta os três planos de proposta para este lead"
-                            className={`rounded-md border px-1 py-1 text-[10.5px] font-semibold tracking-wide transition ${
-                              lead.proposta
-                                ? 'border-emerald-400 bg-emerald-50 text-emerald-800 hover:border-emerald-600'
-                                : 'border-zinc-300 bg-white text-zinc-600 hover:border-roxo-400 hover:text-roxo-700'
-                            }`}
-                          >
-                            {lead.proposta ? '✓ PROPOSTA' : 'PROPOSTA'}
-                          </button>
-                        </div>
-                        <div className="mt-1.5 w-[186px]">
-                          {lead.mapsUrl && (
-                            <a
-                              href={lead.mapsUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-[11.5px] text-zinc-500 hover:text-roxo-700 hover:underline"
-                            >
-                              Maps
-                            </a>
-                          )}
-                          <button
-                            onClick={() => apagar(lead.id, lead.name)}
-                            className="ml-3 text-[11.5px] text-zinc-400 hover:text-red-600"
-                          >
-                            apagar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {!leads.length && !carregando && (
-            <div className="px-6 py-16 text-center">
-              <p className="text-[15px] font-medium text-zinc-700">
-                {resumo.total ? 'Nenhum lead com esses filtros.' : 'Nenhum lead ainda.'}
-              </p>
-              <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-zinc-500">
-                {resumo.total
-                  ? 'Afrouxe os filtros acima para ver mais resultados.'
-                  : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
-              </p>
-              <p className="mt-4 flex flex-wrap justify-center gap-4">
-                <button
-                  onClick={() => setCadastrando(true)}
-                  className="text-[13px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-800"
-                >
-                  Cadastrar um comércio à mão
-                </button>
-                <a href="/extensao" className="text-[13px] font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-800">
-                  Ainda não instalou a extensão? Baixe aqui →
-                </a>
-              </p>
-            </div>
-          )}
-
-          {carregando && !leads.length && (
-            <div className="px-6 py-16 text-center text-[13px] text-zinc-500">Carregando…</div>
-          )}
-        </div>
-
-        {cadastrando && (
-          <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
-        )}
-
-        {/* ---------------------------- confirmar exclusão em lote */}
-        {confirmandoLote && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
-            onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
-          >
-            <div
-              className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-[16px] font-semibold text-red-900">
-                {temFiltro ? `Apagar os ${total} leads desta lista?` : `Apagar TODOS os ${total} leads?`}
-              </h2>
-              <p className="mt-2 text-[13px] leading-snug text-zinc-600">
-                Some tudo junto: anotações, propostas montadas e links de prévia. Não dá para desfazer,
-                e o que veio do Maps só volta com outra varredura.
-                {temFiltro
-                  ? ' Só os que estão filtrados agora vão sair.'
-                  : ' Nenhum filtro está ativo — isso é a base inteira.'}
-              </p>
-
-              <label className="mt-4 block text-[13px] text-zinc-800">
-                Para confirmar, digite <strong>EXCLUIR</strong>:
-                <input
-                  value={textoConfirma}
-                  onChange={(e) => setTextoConfirma(e.target.value)}
-                  autoFocus
-                  aria-label="Digite EXCLUIR para confirmar"
-                  className="mt-1.5 block min-h-[44px] w-44 rounded-lg border border-zinc-300 px-3 text-[14px] outline-none focus:border-red-600"
-                />
-              </label>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button
-                  onClick={apagarLote}
-                  disabled={apagando || textoConfirma.trim().toUpperCase() !== 'EXCLUIR'}
-                  className="min-h-[44px] rounded-lg bg-red-600 px-5 text-[13.5px] font-semibold text-white transition hover:bg-red-700 disabled:bg-zinc-300"
-                >
-                  {apagando ? 'Apagando…' : `Apagar ${total}`}
-                </button>
-                <button
-                  onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
-                  className="min-h-[44px] rounded-lg border border-zinc-300 px-5 text-[13.5px] text-zinc-700"
-                >
-                  Cancelar
-                </button>
+                          <span className={`h-2 w-2 rounded-full ${t.barra} ${t.kind === 'site' ? 'ring-1 ring-zinc-300' : ''} ${ativo && t.kind === 'none' ? 'ring-1 ring-white' : ''}`} />
+                          {t.rotulo}
+                          <span className="tabular-nums opacity-60">{resumo[t.kind] || 0}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
 
-        {promptDe && (
-          <PromptModal
-            lead={promptDe}
-            variante={variantePrompt}
-            aoFechar={() => setPromptDe(null)}
-            aoSalvarPrevia={async (url) => {
-              await salvarPatch(promptDe.id, { previaUrl: url || null });
-              setPromptDe((atual) => (atual ? { ...atual, previaUrl: url || null } : atual));
-            }}
-            aoSalvarBriefing={async (briefing) => {
-              await salvarPatch(promptDe.id, { briefing });
-              setPromptDe((atual) => (atual ? { ...atual, briefing } : atual));
-            }}
-          />
-        )}
+            <div>
+              <h2 className="mb-4 text-[19px] font-extrabold tracking-[-0.02em]">Temperatura</h2>
+              <div className="grid grid-cols-3 gap-3">
+                {NIVEIS.map(({ nivel, rotulo, dica, fundo, Icone }) => {
+                  const n = resumo['temp_' + nivel] || 0;
+                  const ativo = niveis.includes(nivel);
+                  const parte = somaNiveis ? Math.round((n / somaNiveis) * 100) : 0;
+                  return (
+                    <button
+                      key={nivel}
+                      onClick={() => alternar(niveis, setNiveis, nivel)}
+                      aria-pressed={ativo}
+                      title={`Mostrar só os leads ${rotulo.toLowerCase()}`}
+                      className={`flex min-h-[176px] flex-col rounded-[24px] p-4 text-left lg:h-[236px] transition-[box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 sm:p-5 ${fundo} ${
+                        ativo ? 'ring-2 ring-tinta ring-offset-2' : ''
+                      }`}
+                    >
+                      <span className="text-[34px] font-extrabold leading-none tracking-[-0.03em] tabular-nums sm:text-[44px]">
+                        {n.toLocaleString('pt-BR')}
+                      </span>
+                      <span className="mt-2 text-[13px] font-bold">{rotulo}</span>
+                      <span className="text-[12px] font-medium text-tinta/60">{dica}</span>
+                      <span className="mt-auto flex items-end justify-between gap-2">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(11,11,15,0.06)]">
+                          <Icone aria-hidden className="h-5 w-5" strokeWidth={2} />
+                        </span>
+                        <span className="text-[11.5px] font-bold tabular-nums text-tinta/60">{parte}%</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
 
-        {propostaDe && (
-          <PropostaModal
-            lead={propostaDe}
-            linkProposta={propostaDe.linkProposta || ''}
-            aoFechar={() => setPropostaDe(null)}
-            aoSalvar={async (proposta) => {
-              await salvarPatch(propostaDe.id, { proposta });
-              setPropostaDe((atual) => (atual ? { ...atual, proposta } : atual));
-            }}
-            aoSalvarCnpj={async (cnpj) => {
-              await salvarPatch(propostaDe.id, { cnpj });
-              setPropostaDe((atual) => (atual ? { ...atual, cnpj } : atual));
-            }}
-          />
-        )}
+          {/* ---------------------------------- leads: filtros + cartão preto */}
+          <section className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+            <div>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">
+                  Leads{' '}
+                  <span className="text-[14px] font-bold tabular-nums text-zinc-500">
+                    {total.toLocaleString('pt-BR')} {temFiltro || niveis.length ? 'nesta lista' : 'no total'}
+                  </span>
+                </h2>
+                {total > 0 && (
+                  <button
+                    onClick={() => { setConfirmandoLote(true); setTextoConfirma(''); }}
+                    title={temFiltro ? 'Apagar os leads que estão filtrados agora' : 'Apagar todos os leads'}
+                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full px-2 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-rosa hover:text-red-800"
+                  >
+                    <Trash2 aria-hidden className="h-3.5 w-3.5" />
+                    {temFiltro ? `Excluir os ${total}` : 'Excluir todos'}
+                  </button>
+                )}
+              </div>
 
-        {/* ------------------------------------------------ paginação */}
-        {total > PAGINA && (
-          <div className="mt-4 flex items-center justify-between text-[13px]">
-            <span className="text-zinc-500">
-              {pagina * PAGINA + 1}–{Math.min((pagina + 1) * PAGINA, total)} de {total.toLocaleString('pt-BR')}
-            </span>
-            <div className="flex gap-2">
+              <div className="mt-4 -mx-5 flex flex-nowrap items-center gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
+                <Pilula titulo="Ordem da lista" value={ordem} onChange={(v) => { setOrdem(v as typeof ordem); setPagina(0); }}>
+                  <option value="temperatura">Mais quentes primeiro</option>
+                  <option value="recentes">Mais recentes</option>
+                  <option value="avaliacoes">Mais avaliados</option>
+                  <option value="nome">Ordem alfabética</option>
+                </Pilula>
+                <Pilula titulo="Cidade" value={cidade} onChange={(v) => { setCidade(v); setPagina(0); }} largura="max-w-[220px]">
+                  <option value="">Todas as cidades</option>
+                  {cidades.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Pilula>
+                <Pilula titulo="Categoria" value={categoria} onChange={(v) => { setCategoria(v); setPagina(0); }} largura="max-w-[220px]">
+                  <option value="">Todas as categorias</option>
+                  {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+                </Pilula>
+                {equipe.length > 1 && (
+                  <Pilula titulo="Quem está cuidando do lead" value={dePessoa} onChange={(v) => { setDePessoa(v); setPagina(0); }}>
+                    <option value="">Todo mundo</option>
+                    <option value={usuario}>Meus ({resumo['de_' + usuario] || 0})</option>
+                    <option value="ninguem">Sem dono ({resumo.de_ninguem || 0})</option>
+                    {equipe.filter((n) => n !== usuario).map((n) => (
+                      <option key={n} value={n}>
+                        De {n} ({resumo['de_' + n] || 0})
+                      </option>
+                    ))}
+                  </Pilula>
+                )}
+                <Alternador ligado={comTelefone} onClick={() => { setComTelefone((v) => !v); setPagina(0); }}>
+                  Só com telefone
+                </Alternador>
+                {(resumo.site_quebrado ?? 0) > 0 && (
+                  <Alternador
+                    ligado={siteQuebrado}
+                    onClick={() => { setSiteQuebrado((v) => !v); setPagina(0); }}
+                    titulo="Comércios cujo site cadastrado no Google não está de pé"
+                  >
+                    Site não está de pé <span className="tabular-nums opacity-60">{resumo.site_quebrado}</span>
+                  </Alternador>
+                )}
+              </div>
+
+              <div className="-mx-5 mt-3 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
+                <span className="mr-1 shrink-0 text-[12px] font-semibold text-zinc-500">Status</span>
+                {STATUS.map((s) => {
+                  const ativo = statusFiltro.includes(s.valor);
+                  return (
+                    <button
+                      key={s.valor}
+                      onClick={() => alternar(statusFiltro, setStatusFiltro, s.valor)}
+                      aria-pressed={ativo}
+                      className={`inline-flex min-h-[34px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] font-bold ring-1 transition-colors duration-150 ${
+                        ativo ? 'bg-tinta text-white ring-tinta' : s.classe + ' ring-inset hover:ring-zinc-400'
+                      }`}
+                    >
+                      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ativo ? 'bg-white' : s.ponto}`} />
+                      {s.rotulo} <span className="tabular-nums opacity-60">{resumo['status_' + s.valor] || 0}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {cartaoFila('hidden md:flex')}
+          </section>
+
+          {/* --------------------------------------------------- tabela */}
+          <section className="mt-6" aria-label="Lista de leads">
+            {/* no celular a tabela vira cartões: sete colunas em 375px seria
+                rolagem lateral justamente na hora de ligar para o comércio */}
+            <div className="space-y-3 md:hidden">
+              {leads.map((lead) => (
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  usuario={usuario}
+                  statusLista={STATUS}
+                  tipo={tipoDe(lead.websiteKind)}
+                  siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
+                  linkWhatsApp={linkWhatsApp(lead.phone)}
+                  onStatus={(st) => salvarPatch(lead.id, { status: st })}
+                  onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
+                  onApagar={() => apagar(lead.id, lead.name)}
+                  onFila={() => alternarFila(lead)}
+                  onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
+                  onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
+                  onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
+                  onProposta={() => setPropostaDe(lead)}
+                  onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
+                  editandoNota={notaAberta === lead.id}
+                  rascunho={rascunho}
+                  setRascunho={setRascunho}
+                  onSalvarNota={() => { salvarPatch(lead.id, { notes: rascunho }); setNotaAberta(null); }}
+                  onCancelarNota={() => setNotaAberta(null)}
+                />
+              ))}
+            </div>
+            {cartaoFila('mt-6 flex md:hidden')}
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full text-left text-[13px]">
+                <thead className="text-[12px] font-semibold text-zinc-500">
+                  <tr className="border-b border-zinc-100">
+                    <th className="py-3 pl-1 pr-4 font-semibold">Comércio</th>
+                    <th className="px-4 py-3 font-semibold">Presença digital</th>
+                    <th className="px-4 py-3 font-semibold">Contato</th>
+                    <th className="px-4 py-3 font-semibold">Onde fica</th>
+                    <th className="px-4 py-3 text-center font-semibold">Reputação</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="sticky right-0 z-10 bg-white px-3 py-3"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map((lead) => {
+                    const t = tipoDe(lead.websiteKind);
+                    const zap = linkWhatsApp(lead.phone);
+                    const temp = temperaturaDoLead(lead);
+                    const situacao = lead.siteStatus ? SITE_STATUS[lead.siteStatus] : null;
+                    return (
+                      <tr key={lead.id} className="group border-b border-zinc-100 align-top transition-colors duration-150 last:border-b-0 hover:bg-zinc-50">
+                        <td className="py-4 pl-1 pr-4">
+                          <div className="flex items-start gap-3">
+                            <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tinta text-[15px] font-extrabold text-white">
+                              {inicial(lead.name)}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold leading-snug">{lead.name}</span>
+                                <span
+                                  title={[
+                                    `${temp.rotulo} — ${temp.pontos} de 100`,
+                                    ...temp.motivos.map((m) => '• ' + m),
+                                    ...temp.freios.map((f) => '⚠ ' + f),
+                                  ].join(String.fromCharCode(10))}
+                                  className={`shrink-0 cursor-help rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${CLASSE_NIVEL[temp.nivel]}`}
+                                >
+                                  {temp.rotulo} {temp.pontos}
+                                </span>
+                              </div>
+                              {lead.category && <div className="mt-0.5 text-[12px] font-medium text-zinc-500">{lead.category}</div>}
+                              {notaAberta === lead.id ? (
+                                <div className="mt-2">
+                                  <textarea
+                                    value={rascunho}
+                                    onChange={(e) => setRascunho(e.target.value)}
+                                    rows={3}
+                                    autoFocus
+                                    placeholder="O que rolou nesse contato…"
+                                    className="w-full min-w-[240px] rounded-xl border border-roxo-300 px-3 py-2 text-[12.5px] outline-none focus:ring-2 focus:ring-roxo-100"
+                                  />
+                                  <div className="mt-1.5 flex gap-2">
+                                    <button
+                                      onClick={() => { salvarPatch(lead.id, { notes: rascunho }); setNotaAberta(null); }}
+                                      className="min-h-[32px] rounded-full bg-tinta px-4 text-[12px] font-bold text-white hover:bg-tinta-70"
+                                    >
+                                      Salvar
+                                    </button>
+                                    <button onClick={() => setNotaAberta(null)} className="min-h-[32px] px-2 text-[12px] font-semibold text-zinc-500 hover:text-tinta">
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
+                                  className="mt-1 block max-w-[260px] truncate text-left text-[12px] font-semibold text-roxo-700 hover:underline"
+                                >
+                                  {lead.notes ? `“${lead.notes}”` : '+ anotação'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <Selo classe={t.classe} ponto={t.barra}>{t.rotulo}</Selo>
+                          {lead.website && (
+                            <a
+                              href={lead.website}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="mt-1.5 block max-w-[200px] truncate text-[12px] text-zinc-500 hover:text-roxo-700 hover:underline"
+                              title={lead.website}
+                            >
+                              {lead.website.replace(/^https?:\/\/(www\.)?/, '')}
+                            </a>
+                          )}
+                          {lead.instagram && (
+                            <a
+                              href={lead.instagram}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                              className="mt-1 block text-[12px] text-zinc-500 hover:text-roxo-700 hover:underline"
+                            >
+                              {'@' + lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}
+                            </a>
+                          )}
+                          {situacao && (
+                            <div className={`mt-1 flex items-center gap-1 text-[11.5px] ${situacao.classe}`} title={lead.siteDetalhe || ''}>
+                              {!situacao.bom && <AlertTriangle aria-hidden className="h-3.5 w-3.5" />}
+                              {situacao.rotulo}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {lead.phone ? (
+                            <div className="flex flex-col items-start gap-1.5">
+                              <button
+                                onClick={() => copiar(lead.phone!, lead.id)}
+                                className="text-left font-bold tabular-nums text-tinta hover:text-roxo-700"
+                                title="Clique para copiar"
+                              >
+                                {copiado === lead.id ? 'copiado!' : lead.phone}
+                              </button>
+                              {zap && (
+                                <a
+                                  href={zap}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-bold text-tinta transition-colors hover:border-zinc-400"
+                                >
+                                  <MessageCircle aria-hidden className="h-3 w-3" />
+                                  WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[12px] text-zinc-400">sem telefone</span>
+                          )}
+                        </td>
+
+                        <td className="max-w-[240px] px-4 py-4">
+                          <div className="truncate text-zinc-700" title={lead.address || ''}>
+                            {lead.address || '—'}
+                          </div>
+                          {lead.city && <div className="mt-0.5 text-[12px] font-medium text-zinc-500">{lead.city}</div>}
+                        </td>
+
+                        <td className="px-4 py-4 text-center">
+                          {lead.rating ? (
+                            <>
+                              <div className="font-bold tabular-nums">{lead.rating.toFixed(1)}</div>
+                              <div className="text-[11.5px] text-zinc-500">{lead.reviews ?? 0} aval.</div>
+                            </>
+                          ) : (
+                            <span className="text-[12px] text-zinc-400">—</span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <span className="relative inline-flex">
+                            <select
+                              value={lead.status}
+                              onChange={(e) => salvarPatch(lead.id, { status: e.target.value as Status })}
+                              aria-label={`Status de ${lead.name}`}
+                              className="min-h-[34px] cursor-pointer appearance-none rounded-full border border-zinc-200 bg-white py-1 pl-3 pr-8 text-[12px] font-semibold outline-none transition-colors hover:border-zinc-400 focus-visible:border-roxo-500"
+                            >
+                              {STATUS.map((s) => <option key={s.valor} value={s.valor}>{s.rotulo}</option>)}
+                            </select>
+                            <ChevronDown aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
+                          </span>
+                          {lead.responsavel && (
+                            <div
+                              className={`mt-1.5 text-[11.5px] ${
+                                lead.responsavel === usuario ? 'font-bold text-roxo-700' : 'font-semibold text-amber-800'
+                              }`}
+                              title={
+                                lead.responsavel === usuario
+                                  ? 'Você está cuidando deste'
+                                  : `${lead.responsavel} já está cuidando deste — combine antes de ligar`
+                              }
+                            >
+                              {lead.responsavel === usuario ? 'com você' : `com ${lead.responsavel}`}
+                            </div>
+                          )}
+                        </td>
+
+                        {/*
+                          Grudada na direita e em grade de dois.
+                          Em fila única, com CONTACT, COPY, DESIGN, PROPOSTA e
+                          às vezes ENTREGA e COPY GRINGA, esta célula sozinha
+                          pedia 315px — um terço da tabela — e o resto saía da
+                          tela. A largura mora no div, não na célula: `w-` numa
+                          <td> é só sugestão e a tabela reparte o espaço como quer.
+                        */}
+                        <td className="sticky right-0 z-10 bg-white px-3 py-4 align-top shadow-[-10px_0_12px_-12px_rgba(11,11,15,0.18)] transition-colors duration-150 group-hover:bg-zinc-50">
+                          <div className="grid w-[190px] grid-cols-2 gap-1.5">
+                            <Acao
+                              onClick={() => alternarFila(lead)}
+                              titulo={lead.contato ? 'Está na fila de contato — clique para tirar' : 'Pôr na fila que o programa de disparo vai ler'}
+                              feito={lead.contato}
+
+                            >
+                              CONTACT
+                            </Acao>
+                            <Acao
+                              onClick={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
+                              titulo="Gera o prompt de abordagem deste lead para colar no ChatGPT"
+
+                            >
+                              COPY
+                            </Acao>
+                            {origemDoLead(lead).estrangeiro && (
+                              <Acao
+                                onClick={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
+                                titulo={`Lead de fora do Brasil (${origemDoLead(lead).motivo}). Gera o prompt do e-mail para colar na SkynetChat.`}
+
+                              >
+                                COPY GRINGA
+                              </Acao>
+                            )}
+                            <Acao
+                              onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
+                              titulo="Antes da venda: prompt para desenhar a prévia no Claude Design"
+                              feito={Boolean(lead.previaUrl)}
+                            >
+                              DESIGN
+                            </Acao>
+                            {lead.previaUrl && (
+                              <Acao
+                                onClick={() => { setVariantePrompt('site'); setPromptDe(lead); }}
+                                titulo="Depois da venda: prompt para publicar o site aprovado no Claude Code"
+                              >
+                                ENTREGA
+                              </Acao>
+                            )}
+                            <Acao
+                              onClick={() => setPropostaDe(lead)}
+                              titulo="Monta os três planos de proposta para este lead"
+                              feito={Boolean(lead.proposta)}
+                            >
+                              PROPOSTA
+                            </Acao>
+                          </div>
+                          <div className="mt-2 flex w-[190px] items-center gap-3 px-1">
+                            {lead.mapsUrl && (
+                              <a
+                                href={lead.mapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[12px] font-semibold text-zinc-500 hover:text-roxo-700"
+                              >
+                                <MapPin aria-hidden className="h-3.5 w-3.5" />
+                                Maps
+                              </a>
+                            )}
+                            <button
+                              onClick={() => apagar(lead.id, lead.name)}
+                              className="text-[12px] font-semibold text-zinc-400 hover:text-red-700"
+                            >
+                              apagar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {!leads.length && !carregando && (
+              <div className="mt-2 rounded-[24px] bg-zinc-50 px-6 py-14 text-center">
+                <p className="text-[16px] font-extrabold tracking-[-0.01em]">
+                  {resumo.total ? 'Nenhum lead com esses filtros.' : 'Nenhum lead ainda.'}
+                </p>
+                <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-zinc-600">
+                  {resumo.total
+                    ? 'Afrouxe os filtros acima para ver mais resultados.'
+                    : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
+                </p>
+                <p className="mt-5 flex flex-wrap justify-center gap-2">
+                  {resumo.total ? (
+                    <button onClick={limparFiltros} className="min-h-[40px] rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
+                      Limpar filtros
+                    </button>
+                  ) : (
+                    <>
+                      <a href="/extensao" className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
+                        Baixar a extensão
+                      </a>
+                      <button
+                        onClick={() => setCadastrando(true)}
+                        className="min-h-[40px] rounded-full border border-zinc-300 bg-white px-5 text-[13px] font-bold text-tinta hover:border-zinc-500"
+                      >
+                        Cadastrar à mão
+                      </button>
+                    </>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {carregando && !leads.length && (
+              <div className="space-y-2" aria-label="Carregando">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-3 border-b border-zinc-100 py-4">
+                    <span className="h-10 w-10 animate-pulse rounded-xl bg-zinc-100" />
+                    <span className="h-3 w-48 animate-pulse rounded-full bg-zinc-100" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ------------------------------------------------ paginação */}
+            {total > PAGINA && (
+              <div className="mt-5 flex items-center justify-between text-[13px]">
+                <span className="font-semibold tabular-nums text-zinc-500">
+                  {pagina * PAGINA + 1}–{Math.min((pagina + 1) * PAGINA, total)} de {total.toLocaleString('pt-BR')}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={pagina === 0}
+                    onClick={() => { setPagina((p) => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className="min-h-[40px] rounded-full border border-zinc-200 px-4 font-bold disabled:opacity-40 enabled:hover:border-zinc-400"
+                  >
+                    Anterior
+                  </button>
+                  <button
+                    disabled={ultimaPagina}
+                    onClick={() => { setPagina((p) => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className="min-h-[40px] rounded-full bg-tinta px-4 font-bold text-white disabled:opacity-40 enabled:hover:bg-tinta-70"
+                  >
+                    Próxima
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      {cadastrando && (
+        <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
+      )}
+
+      {/* ---------------------------- confirmar exclusão em lote */}
+      {confirmandoLote && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/40 p-4"
+          onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md rounded-[24px] bg-white p-7 shadow-[0_24px_60px_rgba(11,11,15,0.25)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-[18px] font-extrabold tracking-[-0.01em] text-red-900">
+              {temFiltro ? `Apagar os ${total} leads desta lista?` : `Apagar TODOS os ${total} leads?`}
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-zinc-600">
+              Some tudo junto: anotações, propostas montadas e links de prévia. Não dá para desfazer,
+              e o que veio do Maps só volta com outra varredura.
+              {temFiltro
+                ? ' Só os que estão filtrados agora vão sair.'
+                : ' Nenhum filtro está ativo — isso é a base inteira.'}
+            </p>
+
+            <label className="mt-5 block text-[13px] font-medium text-zinc-800">
+              Para confirmar, digite <strong>EXCLUIR</strong>:
+              <input
+                value={textoConfirma}
+                onChange={(e) => setTextoConfirma(e.target.value)}
+                autoFocus
+                aria-label="Digite EXCLUIR para confirmar"
+                className="mt-2 block min-h-[44px] w-44 rounded-full border border-zinc-300 px-4 text-[14px] font-semibold outline-none focus:border-red-600"
+              />
+            </label>
+
+            <div className="mt-6 flex flex-wrap gap-2">
               <button
-                disabled={pagina === 0}
-                onClick={() => { setPagina((p) => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 disabled:opacity-40 enabled:hover:border-roxo-400"
+                onClick={apagarLote}
+                disabled={apagando || textoConfirma.trim().toUpperCase() !== 'EXCLUIR'}
+                className="min-h-[44px] rounded-full bg-red-600 px-6 text-[13.5px] font-bold text-white transition-colors hover:bg-red-700 disabled:bg-zinc-300"
               >
-                Anterior
+                {apagando ? 'Apagando…' : `Apagar ${total}`}
               </button>
               <button
-                disabled={ultimaPagina}
-                onClick={() => { setPagina((p) => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 disabled:opacity-40 enabled:hover:border-roxo-400"
+                onClick={() => { setConfirmandoLote(false); setTextoConfirma(''); }}
+                className="min-h-[44px] rounded-full border border-zinc-300 px-6 text-[13.5px] font-bold text-tinta"
               >
-                Próxima
+                Cancelar
               </button>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
+
+      {promptDe && (
+        <PromptModal
+          lead={promptDe}
+          variante={variantePrompt}
+          aoFechar={() => setPromptDe(null)}
+          aoSalvarPrevia={async (url) => {
+            await salvarPatch(promptDe.id, { previaUrl: url || null });
+            setPromptDe((atual) => (atual ? { ...atual, previaUrl: url || null } : atual));
+          }}
+          aoSalvarBriefing={async (briefing) => {
+            await salvarPatch(promptDe.id, { briefing });
+            setPromptDe((atual) => (atual ? { ...atual, briefing } : atual));
+          }}
+        />
+      )}
+
+      {propostaDe && (
+        <PropostaModal
+          lead={propostaDe}
+          linkProposta={propostaDe.linkProposta || ''}
+          aoFechar={() => setPropostaDe(null)}
+          aoSalvar={async (proposta) => {
+            await salvarPatch(propostaDe.id, { proposta });
+            setPropostaDe((atual) => (atual ? { ...atual, proposta } : atual));
+          }}
+          aoSalvarCnpj={async (cnpj) => {
+            await salvarPatch(propostaDe.id, { cnpj });
+            setPropostaDe((atual) => (atual ? { ...atual, cnpj } : atual));
+          }}
+        />
+      )}
     </div>
   );
 }

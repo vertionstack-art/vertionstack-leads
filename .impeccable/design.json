@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T12:00:00-03:00",
+  "title": "Design System: Vertion Leads",
+  "extensions": {
+    "colorMeta": {
+      "tinta": { "role": "primary", "displayName": "Ink Black", "canonical": "#0b0b0f", "tonalRamp": ["#0b0b0f", "#1c1c22", "#2e2e36", "#3f3f46", "#5b5b64", "#82828c", "#b4b4bc", "#e6e6ea"] },
+      "tinta-70": { "role": "primary", "displayName": "Ink 70", "canonical": "#3f3f46", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"] },
+      "chao": { "role": "neutral", "displayName": "Lavender Floor", "canonical": "#eceaf5", "tonalRamp": ["#26243a", "#403d5c", "#5f5b82", "#837fa6", "#a9a4c2", "#d6d3e4", "#eceaf5", "#f7f6fb"] },
+      "sheet": { "role": "neutral", "displayName": "Sheet White", "canonical": "#ffffff", "tonalRamp": ["#27272a", "#52525b", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5", "#fafafa", "#ffffff"] },
+      "roxo-50": { "role": "secondary", "displayName": "Purple 50", "canonical": "#f5f3ff", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-100": { "role": "secondary", "displayName": "Purple 100", "canonical": "#ede9fe", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#ede9fe"] },
+      "roxo-200": { "role": "secondary", "displayName": "Brand Tile Lilac", "canonical": "#ddd6fe", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-300": { "role": "secondary", "displayName": "Purple 300", "canonical": "#c4b5fd", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-400": { "role": "secondary", "displayName": "Purple 400", "canonical": "#a78bfa", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-500": { "role": "secondary", "displayName": "Purple 500", "canonical": "#8b5cf6", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#8b5cf6", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-600": { "role": "secondary", "displayName": "Vertion Purple", "canonical": "#7c3aed", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-700": { "role": "secondary", "displayName": "Purple 700", "canonical": "#6d28d9", "tonalRamp": ["#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#c4b5fd", "#ddd6fe", "#f5f3ff"] },
+      "roxo-900": { "role": "secondary", "displayName": "Purple 900", "canonical": "#4c1d95", "tonalRamp": ["#2e1065", "#4c1d95", "#5b21b6", "#6d28d9", "#7c3aed", "#a78bfa", "#ddd6fe", "#f5f3ff"] },
+      "ceu": { "role": "tertiary", "displayName": "Pale Sky (opportunities summary)", "canonical": "#dfeafb", "tonalRamp": ["#082f49", "#0c4a6e", "#1e5f94", "#4a83c0", "#8db0dd", "#bcd2f1", "#dfeafb", "#f2f7fe"] },
+      "rosa": { "role": "tertiary", "displayName": "Rose (quente)", "canonical": "#fbe1e1", "tonalRamp": ["#450a0a", "#7f1d1d", "#b33a3a", "#d97070", "#eea4a4", "#f6c9c9", "#fbe1e1", "#fef3f3"] },
+      "manteiga": { "role": "tertiary", "displayName": "Butter (morno)", "canonical": "#f7efcb", "tonalRamp": ["#451a03", "#78350f", "#a8741c", "#cfa43e", "#e6cc7a", "#f0dfa6", "#f7efcb", "#fcf8e8"] },
+      "lavanda": { "role": "tertiary", "displayName": "Lavender (frio)", "canonical": "#e8e3fa", "tonalRamp": ["#2e1065", "#4c1d95", "#6d4fc2", "#9580dc", "#bbaced", "#d6cdf6", "#e8e3fa", "#f6f4fe"] },
+      "menta": { "role": "tertiary", "displayName": "Mint (contact queue)", "canonical": "#d9f0e0", "tonalRamp": ["#022c22", "#064e3b", "#2f7d57", "#5aa97e", "#8fcaa5", "#bde3c9", "#d9f0e0", "#f0faf3"] },
+      "neutral-100": { "role": "neutral", "displayName": "Zinc 100", "canonical": "#f4f4f5", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
+      "neutral-200": { "role": "neutral", "displayName": "Zinc 200 hairline", "canonical": "#e4e4e7", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
+      "neutral-300": { "role": "neutral", "displayName": "Zinc 300 hairline", "canonical": "#d4d4d8", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] },
+      "neutral-500": { "role": "neutral", "displayName": "Zinc 500 meta", "canonical": "#71717a", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#71717a", "#a1a1aa", "#d4d4d8", "#e4e4e7", "#f4f4f5"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display count", "purpose": "Big counts on the summary and temperature cards; 34px on narrow screens." },
+      "headline": { "displayName": "Page title", "purpose": "\"Visão geral\" (32px desktop, 28px mobile) and the login headline." },
+      "title": { "displayName": "Section title", "purpose": "Section headings at 19px; 22px on the dark action card; 18px for modal titles." },
+      "body": { "displayName": "Body", "purpose": "Descriptions, banners and card copy; 13.5-14px inside inputs." },
+      "label": { "displayName": "Label", "purpose": "Button text, card labels, field titles. Sentence case, never tracked uppercase." },
+      "caption": { "displayName": "Caption", "purpose": "Chips, table headers in zinc-500, hints; 11.5px for percentages." }
+    },
+    "shadows": [
+      { "name": "dialog", "value": "0 24px 60px rgba(11,11,15,0.25)", "purpose": "Modals and the confirm dialog, over a tinta/40 scrim." },
+      { "name": "login-sheet", "value": "0 24px 60px rgba(11,11,15,0.08)", "purpose": "The standalone login sheet on the lavender floor." },
+      { "name": "menu", "value": "0 12px 32px rgba(11,11,15,0.14)", "purpose": "User dropdown, paired with a zinc-200 ring." },
+      { "name": "floating-bar", "value": "0 10px 30px rgba(11,11,15,0.25)", "purpose": "Mobile bottom navigation bar." },
+      { "name": "tooltip", "value": "0 6px 16px rgba(11,11,15,0.25)", "purpose": "Rail tooltips." },
+      { "name": "lift", "value": "0 2px 8px rgba(11,11,15,0.06)", "purpose": "White icon tiles and white pills sitting on a pastel card (0.08 on the sky card)." },
+      { "name": "sticky-edge", "value": "-10px 0 12px -12px rgba(11,11,15,0.18)", "purpose": "Left edge of the sticky action column in the lead table." }
+    ],
+    "motion": [
+      { "name": "color-fast", "value": "150ms ease", "purpose": "Chip, filter pill and row-action color changes." },
+      { "name": "color-standard", "value": "200ms ease", "purpose": "Buttons, rail items, toggles." },
+      { "name": "card-rise", "value": "transform 200ms ease-out, translateY(-2px)", "purpose": "Hover on clickable temperature cards." },
+      { "name": "tooltip-slide", "value": "opacity + translateX(-4px to 0) 200ms ease-out", "purpose": "Rail tooltips appearing on hover and focus." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px", "note": "Rail replaces the mobile bottom bar; table replaces stacked lead cards." },
+      { "name": "lg", "value": "1024px", "note": "Summary row splits into two columns; cards fixed to 236px tall." },
+      { "name": "xl", "value": "1280px", "note": "Dark action card (400px) sits beside the filters." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The black pill: the action color for every primary act.",
+      "html": "<button class=\"ds-btn-primary\">Copiar tudo</button>",
+      "css": ".ds-btn-primary { font-family: Manrope, ui-sans-serif, system-ui, sans-serif; min-height: 44px; padding: 0 20px; border: none; border-radius: 9999px; background: #0b0b0f; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color 200ms ease; } .ds-btn-primary:hover { background: #3f3f46; } .ds-btn-primary:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; } .ds-btn-primary:disabled { background: #d4d4d8; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "White outline pill beside a primary.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { font-family: Manrope, ui-sans-serif, system-ui, sans-serif; min-height: 44px; padding: 0 20px; border: 1px solid #d4d4d8; border-radius: 9999px; background: #fff; color: #0b0b0f; font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color 200ms ease; } .ds-btn-secondary:hover { border-color: #71717a; } .ds-btn-secondary:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }"
+    },
+    {
+      "name": "Row Actions",
+      "kind": "custom",
+      "refersTo": "row-action-pending",
+      "description": "Per-lead actions: gray while pending, black with a check when done.",
+      "html": "<div class=\"ds-row-actions\"><button class=\"ds-row-action is-done\" aria-pressed=\"true\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>CONTACT</button><button class=\"ds-row-action\">COPY</button><button class=\"ds-row-action is-done\" aria-pressed=\"true\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>DESIGN</button><button class=\"ds-row-action\">PROPOSTA</button></div>",
+      "css": ".ds-row-actions { display: grid; grid-template-columns: repeat(2, 92px); gap: 6px; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-row-action { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 8px; border: none; border-radius: 9999px; background: #f4f4f5; color: #0b0b0f; font-size: 10.5px; font-weight: 700; cursor: pointer; transition: background-color 150ms ease; } .ds-row-action:hover { background: #e4e4e7; } .ds-row-action.is-done { background: #0b0b0f; color: #fff; } .ds-row-action.is-done:hover { background: #3f3f46; } .ds-row-action:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Zinc-100 pill with a lucide search icon; turns white with a lilac ring on focus.",
+      "html": "<label class=\"ds-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input placeholder=\"Nome, telefone, endereço...\"></label>",
+      "css": ".ds-search { position: relative; display: block; width: 300px; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #71717a; } .ds-search input { width: 100%; min-height: 44px; padding: 0 16px 0 40px; border: none; border-radius: 9999px; background: #f4f4f5; color: #0b0b0f; font: inherit; font-size: 13.5px; font-weight: 500; outline: none; transition: background-color 200ms ease, box-shadow 200ms ease; } .ds-search input::placeholder { color: #52525b; } .ds-search input:focus { background: #fff; box-shadow: 0 0 0 2px #ddd6fe; }"
+    },
+    {
+      "name": "Filter Select",
+      "kind": "input",
+      "refersTo": "select-filter",
+      "description": "White hairline pill select with a lucide chevron.",
+      "html": "<label class=\"ds-select\"><select><option>Mais recentes</option><option>Mais quentes</option></select><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m6 9 6 6 6-6\"/></svg></label>",
+      "css": ".ds-select { position: relative; display: inline-block; width: 190px; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-select select { width: 100%; min-height: 40px; appearance: none; padding: 8px 36px 8px 16px; border: 1px solid #e4e4e7; border-radius: 9999px; background: #fff; color: #0b0b0f; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; outline: none; transition: border-color 200ms ease; } .ds-select select:hover { border-color: #a1a1aa; } .ds-select select:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; } .ds-select svg { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #71717a; pointer-events: none; }"
+    },
+    {
+      "name": "Dot Chips",
+      "kind": "chip",
+      "refersTo": "chip-neutral",
+      "description": "Neutral presence chips; only the dot carries color, matching the summary bar.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip\"><i style=\"background:#0b0b0f\"></i>Sem site</span><span class=\"ds-chip\"><i style=\"background:#7c3aed\"></i>Só rede social</span><span class=\"ds-chip\"><i style=\"background:#a78bfa\"></i>Só marketplace</span><span class=\"ds-chip\"><i style=\"background:#ddd6fe\"></i>Site fraco</span><span class=\"ds-chip ds-chip-muted\"><i class=\"ds-hollow\"></i>Tem site</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 6px; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 9999px; background: #fff; box-shadow: inset 0 0 0 1px #e4e4e7; color: #0b0b0f; font-size: 12px; font-weight: 600; } .ds-chip i { width: 8px; height: 8px; border-radius: 9999px; } .ds-chip-muted { color: #52525b; } .ds-hollow { background: #fff; box-shadow: inset 0 0 0 1px #d4d4d8; }"
+    },
+    {
+      "name": "Temperature Card",
+      "kind": "card",
+      "refersTo": "card-temperature-quente",
+      "description": "Pastel card owned by one temperature level; black ring when selected.",
+      "html": "<button class=\"ds-temp\" aria-pressed=\"false\"><span class=\"ds-temp-n\">4</span><span class=\"ds-temp-l\">Quentes</span><span class=\"ds-temp-h\">ligar primeiro</span><span class=\"ds-temp-f\"><span class=\"ds-temp-icon\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z\"/></svg></span><span class=\"ds-temp-p\">33%</span></span></button>",
+      "css": ".ds-temp { display: flex; flex-direction: column; width: 190px; height: 236px; padding: 20px; border: none; border-radius: 24px; background: #fbe1e1; color: #0b0b0f; text-align: left; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: transform 200ms ease-out, box-shadow 200ms ease-out; } .ds-temp:hover { transform: translateY(-2px); } .ds-temp[aria-pressed=true] { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #0b0b0f; } .ds-temp:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; } .ds-temp-n { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; } .ds-temp-l { margin-top: 8px; font-size: 13px; font-weight: 700; } .ds-temp-h { font-size: 12px; font-weight: 500; color: rgba(11,11,15,0.6); } .ds-temp-f { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; } .ds-temp-icon { display: flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 16px; background: #fff; box-shadow: 0 2px 8px rgba(11,11,15,0.06); } .ds-temp-p { font-size: 11.5px; font-weight: 700; color: rgba(11,11,15,0.6); font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Dark Action Card",
+      "kind": "card",
+      "refersTo": "card-action-dark",
+      "description": "Black card grouping queue actions; mint marks the queue, outlines for the rest.",
+      "html": "<aside class=\"ds-dark\"><h2>Fila do disparador</h2><p>2 leads esperando o programa de disparo mandar o WhatsApp.</p><div class=\"ds-dark-actions\"><button class=\"ds-dark-mint\">Ver a fila</button><button class=\"ds-dark-outline\">Conferir 7 sites</button></div></aside>",
+      "css": ".ds-dark { display: flex; flex-direction: column; width: 400px; min-height: 200px; padding: 20px; border-radius: 24px; background: #0b0b0f; color: #fff; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-dark h2 { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.25; letter-spacing: -0.02em; } .ds-dark p { margin: 8px 0 0; max-width: 220px; font-size: 13px; line-height: 1.625; color: rgba(255,255,255,0.7); } .ds-dark-actions { margin-top: auto; padding-top: 20px; display: flex; flex-wrap: wrap; gap: 6px; } .ds-dark-mint, .ds-dark-outline { min-height: 40px; border-radius: 9999px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color 200ms ease, border-color 200ms ease; } .ds-dark-mint { padding: 0 16px; border: none; background: #d9f0e0; color: #0b0b0f; } .ds-dark-mint:hover { background: #fff; } .ds-dark-outline { padding: 0 14px; border: 1px solid rgba(255,255,255,0.3); background: transparent; color: #fff; } .ds-dark-outline:hover { border-color: #fff; } .ds-dark button:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }"
+    },
+    {
+      "name": "Rail",
+      "kind": "nav",
+      "refersTo": "rail",
+      "description": "Black rounded side rail with the lilac brand tile and white line icons.",
+      "html": "<nav class=\"ds-rail\"><span class=\"ds-rail-brand\">V</span><a class=\"ds-rail-item is-active\" href=\"#\" aria-label=\"Painel\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg></a><a class=\"ds-rail-item\" href=\"#\" aria-label=\"Cadastrar\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M5 12h14\"/><path d=\"M12 5v14\"/></svg></a></nav>",
+      "css": ".ds-rail { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; height: 320px; padding: 20px 0; border-radius: 26px; background: #0b0b0f; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; } .ds-rail-brand { display: flex; width: 48px; height: 48px; margin-bottom: 24px; align-items: center; justify-content: center; border-radius: 16px; background: #ddd6fe; color: #0b0b0f; font-size: 20px; font-weight: 800; } .ds-rail-item { display: flex; width: 48px; height: 48px; align-items: center; justify-content: center; border-radius: 16px; color: rgba(255,255,255,0.55); transition: background-color 200ms ease, color 200ms ease; } .ds-rail-item:hover { background: rgba(255,255,255,0.08); color: #fff; } .ds-rail-item.is-active { background: rgba(255,255,255,0.12); color: #fff; } .ds-rail-item:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pastel Ledger",
+    "overview": "A working ledger dressed as a calm overview. A cool lavender floor holds one large white sheet; a black rounded rail stands to its left. On the sheet, the pipeline reads top-down like a portfolio summary: one wide pale-sky card with the opportunity count and a presence-digital bar, three pastel temperature cards, then the lead table worked row by row. It is built for long desk sessions and quick checks on the phone before a call, so density lives in the table and calm lives above it.\n\nColor carries meaning, not mood. Each pastel field has exactly one owner, black is the verb, and Vertion purple is the brand's quiet signature: the monogram, the presence ramp, selection inside forms, and focus. Everything a hand touches is a pill. Type is Manrope throughout, extra-bold for headings and big numbers, sentence case everywhere.\n\nThis world replaces the gray SaaS admin with a toolbar of equal buttons. Actions are grouped where they are used (the dark action card, the row actions), never lined up as a strip of same-weight controls.",
+    "keyCharacteristics": [
+      "Lavender floor, white sheet (28px), black rail (26px), cards (24px).",
+      "Pastel fields with fixed semantic owners; neutral chips with a colored dot.",
+      "Black is the action color and the \"done\" state; purple marks brand, selection and focus.",
+      "Pills for every button, select and single-line input.",
+      "Manrope extra-bold headings, tabular numerals for every count.",
+      "Lucide line icons only."
+    ],
+    "rules": [
+      { "name": "The Fixed Owner Rule", "body": "Every pastel field belongs to one meaning: rose, butter and lavender are temperature (quente, morno, frio); mint is the contact queue; pale sky is the opportunities summary. A pastel never appears as decoration or as a generic alert color.", "section": "colors" },
+      { "name": "The Ink Is the Verb Rule", "body": "If it acts, it is black. A row action is gray (zinc-100) while pending and turns black with a lucide Check when done. Purple never fills an action button.", "section": "colors" },
+      { "name": "The Dot Carries the Color Rule", "body": "Presence-digital and status chips are neutral (white, zinc-200 ring); only a 8px dot is colored. Presence dots match the summary bar exactly: Sem site tinta, Só rede social roxo-600, Só marketplace roxo-400, Site fraco roxo-200, Tem site hollow (white with a zinc-300 ring).", "section": "colors" },
+      { "name": "The Sentence Case Rule", "body": "Labels are 13px bold in sentence case. No uppercase, letter-spaced labels or eyebrows above headings.", "section": "typography" },
+      { "name": "The Tabular Count Rule", "body": "Every number that counts something uses tabular numerals so columns and cards align.", "section": "typography" },
+      { "name": "The Tonal First Rule", "body": "Cards on the sheet are flat. Hover is a 2px rise (translateY) on clickable summary cards, not a bigger shadow.", "section": "elevation" },
+      { "name": "The Pill Rule", "body": "If it is a button, a select or a one-line input, it is fully rounded. Multi-line fields and containers use the 16px corner.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, menta contact queue, ceu opportunities summary.",
+      "Do make every button, select and single-line input a full pill; give textareas and panels 16px corners, cards 24px, the sheet 28px, the rail 26px.",
+      "Do show a row action as zinc-100 while pending and tinta with a lucide Check once done.",
+      "Do color only the dot on presence and status chips; keep presence dots identical to the summary bar.",
+      "Do use roxo-600 for the 2px focus outline and purple borders/fills for the chosen option in form choice groups.",
+      "Do set headings in Manrope 800 with negative tracking, labels at 13px bold sentence case, and counts in tabular numerals.",
+      "Do use lucide icons at 16-20px, line style, stroke 2."
+    ],
+    "donts": [
+      "Don't use a pastel field for alerts, banners, notes or decoration.",
+      "Don't fill an action button with purple; black is the action color.",
+      "Don't set labels in uppercase with letter spacing, or put eyebrow text above headings.",
+      "Don't use unicode glyphs (arrows, checks, bullets, stars) as icons.",
+      "Don't line up a toolbar of equal-weight buttons; group actions where they are used.",
+      "Don't use a gray floor; the floor is lavender (chao)."
+    ]
+  }
+}

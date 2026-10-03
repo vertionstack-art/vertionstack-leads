@@ -15,7 +15,18 @@
   --color-tinta: #0b0b0f;
   --color-tinta-70: #3f3f46;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* o chão atrás da folha branca: lavanda fria, não cinza */
+  --color-chao: #eceaf5;
+  /* campos pastel: cada um carrega um significado fixo */
+  --color-ceu: #dfeafb;      /* resumo de oportunidades */
+  --color-rosa: #fbe1e1;     /* quentes */
+  --color-manteiga: #f7efcb; /* mornos */
+  --color-lavanda: #e8e3fa;  /* frios */
+  --color-menta: #d9f0e0;    /* fila de contato */
+
+  --radius-folha: 28px;
+
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html {
@@ -23,13 +34,24 @@ html {
 }
 
 body {
-  background: #fafafa;
+  background: var(--color-chao);
   color: var(--color-tinta);
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 0;
+}
+
+::selection {
+  background: var(--color-roxo-200);
+  color: var(--color-tinta);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-roxo-600);
+  outline-offset: 2px;
 }
 
 /* barra de rolagem discreta nas tabelas longas */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 999px; border: 2px solid #fafafa; }
-::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+::-webkit-scrollbar-thumb { background: #d6d3e4; border-radius: 999px; border: 2px solid #fff; }
+::-webkit-scrollbar-thumb:hover { background: #a9a4c2; }

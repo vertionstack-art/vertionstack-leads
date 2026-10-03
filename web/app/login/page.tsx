@@ -32,52 +32,70 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6">
-      <form onSubmit={entrar} className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="h-2.5 w-2.5 rounded-full bg-roxo-600 ring-4 ring-roxo-100" />
-          <div>
-            <h1 className="text-[15px] font-semibold leading-tight tracking-tight">Vertion Leads</h1>
-            <p className="text-[11px] leading-tight text-zinc-500">comércios sem site próprio</p>
-          </div>
+    <div className="flex min-h-screen items-center justify-center px-4 py-10">
+      <div className="grid w-full max-w-[860px] overflow-hidden rounded-[28px] bg-white shadow-[0_24px_60px_rgba(11,11,15,0.08)] md:grid-cols-[1fr_1.05fr]">
+        {/* o lado preto: o mesmo cartão escuro do painel, com o que a ferramenta faz */}
+        <div className="relative isolate hidden flex-col overflow-hidden bg-tinta p-9 text-white md:flex">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-roxo-200 text-[20px] font-extrabold text-tinta">V</span>
+          <h2 className="mt-auto text-[28px] font-extrabold leading-[1.15] tracking-[-0.03em]">
+            Quem ainda não tem{' '}
+            <span className="inline-block -rotate-2 rounded-full border border-white/70 px-3 py-0.5">site próprio</span>{' '}
+            na sua cidade.
+          </h2>
+          <p className="mt-3 max-w-[300px] text-[13.5px] leading-relaxed text-white/65">
+            Do Google Maps até a proposta e o site entregue, num lugar só.
+          </p>
+          <svg aria-hidden viewBox="0 0 160 120" className="absolute -right-10 -top-6 -z-10 h-[170px] w-[220px] text-white/20" fill="none" stroke="currentColor" strokeWidth="1">
+            <rect x="40" y="20" width="110" height="80" rx="14" transform="rotate(-12 95 60)" />
+            <rect x="20" y="34" width="110" height="80" rx="14" transform="rotate(-4 75 74)" />
+          </svg>
         </div>
 
-        <label htmlFor="nome" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          Seu nome
-        </label>
-        <input
-          id="nome"
-          type="text"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          autoFocus
-          autoComplete="username"
-          placeholder="lucas"
-          className="mb-4 w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-[14px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
-        />
+        <form onSubmit={entrar} className="p-8 md:p-10">
+          <div className="mb-8 flex items-center gap-3 md:hidden">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-tinta text-[18px] font-extrabold text-white">V</span>
+            <span className="text-[15px] font-extrabold tracking-[-0.01em]">Vertion Leads</span>
+          </div>
+          <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.03em]">Entrar</h1>
+          <p className="mt-2 text-[13.5px] font-medium text-zinc-500">Vertion Leads · comércios sem site próprio</p>
 
-        <label htmlFor="senha" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          Senha
-        </label>
-        <input
-          id="senha"
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          autoComplete="current-password"
-          className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-[14px] outline-none transition focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
-        />
+          <label htmlFor="nome" className="mb-2 mt-8 block text-[13px] font-bold">
+            Seu nome
+          </label>
+          <input
+            id="nome"
+            type="text"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            autoFocus
+            autoComplete="username"
+            placeholder="lucas"
+            className="min-h-[48px] w-full rounded-full bg-zinc-100 px-5 text-[14px] font-medium outline-none transition-colors placeholder:text-zinc-600 focus:bg-white focus:ring-2 focus:ring-roxo-200"
+          />
 
-        {erro && <p className="mt-2.5 text-[12.5px] text-red-600">{erro}</p>}
+          <label htmlFor="senha" className="mb-2 mt-5 block text-[13px] font-bold">
+            Senha
+          </label>
+          <input
+            id="senha"
+            type="password"
+            value={senha}
+            onChange={(e) => setSenha(e.target.value)}
+            autoComplete="current-password"
+            className="min-h-[48px] w-full rounded-full bg-zinc-100 px-5 text-[14px] font-medium outline-none transition-colors focus:bg-white focus:ring-2 focus:ring-roxo-200"
+          />
 
-        <button
-          type="submit"
-          disabled={enviando || !senha}
-          className="mt-5 w-full rounded-lg bg-roxo-600 py-2.5 text-[14px] font-semibold text-white transition hover:bg-roxo-700 disabled:bg-zinc-300"
-        >
-          {enviando ? 'Entrando…' : 'Entrar'}
-        </button>
-      </form>
+          {erro && <p role="alert" className="mt-3 text-[13px] font-semibold text-red-700">{erro}</p>}
+
+          <button
+            type="submit"
+            disabled={enviando || !senha}
+            className="mt-7 min-h-[48px] w-full rounded-full bg-tinta text-[14px] font-bold text-white transition-colors hover:bg-tinta-70 disabled:bg-zinc-300"
+          >
+            {enviando ? 'Entrando…' : 'Entrar'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

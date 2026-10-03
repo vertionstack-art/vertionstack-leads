@@ -14,10 +14,11 @@
  */
 
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { ESTILOS, TOTAL_DE_CAMPOS, preenchidos, type Briefing, type Estilo } from '@/lib/briefing';
 
 const CAIXA =
-  'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-roxo-500';
+  'w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 text-[13px] outline-none focus:border-roxo-500';
 
 function Campo({
   titulo,
@@ -86,7 +87,7 @@ export default function BriefingDesign({
                 type="button"
                 onClick={() => mudar('estilo', (ativo ? '' : e.valor) as Estilo)}
                 title={e.dica}
-                className={`min-h-[44px] rounded-lg border px-2.5 py-1.5 text-left text-[12px] leading-tight transition ${
+                className={`min-h-[44px] rounded-full border px-2.5 py-1.5 text-left text-[12px] leading-tight transition ${
                   ativo
                     ? 'border-roxo-500 bg-roxo-50 font-semibold text-roxo-800'
                     : 'border-zinc-300 bg-white text-zinc-700 hover:border-roxo-300'
@@ -176,7 +177,7 @@ export default function BriefingDesign({
             type="button"
             onClick={adicionarReferencia}
             disabled={!novaRef.trim()}
-            className="shrink-0 rounded-lg bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:brightness-150 disabled:bg-zinc-300"
+            className="shrink-0 rounded-full bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:brightness-150 disabled:bg-zinc-300"
           >
             Adicionar
           </button>
@@ -187,7 +188,7 @@ export default function BriefingDesign({
             {briefing.referencias.map((r) => (
               <li
                 key={r}
-                className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-1.5 text-[12px]"
+                className="flex items-center justify-between gap-2 rounded-2xl bg-zinc-50 px-3 py-1.5 text-[12px]"
               >
                 <a
                   href={r}
@@ -203,7 +204,7 @@ export default function BriefingDesign({
                   aria-label={`Tirar ${r}`}
                   className="shrink-0 px-1 text-[15px] leading-none text-zinc-400 hover:text-red-600"
                 >
-                  ×
+                  <X aria-hidden className="h-4 w-4" />
                 </button>
               </li>
             ))}
@@ -216,7 +217,7 @@ export default function BriefingDesign({
         junto do prompt por link. A caixa avisa o assistente de que as
         imagens vêm anexadas na conversa, para ele olhar antes de decidir.
       */}
-      <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-[12px] leading-snug text-amber-900">
+      <label className="flex cursor-pointer items-start gap-2 rounded-2xl bg-amber-50 px-3 py-2.5 text-[12px] leading-snug text-amber-900">
         <input
           type="checkbox"
           checked={briefing.anexaImagens}

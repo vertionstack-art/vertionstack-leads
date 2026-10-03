@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight, Check, X } from 'lucide-react';
 import type { Lead } from '@/lib/db';
 import { montarPrompt } from '@/lib/prompt-lead';
 import { montarPromptSite } from '@/lib/prompt-site';
@@ -202,11 +203,11 @@ export default function PromptModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/40 p-4"
       onClick={aoFechar}
     >
       <div
-        className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_24px_60px_rgba(11,11,15,0.25)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ------------------------------------------------------ topo */}
@@ -219,16 +220,16 @@ export default function PromptModal({
           </div>
           <button
             onClick={aoFechar}
-            className="shrink-0 rounded-lg px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+            className="shrink-0 rounded-full px-2 py-1 text-[18px] leading-none text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
             aria-label="Fechar"
           >
-            ×
+            <X aria-hidden className="h-4 w-4" />
           </button>
         </div>
 
         {/* --------------------------------------------------- prévia */}
         <div className="border-b border-zinc-200 bg-roxo-50 px-6 py-3.5">
-          <label htmlFor="previa" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-roxo-800">
+          <label htmlFor="previa" className="mb-1.5 block text-[13px] font-bold text-roxo-800">
             Site de prévia deste comércio
           </label>
           <div className="flex flex-wrap gap-2">
@@ -237,12 +238,12 @@ export default function PromptModal({
               value={previa}
               onChange={(e) => setPrevia(e.target.value)}
               placeholder="https://previa-barbearia.vercel.app"
-              className="min-h-[40px] min-w-[240px] flex-1 rounded-lg border border-roxo-200 bg-white px-3 text-[13px] outline-none focus:border-roxo-500"
+              className="min-h-[40px] min-w-[240px] flex-1 rounded-full border border-roxo-200 bg-white px-3 text-[13px] outline-none focus:border-roxo-500"
             />
             <button
               onClick={salvarPrevia}
               disabled={guardandoPrevia || previa.trim() === (lead.previaUrl || '')}
-              className="min-h-[40px] rounded-lg bg-roxo-600 px-4 text-[12.5px] font-semibold text-white transition hover:bg-roxo-700 disabled:bg-zinc-300"
+              className="min-h-[40px] rounded-full bg-tinta px-4 text-[12.5px] font-semibold text-white transition hover:bg-tinta-70 disabled:bg-zinc-300"
             >
               {guardandoPrevia ? 'Salvando…' : 'Salvar e refazer'}
             </button>
@@ -267,7 +268,7 @@ export default function PromptModal({
           <div className="border-b border-zinc-200 bg-sky-50 px-6 py-3.5">
             <label
               htmlFor="preco-usd"
-              className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-sky-800"
+              className="mb-1.5 block text-[13px] font-bold text-sky-800"
             >
               Quanto você vai cobrar pelo site
             </label>
@@ -283,7 +284,7 @@ export default function PromptModal({
                   value={precoUsd}
                   onChange={(e) => mudarPreco(e.target.value.replace(/[^\d]/g, ''))}
                   placeholder="1200"
-                  className="min-h-[40px] w-36 rounded-lg border border-sky-200 bg-white pl-7 pr-3 text-[13px] tabular-nums outline-none focus:border-sky-500"
+                  className="min-h-[40px] w-36 rounded-full border border-sky-200 bg-white pl-7 pr-3 text-[13px] tabular-nums outline-none focus:border-sky-500"
                 />
               </div>
               {precoNumero > 0 && (
@@ -304,29 +305,29 @@ export default function PromptModal({
         {variante === 'design' && (
           <div className="max-h-[42vh] overflow-auto border-b border-zinc-200 bg-zinc-50 px-6 py-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+              <h3 className="text-[13px] font-bold text-tinta">
                 Sobre este comércio
               </h3>
               <button
                 onClick={() => setVendoPedido((v) => !v)}
-                className="ml-auto mr-2 rounded-lg border border-zinc-300 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+                className="ml-auto mr-2 rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-[12px] font-semibold text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
               >
                 {vendoPedido ? 'Fechar pedido' : 'Pedir ao cliente'}
               </button>
               <button
                 onClick={guardarBriefing}
                 disabled={salvandoBriefing || briefingSalvo}
-                className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold transition ${
+                className={`rounded-full px-3.5 py-1.5 text-[12px] font-semibold transition ${
                   briefingSalvo
                     ? 'bg-zinc-100 text-zinc-400'
-                    : 'bg-roxo-600 text-white hover:bg-roxo-700'
+                    : 'bg-tinta text-white hover:bg-tinta-70'
                 }`}
               >
                 {salvandoBriefing ? 'Guardando…' : briefingSalvo ? 'Guardado' : 'Guardar'}
               </button>
             </div>
             {vendoPedido && (
-              <div className="mb-4 rounded-xl border border-roxo-200 bg-white p-4">
+              <div className="mb-4 rounded-2xl border border-roxo-200 bg-white p-4">
                 <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[12.5px] font-semibold text-tinta">
                     Perguntas para {nichoDoPedido.toLowerCase()}
@@ -336,18 +337,18 @@ export default function PromptModal({
                   </p>
                   <button
                     onClick={copiarPedido}
-                    className={`rounded-lg px-3.5 py-1.5 text-[12px] font-semibold text-white transition ${
-                      pedidoCopiado ? 'bg-emerald-600' : 'bg-roxo-600 hover:bg-roxo-700'
+                    className={`rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-white transition ${
+                      pedidoCopiado ? 'bg-emerald-600' : 'bg-tinta hover:bg-tinta-70'
                     }`}
                   >
-                    {pedidoCopiado ? '✓ Copiado!' : 'Copiar e mandar no WhatsApp'}
+                    {pedidoCopiado ? <><Check aria-hidden className="mr-1 inline h-4 w-4 align-[-3px]" />Copiado!</> : 'Copiar e mandar no WhatsApp'}
                   </button>
                 </div>
                 <p className="mb-2 text-[11.5px] leading-snug text-zinc-500">
                   As perguntas mudam conforme o ramo do comércio. Copie e mande no WhatsApp; quando
                   ele responder, escreva embaixo de cada uma — vai tudo para o prompt.
                 </p>
-                <div className="max-h-[46vh] space-y-2.5 overflow-auto rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                <div className="max-h-[46vh] space-y-2.5 overflow-auto rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                   {perguntas.map((pergunta, i) => {
                     const resposta = briefing.respostas?.[pergunta] || '';
                     return (
@@ -360,7 +361,7 @@ export default function PromptModal({
                           onChange={(e) => responder(pergunta, e.target.value)}
                           rows={resposta.length > 60 ? 3 : 1}
                           placeholder="o que ele respondeu…"
-                          className={`mt-1 w-full resize-y rounded-lg border px-2.5 py-1.5 text-[12.5px] outline-none ${
+                          className={`mt-1 w-full resize-y rounded-2xl border px-2.5 py-1.5 text-[12.5px] outline-none ${
                             resposta.trim()
                               ? 'border-emerald-300 bg-emerald-50/40 focus:border-emerald-500'
                               : 'border-zinc-300 bg-white focus:border-roxo-500'
@@ -384,7 +385,7 @@ export default function PromptModal({
             readOnly
             value={prompt}
             onFocus={(e) => e.currentTarget.select()}
-            className="h-[52vh] w-full resize-none rounded-xl border border-zinc-200 bg-white p-4 font-mono text-[12px] leading-relaxed text-zinc-800 outline-none focus:border-roxo-400"
+            className="h-[52vh] w-full resize-none rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-[12px] leading-relaxed text-zinc-800 outline-none focus:border-roxo-400"
           />
         </div>
 
@@ -405,24 +406,24 @@ export default function PromptModal({
             )}
             <button
               onClick={copiar}
-              className={`rounded-lg px-5 py-2 text-[13px] font-semibold text-white transition ${
-                copiado ? 'bg-emerald-600' : 'bg-roxo-600 hover:bg-roxo-700'
+              className={`rounded-full px-5 py-2 text-[13px] font-semibold text-white transition ${
+                copiado ? 'bg-emerald-600' : 'bg-tinta hover:bg-tinta-70'
               }`}
             >
-              {copiado ? '✓ Copiado!' : variante === 'design' ? '1. Copiar tudo' : '1. Copiar prompt'}
+              {copiado ? <><Check aria-hidden className="mr-1 inline h-4 w-4 align-[-3px]" />Copiado!</> : variante === 'design' ? '1. Copiar tudo' : '1. Copiar prompt'}
             </button>
             <a
               href={t.url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => { if (!copiado) copiar(); }}
-              className={`rounded-lg px-5 py-2 text-[13px] font-semibold transition ${
+              className={`rounded-full px-5 py-2 text-[13px] font-semibold transition ${
                 copiado
                   ? 'bg-tinta text-white hover:brightness-150'
                   : 'border border-zinc-300 text-zinc-700 hover:border-roxo-400 hover:text-roxo-700'
               }`}
             >
-              2. {variante === 'design' ? 'Gerar landing no Claude' : t.destino} ↗
+              2. {variante === 'design' ? 'Gerar landing no Claude' : t.destino} <ArrowUpRight aria-hidden className="inline h-3.5 w-3.5 align-[-2px]" />
             </a>
           </div>
         </div>
