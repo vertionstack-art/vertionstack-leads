@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { coletorDaChave, cotaDaConta } from '@/lib/conta';
+import { coletorDaChave, cotaDaConta, cotaParaJson } from '@/lib/conta';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -12,11 +12,11 @@ export async function GET(req: Request) {
   const r = await coletorDaChave(req);
   if (!r.ok) return NextResponse.json({ ok: false, motivo: r.motivo, erro: r.erro }, { status: r.status });
 
-  const cota = await cotaDaConta(r.coletor.contaId, r.coletor.ilimitado);
+  const cota = await cotaDaConta(r.coletor.contaId, r.coletor.plano);
   return NextResponse.json({
     ok: true,
     nome: r.coletor.nome,
     plano: r.coletor.plano,
-    cota: { ...cota, restantes: cota.ilimitado ? null : cota.restantes },
+    cota: cotaParaJson(cota),
   });
 }

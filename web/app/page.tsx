@@ -20,7 +20,7 @@ export default async function Home() {
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) redirect('/login');
   await registrarAcesso(cabecalhos, 'painel', 'ok', sessao.email, 15);
 
-  const cota = await cotaDaConta(sessao.contaId, sessao.ilimitado);
+  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
 
   return (
     <Painel

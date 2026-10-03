@@ -10,7 +10,7 @@ import {
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { coletorDaChave, cotaDaConta, devolverCota, equipeDaConta, reservarCota } from '@/lib/conta';
+import { coletorDaChave, cotaDaConta, cotaParaJson, devolverCota, equipeDaConta, reservarCota, type Plano } from '@/lib/conta';
 import { estourou } from '@/lib/limite';
 import { caminhoDaProposta } from '@/lib/token-proposta';
 
@@ -65,12 +65,13 @@ export async function POST(req: Request) {
   let contaId: string;
   let coletor: string;
   let ilimitado: boolean;
+  let plano: Plano;
   let manual = false;
 
   if (req.headers.get('x-api-key')) {
     const r = await coletorDaChave(req);
     if (!r.ok) return NextResponse.json({ ok: false, motivo: r.motivo, erro: r.erro }, { status: r.status });
-    ({ contaId, nome: coletor, ilimitado } = r.coletor);
+    ({ contaId, nome: coletor, ilimitado, plano } = r.coletor);
     // a extensão manda em lotes; 60 lotes por minuto por conta é muito acima do uso normal
     if (await estourou(`ingest:${contaId}`, 60, 60)) {
       return NextResponse.json({ ok: false, erro: 'Envios demais em pouco tempo. Espere um minuto.' }, { status: 429 });
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
     if (!origemConfere(req)) return recusarOrigem();
     const s = await exigirSessao();
     if (s.erro) return s.erro;
-    ({ contaId, nome: coletor, ilimitado } = s.sessao);
+    ({ contaId, nome: coletor, ilimitado, plano } = s.sessao);
     manual = true;
   }
 
@@ -107,11 +108,11 @@ export async function POST(req: Request) {
 
   try {
     const novos = await idsNovos(contaId, unicos.map((l) => l.id));
-    const concedidos = await reservarCota(contaId, novos.length, ilimitado);
+    const concedidos = await reservarCota(contaId, novos.length, plano);
     const r = await salvarLeads(contaId, unicos, concedidos);
     // reservou mais do que gravou (outro envio gravou o mesmo comércio no meio)
     if (!ilimitado) await devolverCota(contaId, concedidos - r.novos);
-    const cota = await cotaDaConta(contaId, ilimitado);
+    const cota = await cotaDaConta(contaId, plano);
 
     const estourouCota = r.barradosPelaCota > 0;
     return NextResponse.json(
@@ -120,10 +121,12 @@ export async function POST(req: Request) {
         ...r,
         ignorados: brutos.length - unicos.length,
         coletor,
-        cota: { ...cota, restantes: cota.ilimitado ? null : cota.restantes },
+        cota: cotaParaJson(cota),
         motivo: estourouCota ? 'cota' : undefined,
         erro: estourouCota
-          ? `Limite do plano grátis: ${cota.limite} leads novos por semana. Assine para coletar sem limite.`
+          ? cota.guardados >= cota.tetoGuardados
+            ? `Sua conta chegou ao limite de ${cota.tetoGuardados} leads guardados do plano. Apague os que não servem ou mude de plano.`
+            : `Limite do seu plano: ${cota.limite} leads novos por semana. Veja os planos para coletar mais.`
           : undefined,
       },
       { status: estourouCota && r.novos + r.atualizados === 0 ? 402 : 200 },
@@ -139,20 +142,20 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, ilimitado } = s.sessao;
+  const { contaId, plano } = s.sessao;
 
   try {
     const [pagina, equipe, cota] = await Promise.all([
       listarLeads(contaId, filtrosDaUrl(new URL(req.url))),
       equipeDaConta(contaId),
-      cotaDaConta(contaId, ilimitado),
+      cotaDaConta(contaId, plano),
     ]);
     return NextResponse.json({
       ok: true,
       ...pagina,
       leads: pagina.leads.map((l) => ({ ...l, linkProposta: caminhoDaProposta(contaId, l.id) })),
       equipe,
-      cota: { usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm },
+      cota: cotaParaJson(cota),
     });
   } catch (err) {
     console.error('[leads GET]', err);

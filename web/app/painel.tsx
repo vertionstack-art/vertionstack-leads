@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
-  MessageCircle, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  Crown, MessageCircle, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
@@ -13,6 +13,7 @@ import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
+import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
 
 // --------------------------------------------------------- constantes
 
@@ -52,7 +53,7 @@ const NIVEIS: { nivel: Nivel; rotulo: string; dica: string; fundo: string; Icone
 
 const PAGINA = 100;
 
-const ROTULO_PLANO = { gratis: 'Grátis', pago: 'Assinante', cortesia: 'Cortesia' } as const;
+
 
 /** como cada resultado da verificação aparece na tabela */
 const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean }> = {
@@ -208,7 +209,7 @@ export default function Painel({
   cota: cotaInicial,
 }: {
   usuario: string;
-  plano: 'gratis' | 'pago' | 'cortesia';
+  plano: Plano;
   bloqueada?: boolean;
   cota: CotaResumo;
 }) {
@@ -513,6 +514,9 @@ export default function Painel({
           <ItemTrilho rotulo="Cadastrar comércio" onClick={() => setCadastrando(true)}>
             <Plus className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
+          <ItemTrilho rotulo="Planos" href="/planos">
+            <Crown className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
           <ItemTrilho rotulo="Extensão do Maps" href="/extensao">
             <Puzzle className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -538,13 +542,16 @@ export default function Painel({
         {[
           { rotulo: 'Painel', Icone: LayoutGrid, acao: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
           { rotulo: 'Cadastrar', Icone: Plus, acao: () => setCadastrando(true) },
-          { rotulo: 'Atualizar', Icone: RefreshCw, acao: carregar },
         ].map(({ rotulo, Icone, acao }) => (
           <button key={rotulo} onClick={acao} className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
             <Icone className="h-5 w-5" strokeWidth={1.8} />
             {rotulo}
           </button>
         ))}
+        <a href="/planos" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
+          <Crown className="h-5 w-5" strokeWidth={1.8} />
+          Planos
+        </a>
         <a href="/extensao" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
           <Puzzle className="h-5 w-5" strokeWidth={1.8} />
           Extensão
@@ -586,7 +593,7 @@ export default function Painel({
                   </a>
                   <a href="/conta" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <UserRound aria-hidden className="h-4 w-4 text-zinc-500" /> Minha conta
-                    <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-bold text-zinc-600">{ROTULO_PLANO[plano]}</span>
+                    <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-bold text-zinc-600">{NOME_DO_PLANO[plano]}</span>
                   </a>
                   <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
@@ -610,18 +617,18 @@ export default function Painel({
                 <span>
                   {cota.usados >= cota.limite ? (
                     <>
-                      <b>Você usou os {cota.limite} leads grátis desta semana.</b> A extensão volta a coletar{' '}
-                      {renovaTexto}. Para coletar sem limite, assine.
+                      <b>Você usou os {cota.limite} leads novos desta semana do plano {NOME_DO_PLANO[plano]}.</b> A extensão volta a coletar{' '}
+                      {renovaTexto}. Para coletar mais, veja os planos.
                     </>
                   ) : (
                     <>
-                      <b>Plano grátis:</b> {cota.usados} de {cota.limite} leads novos usados nesta semana. Renova{' '}
+                      <b>Plano {NOME_DO_PLANO[plano]}:</b> {cota.usados} de {cota.limite} leads novos usados nesta semana. Renova{' '}
                       {renovaTexto}.
                     </>
                   )}
                 </span>
                 <a
-                  href="/conta"
+                  href="/planos"
                   className="inline-flex min-h-[38px] shrink-0 items-center rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-tinta-70"
                 >
                   Ver planos

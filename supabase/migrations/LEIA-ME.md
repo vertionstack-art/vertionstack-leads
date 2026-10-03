@@ -9,3 +9,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
    só no `.env.local` e na variável `SUPABASE_DB_URL` da Vercel.
 3. `0002_conta_legada.sql`
 4. `0003_funcoes_de_email.sql`
+5. `0004_planos_basic_pro.sql`

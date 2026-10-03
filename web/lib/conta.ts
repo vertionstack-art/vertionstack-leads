@@ -13,13 +13,9 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from './sql';
 import { supabaseServidor } from './supabase-server';
+import { LIMITES, type Plano } from './planos';
 
-/** leads novos por semana no plano grátis */
-export const LIMITE_GRATIS = 10;
-/** computadores por chave da extensão */
-export const MAX_APARELHOS = 2;
-
-export type Plano = 'gratis' | 'pago' | 'cortesia';
+export type { Plano };
 
 export interface Sessao {
   userId: string;
@@ -30,7 +26,7 @@ export interface Sessao {
   contaNome: string;
   papel: 'dono' | 'membro';
   plano: Plano;
-  /** pago em dia ou cortesia: sem limite semanal */
+  /** só a cortesia (conta da Vertion) não tem teto */
   ilimitado: boolean;
   pagoAte: string | null;
   bloqueada: boolean;
@@ -56,8 +52,11 @@ export function ehAdminEmail(email: string): boolean {
 
 export function planoEfetivo(plano: string, pagoAte: Date | string | null): { plano: Plano; ilimitado: boolean } {
   if (plano === 'cortesia') return { plano: 'cortesia', ilimitado: true };
-  if (plano === 'pago' && pagoAte && new Date(pagoAte).getTime() > Date.now()) return { plano: 'pago', ilimitado: true };
-  // pago vencido cai para o grátis: continua usando, com limite
+  const emDia = Boolean(pagoAte && new Date(pagoAte).getTime() > Date.now());
+  if (emDia && plano === 'basic') return { plano: 'basic', ilimitado: false };
+  // 'pago' é o nome antigo do pro
+  if (emDia && (plano === 'pro' || plano === 'pago')) return { plano: 'pro', ilimitado: false };
+  // mensalidade vencida cai para o grátis: continua usando, com o limite dele
   return { plano: 'gratis', ilimitado: false };
 }
 
@@ -136,52 +135,77 @@ export function semanaAtual(agora = new Date()): string {
 }
 
 export interface Cota {
+  plano: Plano;
   ilimitado: boolean;
+  /** leads novos nesta semana */
   usados: number;
+  /** teto semanal do plano */
   limite: number;
   restantes: number;
+  /** leads guardados na conta agora, e o teto do plano */
+  guardados: number;
+  tetoGuardados: number;
   /** quando a cota volta: a próxima segunda, 00h de Brasília */
   renovaEm: string;
 }
 
-export async function cotaDaConta(conta: string, ilimitado: boolean): Promise<Cota> {
+export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
   const semana = semanaAtual();
-  const r = await db()`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`;
+  const sql = db();
+  const [r, g] = await Promise.all([
+    sql`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`,
+    sql`select count(*)::int as n from leads where conta_id = ${conta}`,
+  ]);
   const usados = r.length ? (r[0].novos as number) : 0;
+  const guardados = g[0].n as number;
+  const lim = LIMITES[plano];
+  const ilimitado = plano === 'cortesia';
   const proxima = new Date(semana + 'T03:00:00Z');
   proxima.setUTCDate(proxima.getUTCDate() + 7);
   return {
+    plano,
     ilimitado,
     usados,
-    limite: LIMITE_GRATIS,
-    restantes: ilimitado ? Infinity : Math.max(0, LIMITE_GRATIS - usados),
+    limite: lim.semana,
+    restantes: ilimitado ? Infinity : Math.max(0, Math.min(lim.semana - usados, lim.guardados - guardados)),
+    guardados,
+    tetoGuardados: lim.guardados,
     renovaEm: proxima.toISOString(),
   };
 }
 
+/** a cota em formato que vai para o navegador (Infinity não existe em JSON) */
+export function cotaParaJson(c: Cota) {
+  return { ...c, restantes: c.ilimitado ? null : c.restantes };
+}
+
 /**
- * Reserva até `pedidos` vagas da cota desta semana e devolve quantas
- * conseguiu. Numa conta ilimitada só conta (para o admin enxergar uso) e
- * devolve tudo.
+ * Reserva até `pedidos` vagas e devolve quantas conseguiu: o que sobra da
+ * semana, sem passar do teto de leads guardados do plano. Na cortesia só
+ * conta (para o admin enxergar uso) e devolve tudo.
  *
  * Feito numa instrução só, com trava na linha, para duas abas da extensão
  * mandando ao mesmo tempo não passarem as duas pelo mesmo resto de cota.
  */
-export async function reservarCota(conta: string, pedidos: number, ilimitado: boolean): Promise<number> {
+export async function reservarCota(conta: string, pedidos: number, plano: Plano): Promise<number> {
   if (pedidos <= 0) return 0;
   const semana = semanaAtual();
   const sql = db();
   await sql`insert into uso_semanal (conta_id, semana, novos) values (${conta}, ${semana}, 0) on conflict do nothing`;
-  if (ilimitado) {
+  if (plano === 'cortesia') {
     await sql`update uso_semanal set novos = novos + ${pedidos} where conta_id = ${conta} and semana = ${semana}`;
     return pedidos;
   }
+  const lim = LIMITES[plano];
+  const g = await sql`select count(*)::int as n from leads where conta_id = ${conta}`;
+  const cabem = Math.max(0, Math.min(pedidos, lim.guardados - (g[0].n as number)));
+  if (!cabem) return 0;
   const r = await sql`
     with antes as (
       select novos from uso_semanal where conta_id = ${conta} and semana = ${semana} for update
     )
     update uso_semanal u
-       set novos = least(${LIMITE_GRATIS}, u.novos + ${pedidos})
+       set novos = least(${lim.semana}, u.novos + ${cabem})
       from antes
      where u.conta_id = ${conta} and u.semana = ${semana}
     returning u.novos - antes.novos as concedidos
@@ -326,12 +350,13 @@ export async function coletorDaChave(req: Request): Promise<ResultadoChave> {
   const conhecido = await sql`select 1 from aparelhos where chave_id = ${k.id} and aparelho_id = ${aparelho}`;
   if (!conhecido.length) {
     const n = await sql`select count(*)::int as n from aparelhos where chave_id = ${k.id}`;
-    if (n[0].n >= MAX_APARELHOS) {
+    const maxAparelhos = LIMITES[planoEfetivo(k.plano, k.pago_ate).plano].aparelhos;
+    if (n[0].n >= maxAparelhos) {
       return {
         ok: false,
         status: 403,
         motivo: 'aparelhos',
-        erro: `Esta chave já está em ${MAX_APARELHOS} computadores. Libere um em Minha conta, no painel.`,
+        erro: `Esta chave já está em ${maxAparelhos} computadores. Libere um em Minha conta, no painel.`,
       };
     }
     await sql`insert into aparelhos (chave_id, aparelho_id) values (${k.id}, ${aparelho}) on conflict do nothing`;

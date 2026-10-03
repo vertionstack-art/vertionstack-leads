@@ -6,7 +6,7 @@ import { ChevronDown } from 'lucide-react';
 interface Linha {
   contaId: string;
   nome: string;
-  plano: 'gratis' | 'pago' | 'cortesia';
+  plano: 'gratis' | 'basic' | 'pro' | 'cortesia';
   pagoAte: string | null;
   bloqueada: boolean;
   legado: boolean;
@@ -16,7 +16,7 @@ interface Linha {
   semana: number;
 }
 
-const ROTULO = { gratis: 'Grátis', pago: 'Assinante', cortesia: 'Cortesia' } as const;
+const ROTULO = { gratis: 'Free', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
 
 function data(iso: string | null) {
   return iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
@@ -76,7 +76,7 @@ export default function PainelContas() {
   }
 
   const legadaJa = contas.some((c) => c.legado);
-  const pagantes = contas.filter((c) => c.plano === 'pago' && c.pagoAte && new Date(c.pagoAte) > new Date()).length;
+  const pagantes = contas.filter((c) => (c.plano === 'basic' || c.plano === 'pro') && c.pagoAte && new Date(c.pagoAte) > new Date()).length;
 
   return (
     <section className="mt-8">
@@ -185,7 +185,7 @@ export default function PainelContas() {
                     <ChevronDown aria-hidden className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-500" />
                   </span>
                 </td>
-                <td className="px-4 py-3.5 tabular-nums">{c.plano === 'pago' ? data(c.pagoAte) : '—'}</td>
+                <td className="px-4 py-3.5 tabular-nums">{c.plano === 'basic' || c.plano === 'pro' ? data(c.pagoAte) : '—'}</td>
                 <td className="px-4 py-3.5 text-right font-bold tabular-nums">{c.leads}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums">{c.semana}</td>
                 <td className="px-4 py-3.5 tabular-nums text-zinc-500">{data(c.criadaEm)}</td>

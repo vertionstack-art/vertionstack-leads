@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Check, Copy, KeyRound, Laptop } from 'lucide-react';
+import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
 
 interface Info {
   email: string;
   nome: string;
-  plano: 'gratis' | 'pago' | 'cortesia';
+  plano: Plano;
   pagoAte: string | null;
   chave: {
     prefixo: string;
@@ -15,11 +16,11 @@ interface Info {
     ultimoUso: string | null;
     aparelhos: { id: string; primeiroUso: string; ultimoUso: string }[];
   } | null;
-  cota: { ilimitado: boolean; usados: number; limite: number; restantes: number | null; renovaEm: string };
+  cota: { ilimitado: boolean; usados: number; limite: number; restantes: number | null; renovaEm: string; guardados: number; tetoGuardados: number };
   maxAparelhos: number;
 }
 
-const ROTULO = { gratis: 'Plano grátis', pago: 'Assinante', cortesia: 'Cortesia' } as const;
+
 
 function quando(iso: string | null) {
   if (!iso) return 'nunca';
@@ -79,12 +80,12 @@ export default function PainelConta() {
       {/* ------------------------------------------------------- plano */}
       <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="rounded-[24px] bg-ceu p-6">
-          <p className="text-[13px] font-bold text-sky-950/70">{ROTULO[info.plano]}</p>
+          <p className="text-[13px] font-bold text-sky-950/70">Plano {NOME_DO_PLANO[info.plano]}</p>
           {cota.ilimitado ? (
             <>
               <p className="mt-2 text-[40px] font-extrabold leading-none tracking-[-0.03em]">Sem limite</p>
               <p className="mt-2 text-[13px] font-semibold text-sky-950/70">
-                {info.plano === 'pago' && info.pagoAte
+                {info.plano !== 'cortesia' && info.pagoAte
                   ? `Assinatura em dia até ${new Date(info.pagoAte).toLocaleDateString('pt-BR')}.`
                   : 'Acesso liberado pela Vertion.'}{' '}
                 {cota.usados} leads novos nesta semana.
@@ -97,6 +98,9 @@ export default function PainelConta() {
                 <span className="text-[22px] text-sky-950/50"> / {cota.limite}</span>
               </p>
               <p className="mt-2 text-[13px] font-semibold text-sky-950/70">leads novos nesta semana. Renova {renova}.</p>
+              <p className="mt-1 text-[12.5px] font-medium text-sky-950/60">
+                {cota.guardados} de {cota.tetoGuardados} leads guardados{info.pagoAte ? ` · assinatura até ${new Date(info.pagoAte).toLocaleDateString('pt-BR')}` : ''}
+              </p>
               <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/70" aria-hidden>
                 <div className="h-full rounded-full bg-tinta" style={{ width: `${Math.min(100, (cota.usados / cota.limite) * 100)}%` }} />
               </div>
@@ -107,17 +111,19 @@ export default function PainelConta() {
         <div className="flex flex-col rounded-[24px] bg-tinta p-6 text-white">
           <h2 className="text-[22px] font-extrabold leading-tight tracking-[-0.02em]">
             Coletar{' '}
-            <span className="inline-block -rotate-2 rounded-full border border-white/70 px-2.5 py-0.5 text-[18px]">sem limite</span>
+            <span className="inline-block -rotate-2 rounded-full border border-white/70 px-2.5 py-0.5 text-[18px]">mais</span>
           </h2>
           <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-white/70">
-            {info.plano === 'gratis'
-              ? 'A assinatura mensal libera leads novos sem teto semanal, na extensão e no cadastro manual.'
-              : 'Sua conta já coleta sem limite.'}
+            {info.plano === 'cortesia'
+              ? 'Sua conta é da Vertion e coleta sem limite.'
+              : info.plano === 'pro'
+                ? 'Você está no plano mais completo.'
+                : 'Basic e Pro coletam 150 e 500 leads novos por semana, com mais espaço para guardar.'}
           </p>
-          {info.plano === 'gratis' && (
-            <span className="mt-auto inline-flex min-h-[40px] w-fit items-center rounded-full border border-white/30 px-4 pt-0 text-[13px] font-bold text-white/80">
-              Assinatura abre em breve
-            </span>
+          {info.plano !== 'cortesia' && (
+            <Link href="/planos" className="mt-auto inline-flex min-h-[40px] w-fit items-center rounded-full bg-ceu px-5 pt-0 text-[13px] font-bold text-tinta transition-colors hover:bg-white">
+              Ver planos
+            </Link>
           )}
         </div>
       </section>

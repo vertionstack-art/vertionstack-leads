@@ -43,7 +43,7 @@ $('testar').addEventListener('click', async () => {
     const cota = c.cota || {};
     const plano = cota.ilimitado
       ? 'Coleta sem limite.'
-      : `Plano grátis: ${cota.usados ?? 0} de ${cota.limite ?? 10} leads novos usados nesta semana.`;
+      : `Plano ${({ gratis: "Free", basic: "Basic", pro: "Pro" })[c.plano] || "Free"}: ${cota.usados ?? 0} de ${cota.limite ?? 10} leads novos usados nesta semana.`;
     mostrar(`Conectado como ${c.nome || 'você'}. ${plano}`, true);
   } else {
     const erro = (r && ((r.corpo && r.corpo.erro) || r.erro || ('O painel respondeu ' + r.status))) || 'sem resposta';

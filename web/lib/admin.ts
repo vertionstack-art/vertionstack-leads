@@ -53,9 +53,9 @@ export async function listarAssinantes(): Promise<LinhaAssinante[]> {
 
 export async function mudarConta(contaId: string, mudanca: { plano?: Plano; bloqueada?: boolean }): Promise<void> {
   const sql = db();
-  if (mudanca.plano === 'pago') {
+  if (mudanca.plano === 'basic' || mudanca.plano === 'pro') {
     // marcado à mão (pagamento por fora): vale 31 dias a partir de hoje, até a cobrança automática existir
-    await sql`update contas set plano = 'pago', pago_ate = greatest(coalesce(pago_ate, now()), now()) + interval '31 days' where id = ${contaId}`;
+    await sql`update contas set plano = ${mudanca.plano}, pago_ate = greatest(coalesce(pago_ate, now()), now()) + interval '31 days' where id = ${contaId}`;
   } else if (mudanca.plano) {
     await sql`update contas set plano = ${mudanca.plano} where id = ${contaId}`;
   }
