@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { LIMITES, NOME_DO_PLANO, PLANOS_A_VENDA, reais } from '@/lib/planos';
+import { pagamentoLigado, situacaoDaCobranca } from '@/lib/pagamento';
+import { BotaoGerenciar, BotoesAssinar } from './botoes';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +13,11 @@ const numero = (n: number) => n.toLocaleString('pt-BR');
 /** o piso de preço de um site na proposta (lib/proposta): é o argumento de que o plano se paga */
 const PISO_DE_UM_SITE = 38745;
 
-export default async function PaginaPlanos() {
+export default async function PaginaPlanos({ searchParams }: { searchParams: Promise<{ pago?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
+  const { pago } = await searchParams;
+  const [cota, cobranca] = await Promise.all([cotaDaConta(sessao.contaId, sessao.plano), situacaoDaCobranca(sessao.contaId)]);
   const contato = process.env.EMPRESA_EMAIL || 'vertionstack@gmail.com';
 
   return (
@@ -40,6 +43,13 @@ export default async function PaginaPlanos() {
             Voltar ao painel
           </Link>
         </header>
+
+        {pago === '1' && (
+          <p role="status" className="mt-7 rounded-2xl bg-menta px-5 py-3.5 text-[13.5px] font-semibold text-emerald-950">
+            Pagamento recebido. O plano é liberado assim que a Stripe confirmar, em poucos segundos; no Pix pode levar até
+            um minuto. Se aqui ainda aparecer o plano antigo, recarregue a página.
+          </p>
+        )}
 
         <section className="mt-9 grid gap-4 md:grid-cols-3" aria-label="Planos disponíveis">
           {PLANOS_A_VENDA.map((p) => {
@@ -96,6 +106,10 @@ export default async function PaginaPlanos() {
                     <span className={`flex min-h-[44px] items-center justify-center rounded-full text-[13px] font-semibold ${escuro ? 'text-white/60' : 'text-zinc-500'}`}>
                       Volta sozinho quando a assinatura vence
                     </span>
+                  ) : cobranca.assinaturaAtiva ? (
+                    <BotaoGerenciar escuro={escuro} />
+                  ) : pagamentoLigado ? (
+                    <BotoesAssinar plano={p.plano as 'basic' | 'pro'} nome={p.nome} escuro={escuro} />
                   ) : (
                     <a
                       href={`mailto:${contato}?subject=${assunto}&body=${corpo}`}
@@ -124,9 +138,16 @@ export default async function PaginaPlanos() {
           <div className="rounded-[24px] bg-zinc-50 p-6">
             <h2 className="text-[17px] font-extrabold">Como assinar</h2>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-zinc-600">
-              O pagamento automático por Pix e cartão chega em breve. Por enquanto, clique em assinar e a gente
-              libera a sua conta assim que o pagamento cair. A cota da semana renova toda segunda-feira.
+              {pagamentoLigado
+                ? 'No cartão, a assinatura renova sozinha todo mês e você cancela quando quiser. No Pix, cada pagamento libera 31 dias. O plano é liberado assim que o pagamento cai.'
+                : 'O pagamento automático por Pix e cartão chega em breve. Por enquanto, clique em assinar e a gente libera a sua conta assim que o pagamento cair.'}{' '}
+              A cota da semana renova toda segunda-feira.
             </p>
+            {cobranca.temPortal && !cobranca.assinaturaAtiva && (
+              <div className="mt-4 max-w-[260px]">
+                <BotaoGerenciar />
+              </div>
+            )}
           </div>
         </section>
       </div>
