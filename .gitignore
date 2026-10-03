@@ -13,3 +13,6 @@ Thumbs.db
 # capturas locais da revisão de design
 .impeccable/review/
 .impeccable/build/
+
+.vercel
+.env*
