@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { sessaoAtual } from '@/lib/conta';
-import { origemConfere, recusarOrigem } from '@/lib/auth';
+import { exigirAdmin, origemConfere, recusarOrigem } from '@/lib/auth';
 import { bloquear, desbloquear, resumoPorIp, ultimosAcessos } from '@/lib/acessos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
-  if (!(await sessaoAtual())?.admin) {
-    return NextResponse.json({ ok: false, erro: 'So o dono do painel ve isto.' }, { status: 403 });
-  }
+  const a = await exigirAdmin();
+  if (a.erro) return a.erro;
 
   const url = new URL(req.url);
   const ip = url.searchParams.get('ip') || undefined;
@@ -24,10 +22,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
-  const quem = await sessaoAtual();
-  if (!quem?.admin) {
-    return NextResponse.json({ ok: false, erro: 'So o dono do painel pode bloquear.' }, { status: 403 });
-  }
+  const a = await exigirAdmin();
+  if (a.erro) return a.erro;
+  const quem = a.sessao;
 
   const corpo = (await req.json().catch(() => ({}))) as {
     ip?: string;

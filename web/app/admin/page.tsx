@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import { sessaoAtual } from '@/lib/conta';
+import { nivelDaSessao } from '@/lib/auth';
 import { ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import PainelAcessos from './painel-acessos';
 import PainelContas from './painel-contas';
@@ -13,6 +14,8 @@ export default async function PaginaAdmin() {
   if (!sessao) redirect('/login');
   // para quem não é administrador a página simplesmente não existe
   if (!sessao.admin) notFound();
+  // a senha sozinha não abre a administração: precisa do código do Google Authenticator
+  if ((await nivelDaSessao()) !== 'aal2') redirect('/admin/2fa');
 
   const cabecalhos = await headers();
   const meuIp = ipDaRequisicao(cabecalhos);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { sessaoAtual, type Plano } from '@/lib/conta';
-import { origemConfere, recusarOrigem } from '@/lib/auth';
+import { type Plano } from '@/lib/conta';
+import { exigirAdmin, origemConfere, recusarOrigem } from '@/lib/auth';
 import { juntarNaConta, listarAssinantes, migrarDoNeon, mudarConta } from '@/lib/admin';
 
 export const runtime = 'nodejs';
@@ -9,20 +9,17 @@ export const maxDuration = 60;
 
 const PLANOS: Plano[] = ['gratis', 'pago', 'cortesia'];
 
-function negado() {
-  return NextResponse.json({ ok: false, erro: 'Só o administrador vê isto.' }, { status: 403 });
-}
-
 export async function GET() {
-  const s = await sessaoAtual();
-  if (!s?.admin) return negado();
-  return NextResponse.json({ ok: true, contas: await listarAssinantes(), minhaConta: s.contaId });
+  const a = await exigirAdmin();
+  if (a.erro) return a.erro;
+  return NextResponse.json({ ok: true, contas: await listarAssinantes(), minhaConta: a.sessao.contaId });
 }
 
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
-  const s = await sessaoAtual();
-  if (!s?.admin) return negado();
+  const a = await exigirAdmin();
+  if (a.erro) return a.erro;
+  const s = a.sessao;
 
   const corpo = (await req.json().catch(() => ({}))) as {
     acao?: 'plano' | 'bloquear' | 'liberar' | 'juntar' | 'migrar';
