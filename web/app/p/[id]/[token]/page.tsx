@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { buscarLead } from '@/lib/db';
 import { lerCaminho } from '@/lib/token-proposta';
 import { contaLegada } from '@/lib/conta';
+import { empresaDaConta } from '@/lib/perfil';
 import { montarProposta, moeda, normalizarMarcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
@@ -35,15 +36,11 @@ async function leadDoLink(segmento: string, token: string) {
   const alvo = lerCaminho(segmento, token);
   if (!alvo) return null;
   const conta = 'conta' in alvo ? alvo.conta : await contaLegada();
-  return conta ? buscarLead(conta, alvo.id) : null;
+  if (!conta) return null;
+  const lead = await buscarLead(conta, alvo.id);
+  return lead ? Object.assign(lead, { contaId: conta }) : null;
 }
 
-const EMPRESA = {
-  nome: process.env.EMPRESA_NOME || 'Vertion Stack',
-  telefone: process.env.EMPRESA_TELEFONE || '',
-  email: process.env.EMPRESA_EMAIL || '',
-  site: process.env.EMPRESA_SITE || '',
-};
 
 /** a proposta vale por 7 dias — prazo curto ajuda a decisão a acontecer */
 const DIAS_DE_VALIDADE = 7;
@@ -91,6 +88,8 @@ export default async function PaginaProposta({
 
   const lead = await leadDoLink(id, token);
   if (!lead || !lead.proposta) notFound();
+  // quem oferece é a empresa de quem mandou a proposta, não a Vertion
+  const EMPRESA = await empresaDaConta(lead.contaId);
 
   const cfg = lead.proposta as {
     marcacoes?: unknown;

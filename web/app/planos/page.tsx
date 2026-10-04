@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { LIMITES, NOME_DO_PLANO, PLANOS_A_VENDA, reais } from '@/lib/planos';
-import { pagamentoLigado, situacaoDaCobranca } from '@/lib/pagamento';
+import { pagamentoLigado, pixLigado, situacaoDaCobranca } from '@/lib/pagamento';
 import { BotaoGerenciar, BotoesAssinar } from './botoes';
 
 export const dynamic = 'force-dynamic';
@@ -48,6 +48,21 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
           <p role="status" className="mt-7 rounded-2xl bg-menta px-5 py-3.5 text-[13.5px] font-semibold text-emerald-950">
             Pagamento recebido. O plano é liberado assim que a Stripe confirmar, em poucos segundos; no Pix pode levar até
             um minuto. Se aqui ainda aparecer o plano antigo, recarregue a página.
+          </p>
+        )}
+
+        {cobranca.pagamentoFalhou && (
+          <div role="alert" className="mt-7 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-zinc-100 px-5 py-3.5 ring-2 ring-inset ring-tinta">
+            <p className="text-[13.5px] font-semibold">
+              O cartão foi recusado na renovação. Atualize o cartão para não perder o plano quando ele vencer.
+            </p>
+            <div className="w-full max-w-[240px]"><BotaoGerenciar /></div>
+          </div>
+        )}
+        {cobranca.cancelaEm && (
+          <p className="mt-7 rounded-2xl bg-zinc-100 px-5 py-3.5 text-[13.5px] font-semibold">
+            Sua assinatura foi cancelada e termina em {new Date(cobranca.cancelaEm).toLocaleDateString('pt-BR')}. Até lá o plano
+            continua valendo; depois a conta volta ao Free. Mudou de ideia? Reative em Gerenciar assinatura.
           </p>
         )}
 
@@ -109,7 +124,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                   ) : cobranca.assinaturaAtiva ? (
                     <BotaoGerenciar escuro={escuro} />
                   ) : pagamentoLigado ? (
-                    <BotoesAssinar plano={p.plano as 'basic' | 'pro'} nome={p.nome} escuro={escuro} />
+                    <BotoesAssinar plano={p.plano as 'basic' | 'pro'} nome={p.nome} escuro={escuro} comPix={pixLigado} />
                   ) : (
                     <a
                       href={`mailto:${contato}?subject=${assunto}&body=${corpo}`}
@@ -139,7 +154,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
             <h2 className="text-[17px] font-extrabold">Como assinar</h2>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-zinc-600">
               {pagamentoLigado
-                ? 'No cartão, a assinatura renova sozinha todo mês e você cancela quando quiser. No Pix, cada pagamento libera 31 dias. O plano é liberado assim que o pagamento cai.'
+                ? `No cartão, a assinatura renova sozinha todo mês e você troca de plano ou cancela quando quiser.${pixLigado ? ' No Pix, cada pagamento libera 31 dias.' : ''} O plano é liberado assim que o pagamento cai.`
                 : 'O pagamento automático por Pix e cartão chega em breve. Por enquanto, clique em assinar e a gente libera a sua conta assim que o pagamento cair.'}{' '}
               A cota da semana renova toda segunda-feira.
             </p>

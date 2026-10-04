@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { atualizarLead, apagarLead, type Status } from '@/lib/db';
+import { atualizarLead, apagarLead, buscarLead, type Status } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -48,13 +48,35 @@ export async function PATCH(req: Request, ctx: Ctx) {
     previaUrl = u || null;
   }
 
+  const idLead = decodeURIComponent(id).slice(0, 300);
+
+  /*
+   * A data do fechamento é carimbada aqui, no servidor, na primeira vez que a
+   * proposta é marcada como fechada — é ela que põe o cliente no mês certo do
+   * Financeiro. Fechar também leva o lead para o status "fechado".
+   */
+  let status = corpo.status as Status | undefined;
+  let proposta = corpo.proposta;
+  if (proposta && typeof proposta === 'object') {
+    const nova = { ...(proposta as Record<string, unknown>) };
+    const atual = await buscarLead(contaId, idLead);
+    const antes = (atual?.proposta || {}) as Record<string, unknown>;
+    if (nova.fechado) {
+      nova.fechadoEm = typeof antes.fechadoEm === 'string' && antes.fechado ? antes.fechadoEm : new Date().toISOString();
+      if (!status && atual?.status !== 'fechado') status = 'fechado';
+    } else {
+      delete nova.fechadoEm;
+    }
+    proposta = nova;
+  }
+
   const lead = await atualizarLead(
     contaId,
-    decodeURIComponent(id).slice(0, 300),
+    idLead,
     {
-      status: corpo.status as Status | undefined,
+      status,
       notes: corpo.notes !== undefined ? (corpo.notes ? String(corpo.notes).slice(0, 2000) : null) : undefined,
-      proposta: corpo.proposta,
+      proposta,
       previaUrl,
       cnpj: corpo.cnpj,
       briefing: corpo.briefing,

@@ -18,7 +18,7 @@ async function ir(rota: string, corpo: Record<string, string>): Promise<string |
 }
 
 /** os dois jeitos de assinar um plano: cartão (renova sozinho) ou Pix (um mês) */
-export function BotoesAssinar({ plano, nome, escuro }: { plano: 'basic' | 'pro'; nome: string; escuro: boolean }) {
+export function BotoesAssinar({ plano, nome, escuro, comPix }: { plano: 'basic' | 'pro'; nome: string; escuro: boolean; comPix: boolean }) {
   const [ocupado, setOcupado] = useState<'cartao' | 'pix' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -44,6 +44,7 @@ export function BotoesAssinar({ plano, nome, escuro }: { plano: 'basic' | 'pro';
         <CreditCard aria-hidden className="h-4 w-4" />
         {ocupado === 'cartao' ? 'Abrindo…' : `Assinar o ${nome} no cartão`}
       </button>
+      {comPix && (
       <button
         onClick={() => pagar('pix')}
         disabled={ocupado !== null}
@@ -54,6 +55,7 @@ export function BotoesAssinar({ plano, nome, escuro }: { plano: 'basic' | 'pro';
         <QrCode aria-hidden className="h-4 w-4" />
         {ocupado === 'pix' ? 'Abrindo…' : 'Pagar 1 mês no Pix'}
       </button>
+      )}
       {erro && (
         <p role="alert" className={`text-center text-[12.5px] font-semibold ${escuro ? 'text-white' : 'text-red-700'}`}>
           {erro}

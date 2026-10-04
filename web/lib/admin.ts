@@ -164,3 +164,66 @@ export async function migrarDoNeon(contaDestino: string): Promise<{ copiados: nu
 
   return { copiados, jaExistiam, bloqueios };
 }
+
+export interface ReceitaDaFerramenta {
+  /** contas com plano pago em dia, por plano */
+  ativos: { basic: number; pro: number };
+  /** quanto as assinaturas em dia somam por mês, em centavos */
+  mensalCentavos: number;
+  /** recebido no mês corrente e no anterior (horário de Brasília), em centavos */
+  mesCentavos: number;
+  mesAnteriorCentavos: number;
+  totalCentavos: number;
+  cancelamentosAgendados: number;
+  cartoesRecusados: number;
+  ultimos: { id: string; conta: string; plano: string; forma: string; valorCentavos: number; pagoEm: string }[];
+}
+
+/** a receita da Vertion com as assinaturas — só o admin vê */
+export async function receitaDaFerramenta(): Promise<ReceitaDaFerramenta> {
+  const sql = db();
+  const precos = { basic: 3790, pro: 6790 };
+  const [ativos, mes, flags, ultimos] = await Promise.all([
+    sql`
+      select plano, count(*)::int as n from contas
+      where plano in ('basic', 'pro', 'pago') and pago_ate > now() and not bloqueada
+      group by plano
+    `,
+    sql`
+      select
+        coalesce(sum(valor_centavos) filter (where date_trunc('month', pago_em at time zone 'America/Sao_Paulo') = date_trunc('month', now() at time zone 'America/Sao_Paulo')), 0)::int as mes,
+        coalesce(sum(valor_centavos) filter (where date_trunc('month', pago_em at time zone 'America/Sao_Paulo') = date_trunc('month', now() at time zone 'America/Sao_Paulo') - interval '1 month'), 0)::int as anterior,
+        coalesce(sum(valor_centavos), 0)::int as total
+      from pagamentos
+    `,
+    sql`
+      select count(*) filter (where assinatura_cancela_em is not null)::int as cancelando,
+             count(*) filter (where pagamento_falhou)::int as recusados
+      from contas
+    `,
+    sql`
+      select p.id, coalesce(c.nome, '—') as conta, p.plano, p.forma, p.valor_centavos, p.pago_em
+      from pagamentos p left join contas c on c.id = p.conta_id
+      order by p.pago_em desc limit 12
+    `,
+  ]);
+  const a = { basic: 0, pro: 0 };
+  for (const r of ativos) a[r.plano === 'basic' ? 'basic' : 'pro'] += r.n;
+  return {
+    ativos: a,
+    mensalCentavos: a.basic * precos.basic + a.pro * precos.pro,
+    mesCentavos: mes[0].mes,
+    mesAnteriorCentavos: mes[0].anterior,
+    totalCentavos: mes[0].total,
+    cancelamentosAgendados: flags[0].cancelando,
+    cartoesRecusados: flags[0].recusados,
+    ultimos: ultimos.map((x) => ({
+      id: x.id,
+      conta: x.conta,
+      plano: x.plano,
+      forma: x.forma,
+      valorCentavos: x.valor_centavos,
+      pagoEm: new Date(x.pago_em).toISOString(),
+    })),
+  };
+}

@@ -18,6 +18,19 @@ interface Linha {
 
 const ROTULO = { gratis: 'Free', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
 
+interface Receita {
+  ativos: { basic: number; pro: number };
+  mensalCentavos: number;
+  mesCentavos: number;
+  mesAnteriorCentavos: number;
+  totalCentavos: number;
+  cancelamentosAgendados: number;
+  cartoesRecusados: number;
+  ultimos: { id: string; conta: string; plano: string; forma: string; valorCentavos: number; pagoEm: string }[];
+}
+
+const brl = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 function data(iso: string | null) {
   return iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
 }
@@ -25,6 +38,7 @@ function data(iso: string | null) {
 export default function PainelContas() {
   const [contas, setContas] = useState<Linha[]>([]);
   const [minha, setMinha] = useState('');
+  const [receita, setReceita] = useState<Receita | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -36,6 +50,7 @@ export default function PainelContas() {
     if (d.ok) {
       setContas(d.contas);
       setMinha(d.minhaConta);
+      setReceita(d.receita);
     } else setErro(d.erro);
   }, []);
 
@@ -80,6 +95,41 @@ export default function PainelContas() {
 
   return (
     <section className="mt-8">
+      {receita && (
+        <div className="mb-10">
+          <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">Receita da ferramenta</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="rounded-[24px] bg-tinta p-6 text-white">
+              <p className="text-[13px] font-bold text-white/60">Mensalidade recorrente</p>
+              <p className="mt-2 text-[40px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{brl(receita.mensalCentavos)}</p>
+              <p className="mt-2 text-[13px] text-white/70">
+                {receita.ativos.basic} Basic · {receita.ativos.pro} Pro em dia
+              </p>
+            </div>
+            <div className="rounded-[24px] bg-zinc-50 p-6">
+              <p className="text-[13px] font-bold text-zinc-500">Recebido este mês</p>
+              <p className="mt-2 text-[30px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{brl(receita.mesCentavos)}</p>
+              <p className="mt-2 text-[12.5px] text-zinc-500">mês passado {brl(receita.mesAnteriorCentavos)} · total {brl(receita.totalCentavos)}</p>
+            </div>
+            <div className="rounded-[24px] bg-zinc-50 p-6">
+              <p className="text-[13px] font-bold text-zinc-500">Atenção</p>
+              <p className="mt-2 text-[14px] font-semibold">{receita.cancelamentosAgendados} cancelamento(s) agendado(s)</p>
+              <p className="mt-1 text-[14px] font-semibold">{receita.cartoesRecusados} cartão(ões) recusado(s)</p>
+            </div>
+          </div>
+          {receita.ultimos.length > 0 && (
+            <ul className="mt-4 divide-y divide-zinc-100 rounded-[24px] border border-zinc-200 px-5">
+              {receita.ultimos.map((u) => (
+                <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[13px]">
+                  <span><b>{u.conta}</b> <span className="text-zinc-500">· {u.plano === 'pro' ? 'Pro' : 'Basic'} · {u.forma === 'pix' ? 'Pix' : 'cartão'}</span></span>
+                  <span className="flex gap-4 tabular-nums"><span className="text-zinc-500">{data(u.pagoEm)}</span><b>{brl(u.valorCentavos)}</b></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">
           Contas{' '}
