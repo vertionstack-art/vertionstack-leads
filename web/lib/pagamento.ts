@@ -45,15 +45,26 @@ function precoRecorrente(plano: PlanoPago): string {
   return id;
 }
 
-/** o cliente da Stripe desta conta; cria na primeira vez */
+/**
+ * O cliente da Stripe desta conta; cria na primeira vez. Se o guardado não
+ * existe mais na Stripe (apagado, ou criado no modo de teste e agora a chave é
+ * a real), cria outro em vez de travar o pagamento.
+ */
 async function clienteDaConta(contaId: string, email: string): Promise<string> {
   const sql = db();
   const r = await sql`select stripe_cliente_id from contas where id = ${contaId}`;
-  if (r[0]?.stripe_cliente_id) return r[0].stripe_cliente_id as string;
+  const guardado = r[0]?.stripe_cliente_id as string | undefined;
+  if (guardado) {
+    try {
+      const c = await stripe().customers.retrieve(guardado);
+      if (!('deleted' in c && c.deleted)) return guardado;
+    } catch {
+      // não existe nesta conta da Stripe: segue e cria um novo
+    }
+  }
   const c = await stripe().customers.create({ email, metadata: { conta_id: contaId } });
-  await sql`update contas set stripe_cliente_id = ${c.id} where id = ${contaId} and stripe_cliente_id is null`;
-  const de = await sql`select stripe_cliente_id from contas where id = ${contaId}`;
-  return de[0].stripe_cliente_id as string;
+  await sql`update contas set stripe_cliente_id = ${c.id} where id = ${contaId}`;
+  return c.id;
 }
 
 /** abre a tela de pagamento da Stripe e devolve o endereço para mandar a pessoa */

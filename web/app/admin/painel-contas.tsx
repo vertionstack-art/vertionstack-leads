@@ -90,7 +90,6 @@ export default function PainelContas() {
     }
   }
 
-  const legadaJa = contas.some((c) => c.legado);
   const pagantes = contas.filter((c) => (c.plano === 'basic' || c.plano === 'pro') && c.pagoAte && new Date(c.pagoAte) > new Date()).length;
 
   return (
@@ -143,22 +142,6 @@ export default function PainelContas() {
       {aviso && <p role="status" className="mt-4 rounded-2xl bg-zinc-100 px-5 py-3 text-[13px] font-semibold">{aviso}</p>}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        {!legadaJa && (
-          <div className="rounded-[24px] bg-tinta p-6 text-white">
-            <h3 className="text-[17px] font-extrabold">Trazer os leads do banco antigo</h3>
-            <p className="mt-1.5 text-[13px] leading-relaxed text-white/70">
-              Copia todos os leads do Neon para a sua conta, com propostas, prévias e anotações. Os links de proposta
-              que você já mandou continuam abrindo. Pode clicar de novo se algo falhar: o que já veio é pulado.
-            </p>
-            <button
-              onClick={() => agir({ acao: 'migrar' })}
-              disabled={ocupado}
-              className="mt-4 min-h-[40px] rounded-full bg-ceu px-5 text-[13px] font-bold text-tinta transition-colors hover:bg-white disabled:opacity-60"
-            >
-              {ocupado ? 'Copiando…' : 'Copiar meus leads'}
-            </button>
-          </div>
-        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
