@@ -125,7 +125,7 @@ function ehPlanoPago(v: unknown): v is PlanoPago {
 async function liberarPix(contaId: string, plano: PlanoPago): Promise<void> {
   await db()`
     update contas set
-      plano = ${plano},
+      plano = case when plano = 'cortesia' then plano else ${plano} end,
       forma_pagamento = case when stripe_assinatura_id is null then 'pix' else forma_pagamento end,
       pago_ate = greatest(coalesce(pago_ate, now()), now()) + make_interval(days => ${DIAS_POR_PIX})
     where id = ${contaId}
@@ -142,7 +142,7 @@ async function liberarAssinatura(sub: Stripe.Subscription): Promise<void> {
   const ate = new Date((fim + FOLGA_CARTAO_DIAS * 86400) * 1000);
   await db()`
     update contas set
-      plano = ${plano},
+      plano = case when plano = 'cortesia' then plano else ${plano} end,
       forma_pagamento = 'cartao',
       stripe_assinatura_id = ${sub.id},
       pago_ate = greatest(coalesce(pago_ate, now()), ${ate})
