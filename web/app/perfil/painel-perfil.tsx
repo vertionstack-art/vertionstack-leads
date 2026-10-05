@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Check, CreditCard, QrCode } from 'lucide-react';
 import { NOME_DO_PLANO, reais, type Plano } from '@/lib/planos';
+import FotoDePerfil from './foto';
 
 interface Perfil {
   nome: string;
@@ -35,7 +36,7 @@ function data(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export default function PainelPerfil() {
+export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | null }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [p, setP] = useState<Perfil | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -112,7 +113,10 @@ export default function PainelPerfil() {
       {/* ------------------------------------------------------- você */}
       <section className="rounded-[24px] border border-zinc-200 p-6">
         <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">Você</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4">
+          <FotoDePerfil inicial={(p.nome || dados.email).slice(0, 1)} fotoInicial={fotoInicial} />
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
           <label className="block">
             <span className={rotulo}>Como você aparece no painel</span>
             <input value={p.nome} onChange={set('nome')} maxLength={40} className={campo} />

@@ -133,3 +133,33 @@ export async function empresaDaConta(contaId: string): Promise<DadosDaEmpresa> {
     site: c.empresa_site || '',
   };
 }
+
+// ------------------------------------------------------------- foto
+
+const TETO_FOTO = 300_000;
+
+/**
+ * Confere a foto antes de gravar: só JPEG, PNG ou WebP em base64, dentro do
+ * teto, e os primeiros bytes têm de ser mesmo de imagem — um texto qualquer
+ * com cabeçalho "data:image" não passa.
+ */
+export function validarFoto(v: unknown): string | null {
+  const s = String(v || '');
+  const m = /^data:image\/(webp|jpeg|png);base64,([A-Za-z0-9+/=]+)$/.exec(s);
+  if (!m || s.length > TETO_FOTO) return null;
+  const bytes = Buffer.from(m[2].slice(0, 32), 'base64');
+  const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const jpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const webp = bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
+  const confere = (m[1] === 'png' && png) || (m[1] === 'jpeg' && jpeg) || (m[1] === 'webp' && webp);
+  return confere ? s : null;
+}
+
+export async function lerFoto(contaId: string, userId: string): Promise<string | null> {
+  const r = await db()`select foto from membros where conta_id = ${contaId} and user_id = ${userId}`;
+  return (r[0]?.foto as string) || null;
+}
+
+export async function salvarFoto(contaId: string, userId: string, foto: string | null): Promise<void> {
+  await db()`update membros set foto = ${foto} where conta_id = ${contaId} and user_id = ${userId}`;
+}

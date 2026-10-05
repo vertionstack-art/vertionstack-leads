@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
+import { lerFoto } from '@/lib/perfil';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,11 +21,12 @@ export default async function Home() {
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) redirect('/login');
   await registrarAcesso(cabecalhos, 'painel', 'ok', sessao.email, 15);
 
-  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
+  const [cota, foto] = await Promise.all([cotaDaConta(sessao.contaId, sessao.plano), lerFoto(sessao.contaId, sessao.userId)]);
 
   return (
     <Painel
       usuario={sessao.nome}
+      foto={foto}
       plano={sessao.plano}
       bloqueada={sessao.bloqueada}
       cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm }}

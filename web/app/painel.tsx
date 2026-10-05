@@ -205,10 +205,12 @@ export interface CotaResumo {
 
 export default function Painel({
   usuario,
+  foto,
   plano,
   cota: cotaInicial,
 }: {
   usuario: string;
+  foto?: string | null;
   plano: Plano;
   bloqueada?: boolean;
   cota: CotaResumo;
@@ -591,9 +593,14 @@ export default function Painel({
               </label>
               <details className="group relative">
                 <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 rounded-full bg-zinc-100 py-1 pl-1 pr-3 transition-colors hover:bg-zinc-200 [&::-webkit-details-marker]:hidden">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-roxo-200 text-[14px] font-extrabold uppercase text-tinta">
-                    {usuario.slice(0, 1)}
-                  </span>
+                  {foto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={foto} alt="" className="h-9 w-9 rounded-full object-cover" />
+                  ) : (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-roxo-200 text-[14px] font-extrabold uppercase text-tinta">
+                      {usuario.slice(0, 1)}
+                    </span>
+                  )}
                   <span className="hidden text-[13px] font-bold capitalize sm:inline">{usuario}</span>
                   <ChevronDown aria-hidden className="h-4 w-4 text-zinc-500 transition-transform group-open:rotate-180" />
                 </summary>

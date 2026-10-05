@@ -18,9 +18,9 @@ export default function BotaoCopiar({ texto }: { texto: string }) {
         setCopiado(true);
         setTimeout(() => setCopiado(false), 1400);
       }}
-      className="shrink-0 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-[11.5px] font-medium text-zinc-700 transition hover:border-roxo-400 hover:text-roxo-700"
+      className="shrink-0 rounded-full bg-tinta px-3.5 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-tinta-70"
     >
-      {copiado ? 'copiado!' : 'copiar'}
+      {copiado ? 'Copiado!' : 'Copiar'}
     </button>
   );
 }
