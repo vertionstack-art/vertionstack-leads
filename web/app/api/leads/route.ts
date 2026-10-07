@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     const concedidos = await reservarCota(contaId, novos.length, plano);
     const r = await salvarLeads(contaId, unicos, concedidos);
     // reservou mais do que gravou (outro envio gravou o mesmo comércio no meio)
-    if (!ilimitado) await devolverCota(contaId, concedidos - r.novos);
+    if (!ilimitado) await devolverCota(contaId, concedidos - r.novos, plano);
     const cota = await cotaDaConta(contaId, plano);
 
     const estourouCota = r.barradosPelaCota > 0;
@@ -126,7 +126,11 @@ export async function POST(req: Request) {
         erro: estourouCota
           ? cota.guardados >= cota.tetoGuardados
             ? `Sua conta chegou ao limite de ${cota.tetoGuardados} leads guardados do plano. Apague os que não servem ou mude de plano.`
-            : `Limite do seu plano: ${cota.limite} leads novos por semana. Veja os planos para coletar mais.`
+            : cota.testeNegado
+              ? `O teste grátis já foi usado em outra conta ${cota.testeNegado} (limite de 1 teste por pessoa). Assine um plano para coletar leads.`
+              : cota.teste
+                ? `Seu teste grátis acabou (limite de ${cota.limite} leads). Assine um plano para continuar coletando.`
+                : `Limite do seu plano: ${cota.limite} leads novos por semana. Veja os planos para coletar mais.`
           : undefined,
       },
       { status: estourouCota && r.novos + r.atualizados === 0 ? 402 : 200 },

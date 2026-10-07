@@ -234,7 +234,7 @@ export async function criarFunil(conta: string, nome: string, teto: number): Pro
     await tx`select pg_advisory_xact_lock(hashtext(${'funil:' + conta}))`;
     const [{ n }] = await tx`select count(*)::int as n from funis where conta_id = ${conta}`;
     if (n >= teto) {
-      return { erro: teto === 1 ? 'O plano Free tem 1 funil. Assine o Basic para criar outros.' : `Seu plano permite até ${teto} funis.` };
+      return { erro: teto === 1 ? 'O teste grátis tem 1 funil. Assine o Basic para criar outros.' : `Seu plano permite até ${teto} funis.` };
     }
     const [f] = await tx`insert into funis (conta_id, nome, posicao) values (${conta}, ${nome}, ${n}) returning id`;
     await criarEtapasPadrao(tx, conta, f.id);

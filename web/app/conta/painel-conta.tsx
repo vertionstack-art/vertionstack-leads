@@ -16,7 +16,7 @@ interface Info {
     ultimoUso: string | null;
     aparelhos: { id: string; primeiroUso: string; ultimoUso: string }[];
   } | null;
-  cota: { ilimitado: boolean; usados: number; limite: number; restantes: number | null; renovaEm: string; guardados: number; tetoGuardados: number };
+  cota: { ilimitado: boolean; usados: number; limite: number; restantes: number | null; renovaEm: string; guardados: number; tetoGuardados: number; teste?: boolean; testeNegado?: string | null };
   maxAparelhos: number;
 }
 
@@ -97,7 +97,15 @@ export default function PainelConta() {
                 {cota.usados}
                 <span className="text-[22px] text-sky-950/50"> / {cota.limite}</span>
               </p>
-              <p className="mt-2 text-[13px] font-semibold text-sky-950/70">leads novos nesta semana. Renova {renova}.</p>
+              <p className="mt-2 text-[13px] font-semibold text-sky-950/70">
+                {cota.testeNegado
+                  ? `O teste grátis já foi usado em outra conta ${cota.testeNegado}.`
+                  : cota.teste
+                    ? cota.usados >= cota.limite
+                      ? 'Seu teste grátis acabou. Assine um plano para coletar mais.'
+                      : 'leads do teste grátis. Não renova.'
+                    : `leads novos nesta semana. Renova ${renova}.`}
+              </p>
               <p className="mt-1 text-[12.5px] font-medium text-sky-950/60">
                 {cota.guardados} de {cota.tetoGuardados} leads guardados{info.pagoAte ? ` · assinatura até ${new Date(info.pagoAte).toLocaleDateString('pt-BR')}` : ''}
               </p>
@@ -118,7 +126,9 @@ export default function PainelConta() {
               ? 'Sua conta é da Vertion e coleta sem limite.'
               : info.plano === 'pro'
                 ? 'Você está no plano mais completo.'
-                : 'Basic e Pro coletam 150 e 500 leads novos por semana, com mais espaço para guardar.'}
+                : info.plano === 'gratis'
+                  ? 'O teste grátis tem 30 leads. Basic e Pro coletam 150 e 500 leads novos toda semana.'
+                  : 'Basic e Pro coletam 150 e 500 leads novos por semana, com mais espaço para guardar.'}
           </p>
           {info.plano !== 'cortesia' && (
             <Link href="/planos" className="mt-auto inline-flex min-h-[40px] w-fit items-center rounded-full bg-ceu px-5 pt-0 text-[13px] font-bold text-tinta transition-colors hover:bg-white">

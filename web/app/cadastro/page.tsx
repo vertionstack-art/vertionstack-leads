@@ -40,7 +40,7 @@ export default function Cadastro() {
   }
 
   return (
-    <Moldura titulo="Criar conta" subtitulo="Grátis, com 10 leads novos por semana. Sem cartão.">
+    <Moldura titulo="Criar conta" subtitulo="Teste grátis com 30 leads. Sem cartão.">
       <form onSubmit={criar} noValidate>
         <label htmlFor="nome" className={rotulo}>Como podemos te chamar</label>
         <input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus autoComplete="given-name" maxLength={60} className={campo} />

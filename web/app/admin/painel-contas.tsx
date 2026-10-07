@@ -16,7 +16,7 @@ interface Linha {
   semana: number;
 }
 
-const ROTULO = { gratis: 'Free', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
+const ROTULO = { gratis: 'Teste', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
 
 interface Receita {
   ativos: { basic: number; pro: number };

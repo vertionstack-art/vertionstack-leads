@@ -145,7 +145,7 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
         </div>
         <button
           type="button"
-          onClick={() => (q.funis.length >= tetoFunis ? setAviso(tetoFunis === 1 ? 'O plano Free tem 1 funil. No Basic você cria até 5.' : `Seu plano permite até ${tetoFunis} funis.`) : setNomeando('novo'))}
+          onClick={() => (q.funis.length >= tetoFunis ? setAviso(tetoFunis === 1 ? 'O teste grátis tem 1 funil. No Basic você cria até 5.' : `Seu plano permite até ${tetoFunis} funis.`) : setNomeando('novo'))}
           className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-dashed border-zinc-300 px-3.5 text-[12.5px] font-bold text-zinc-600 transition-colors hover:border-tinta hover:text-tinta"
         >
           <Plus aria-hidden className="h-4 w-4" /> Novo funil

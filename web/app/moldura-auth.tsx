@@ -21,7 +21,7 @@ export function Moldura({ titulo, subtitulo, children }: { titulo: string; subti
             na sua cidade.
           </h2>
           <p className="mt-3 max-w-[300px] text-[13.5px] leading-relaxed text-white/65">
-            Do Google Maps até a proposta e o site entregue, num lugar só. Comece grátis com 10 leads por semana.
+            Do Google Maps até a proposta e o site entregue, num lugar só. Teste grátis com 30 leads, sem cartão.
           </p>
           <svg aria-hidden viewBox="0 0 160 120" className="absolute -right-10 -top-6 -z-10 h-[170px] w-[220px] text-white/20" fill="none" stroke="currentColor" strokeWidth="1">
             <rect x="40" y="20" width="110" height="80" rx="14" transform="rotate(-12 95 60)" />

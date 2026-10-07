@@ -29,7 +29,7 @@ export default async function Home() {
       foto={foto}
       plano={sessao.plano}
       bloqueada={sessao.bloqueada}
-      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm }}
+      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado }}
     />
   );
 }

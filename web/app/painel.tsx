@@ -201,6 +201,53 @@ export interface CotaResumo {
   limite: number;
   ilimitado: boolean;
   renovaEm: string;
+  teste?: boolean;
+  testeNegado?: string | null;
+}
+
+/**
+ * O aviso do teste grátis: quanto falta, e depois o pedido para assinar. Os
+ * leads, o CRM e as propostas continuam acessíveis; só a coleta para.
+ */
+function AvisoTeste({ usados, limite, negado }: { usados: number; limite: number; negado: string | null }) {
+  const acabou = Boolean(negado) || usados >= limite;
+  return (
+    <div
+      role={acabou ? 'alert' : undefined}
+      className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 text-[13px] leading-relaxed ${
+        acabou ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta'
+      }`}
+    >
+      <span className="max-w-[640px]">
+        {negado ? (
+          <>
+            <b className="text-[14.5px]">O teste grátis já foi usado em outra conta {negado}.</b>
+            <br />
+            Para coletar leads, assine um plano. Se isso é um engano, fale com o suporte.
+          </>
+        ) : acabou ? (
+          <>
+            <b className="text-[14.5px]">Seu teste grátis acabou.</b>
+            <br />
+            Você usou os {limite} leads do teste. Seus leads, o CRM e as propostas continuam aqui; para coletar novos,
+            assine um plano.
+          </>
+        ) : (
+          <>
+            <b>Teste grátis:</b> {usados} de {limite} leads usados. {limite - usados === 1 ? 'Resta 1.' : `Restam ${limite - usados}.`}
+          </>
+        )}
+      </span>
+      <a
+        href="/planos"
+        className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full px-5 text-[13px] font-bold transition-colors ${
+          acabou ? 'bg-ceu text-tinta hover:bg-white' : 'bg-tinta text-white hover:bg-tinta-70'
+        }`}
+      >
+        {acabou ? 'Assinar um plano' : 'Ver planos'}
+      </a>
+    </div>
+  );
 }
 
 export default function Painel({
@@ -640,7 +687,10 @@ export default function Painel({
 
           {/* ------------------------------------------------- avisos */}
           <div className="mt-6 space-y-3 empty:hidden">
-            {!cota.ilimitado && (
+            {!cota.ilimitado && cota.teste && (
+              <AvisoTeste usados={cota.usados} limite={cota.limite} negado={cota.testeNegado ?? null} />
+            )}
+            {!cota.ilimitado && !cota.teste && (
               <div
                 className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed ${
                   cota.usados >= cota.limite ? 'bg-zinc-100 text-tinta ring-2 ring-inset ring-tinta' : 'bg-zinc-100 text-tinta'

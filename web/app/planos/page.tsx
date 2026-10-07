@@ -28,7 +28,12 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
             <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Planos</h1>
             <p className="mt-1.5 text-[13px] font-medium text-zinc-500">
               Você está no <b className="text-tinta">{NOME_DO_PLANO[sessao.plano]}</b>
-              {!cota.ilimitado && (
+              {!cota.ilimitado && cota.teste && (
+                <>
+                  {' '}· {cota.testeNegado ? 'teste já usado em outra conta' : `${numero(cota.usados)} de ${numero(cota.limite)} leads do teste usados`}
+                </>
+              )}
+              {!cota.ilimitado && !cota.teste && (
                 <>
                   {' '}· {numero(cota.usados)} de {numero(cota.limite)} leads novos nesta semana · {numero(cota.guardados)} de{' '}
                   {numero(cota.tetoGuardados)} guardados
@@ -62,7 +67,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
         {cobranca.cancelaEm && (
           <p className="mt-7 rounded-2xl bg-zinc-100 px-5 py-3.5 text-[13.5px] font-semibold">
             Sua assinatura foi cancelada e termina em {new Date(cobranca.cancelaEm).toLocaleDateString('pt-BR')}. Até lá o plano
-            continua valendo; depois a conta volta ao Free. Mudou de ideia? Reative em Gerenciar assinatura.
+            continua valendo; depois a conta volta ao teste grátis, sem leads novos se ele já foi usado. Mudou de ideia? Reative em Gerenciar assinatura.
           </p>
         )}
 
@@ -99,7 +104,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
 
                 <ul className="mt-6 space-y-2.5 text-[13.5px]">
                   {[
-                    `${numero(lim.semana)} leads novos por semana`,
+                    p.plano === 'gratis' ? `${numero(lim.semana)} leads no total, sem renovar` : `${numero(lim.semana)} leads novos por semana`,
                     `até ${numero(lim.guardados)} leads guardados`,
                     lim.pessoas > 1 ? `até ${lim.pessoas} pessoas na mesma conta` : '1 pessoa na conta',
                     `extensão em ${lim.aparelhos} computadores`,
@@ -120,7 +125,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                     </span>
                   ) : p.precoCentavos === 0 ? (
                     <span className={`flex min-h-[44px] items-center justify-center rounded-full text-[13px] font-semibold ${escuro ? 'text-white/60' : 'text-zinc-500'}`}>
-                      Volta sozinho quando a assinatura vence
+                      Só para conhecer: não renova
                     </span>
                   ) : cobranca.assinaturaAtiva ? (
                     <BotaoGerenciar escuro={escuro} />
@@ -157,7 +162,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
               {pagamentoLigado
                 ? `No cartão, a assinatura renova sozinha todo mês e você troca de plano ou cancela quando quiser.${pixLigado ? ' No Pix, cada pagamento libera 31 dias.' : ''} O plano é liberado assim que o pagamento cai.`
                 : 'O pagamento automático por Pix e cartão chega em breve. Por enquanto, clique em assinar e a gente libera a sua conta assim que o pagamento cair.'}{' '}
-              A cota da semana renova toda segunda-feira.
+              Nos planos pagos, a cota renova toda segunda-feira.
             </p>
             {cobranca.temPortal && !cobranca.assinaturaAtiva && (
               <div className="mt-4 max-w-[260px]">

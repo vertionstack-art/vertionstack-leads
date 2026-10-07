@@ -43,7 +43,11 @@ $('testar').addEventListener('click', async () => {
     const cota = c.cota || {};
     const plano = cota.ilimitado
       ? 'Coleta sem limite.'
-      : `Plano ${({ gratis: "Free", basic: "Basic", pro: "Pro" })[c.plano] || "Free"}: ${cota.usados ?? 0} de ${cota.limite ?? 10} leads novos usados nesta semana.`;
+      : cota.teste
+        ? cota.testeNegado || (cota.usados ?? 0) >= (cota.limite ?? 30)
+          ? 'Teste grátis encerrado. Assine um plano no painel para coletar leads.'
+          : `Teste grátis: ${cota.usados ?? 0} de ${cota.limite ?? 30} leads usados.`
+        : `Plano ${({ gratis: "Teste", basic: "Basic", pro: "Pro" })[c.plano] || "Teste"}: ${cota.usados ?? 0} de ${cota.limite ?? 30} leads novos usados nesta semana.`;
     mostrar(`Conectado como ${c.nome || 'você'}. ${plano}`, true);
   } else {
     const erro = (r && ((r.corpo && r.corpo.erro) || r.erro || ('O painel respondeu ' + r.status))) || 'sem resposta';

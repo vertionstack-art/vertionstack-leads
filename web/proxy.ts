@@ -13,12 +13,32 @@ import { createServerClient } from '@supabase/ssr';
 
 const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/'];
 
+/**
+ * O rastro do navegador para a trava do teste grátis (lib/teste): um id
+ * aleatório, sem nada da pessoa, que dura dois anos. Entra também na própria
+ * requisição, para a página já enxergar no primeiro acesso.
+ */
+function comRastro(req: NextRequest, novo: string | null, r: NextResponse): NextResponse {
+  if (novo) {
+    r.cookies.set('vl_disp', novo, {
+      httpOnly: true,
+      secure: req.nextUrl.protocol === 'https:',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 730,
+    });
+  }
+  return r;
+}
+
 export async function proxy(req: NextRequest) {
+  const novoRastro = req.cookies.get('vl_disp') ? null : crypto.randomUUID();
+  if (novoRastro) req.cookies.set('vl_disp', novoRastro);
   let resposta = NextResponse.next({ request: req });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const chave = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !chave) return resposta;
+  if (!url || !chave) return comRastro(req, novoRastro, resposta);
 
   const supabase = createServerClient(url, chave, {
     cookies: {
@@ -39,9 +59,9 @@ export async function proxy(req: NextRequest) {
     const destino = req.nextUrl.clone();
     destino.pathname = '/login';
     destino.search = '';
-    return NextResponse.redirect(destino);
+    return comRastro(req, novoRastro, NextResponse.redirect(destino));
   }
-  return resposta;
+  return comRastro(req, novoRastro, resposta);
 }
 
 export const config = {

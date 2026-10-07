@@ -14,6 +14,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from './sql';
 import { supabaseServidor } from './supabase-server';
 import { LIMITES, type Plano } from './planos';
+import { marcarTesteUsado, registrarSinais, sinaisDaPagina, sinaisDaRequisicao, testeJaUsadoPorOutra } from './teste';
 
 export type { Plano };
 
@@ -103,6 +104,14 @@ export async function sessaoAtual(): Promise<Sessao | null> {
   }
   const r = linhas[0];
   const ef = planoEfetivo(r.plano, r.pago_ate);
+  // no Free, cada acesso deixa o rastro do navegador, da rede e do e-mail (ver lib/teste)
+  if (ef.plano === 'gratis') {
+    try {
+      await registrarSinais(r.conta_id, await sinaisDaPagina(user.email));
+    } catch (e) {
+      console.error('[sinais]', e);
+    }
+  }
   return {
     userId: user.id,
     email: user.email,
@@ -147,16 +156,23 @@ export interface Cota {
   tetoGuardados: number;
   /** quando a cota volta: a próxima segunda, 00h de Brasília */
   renovaEm: string;
+  /** Free: a cota é o teste grátis, um total que não renova */
+  teste: boolean;
+  /** o teste foi negado porque outra conta já usou neste computador, navegador, internet ou e-mail */
+  testeNegado: string | null;
 }
 
 export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
   const semana = semanaAtual();
   const sql = db();
-  const [r, g] = await Promise.all([
+  const teste = plano === 'gratis';
+  const [r, g, c] = await Promise.all([
     sql`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`,
     sql`select count(*)::int as n from leads where conta_id = ${conta}`,
+    sql`select teste_usados, teste_negado from contas where id = ${conta}`,
   ]);
-  const usados = r.length ? (r[0].novos as number) : 0;
+  const testeNegado = teste ? ((c[0]?.teste_negado as string) ?? null) : null;
+  const usados = teste ? ((c[0]?.teste_usados as number) ?? 0) : r.length ? (r[0].novos as number) : 0;
   const guardados = g[0].n as number;
   const lim = LIMITES[plano];
   const ilimitado = plano === 'cortesia';
@@ -167,10 +183,12 @@ export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
     ilimitado,
     usados,
     limite: lim.semana,
-    restantes: ilimitado ? Infinity : Math.max(0, Math.min(lim.semana - usados, lim.guardados - guardados)),
+    restantes: ilimitado ? Infinity : testeNegado ? 0 : Math.max(0, Math.min(lim.semana - usados, lim.guardados - guardados)),
     guardados,
     tetoGuardados: lim.guardados,
     renovaEm: proxima.toISOString(),
+    teste,
+    testeNegado,
   };
 }
 
@@ -200,6 +218,7 @@ export async function reservarCota(conta: string, pedidos: number, plano: Plano)
   const g = await sql`select count(*)::int as n from leads where conta_id = ${conta}`;
   const cabem = Math.max(0, Math.min(pedidos, lim.guardados - (g[0].n as number)));
   if (!cabem) return 0;
+  if (plano === 'gratis') return reservarTeste(conta, cabem, lim.semana, semana);
   const r = await sql`
     with antes as (
       select novos from uso_semanal where conta_id = ${conta} and semana = ${semana} for update
@@ -213,9 +232,42 @@ export async function reservarCota(conta: string, pedidos: number, plano: Plano)
   return r.length ? Math.max(0, r[0].concedidos as number) : 0;
 }
 
+/**
+ * O teste grátis: um total por conta, sem renovar. A primeira vez que a conta
+ * vai puxar lead, confere se outra conta já usou o teste no mesmo computador,
+ * navegador, internet ou e-mail; se usou, nega o teste desta (ver lib/teste).
+ */
+async function reservarTeste(conta: string, pedidos: number, total: number, semana: string): Promise<number> {
+  const sql = db();
+  const [c] = await sql`select teste_usados, teste_negado from contas where id = ${conta}`;
+  if (!c || c.teste_negado) return 0;
+  if (c.teste_usados === 0) {
+    const motivo = await testeJaUsadoPorOutra(conta);
+    if (motivo) {
+      await sql`update contas set teste_negado = ${motivo} where id = ${conta}`;
+      return 0;
+    }
+  }
+  const r = await sql`
+    with antes as (select teste_usados from contas where id = ${conta} for update)
+    update contas c set teste_usados = least(${total}, c.teste_usados + ${pedidos})
+      from antes where c.id = ${conta}
+    returning c.teste_usados - antes.teste_usados as concedidos
+  `;
+  const concedidos = r.length ? Math.max(0, r[0].concedidos as number) : 0;
+  if (concedidos > 0) {
+    await sql`update uso_semanal set novos = novos + ${concedidos} where conta_id = ${conta} and semana = ${semana}`;
+    await marcarTesteUsado(conta);
+  }
+  return concedidos;
+}
+
 /** devolve vagas reservadas que acabaram não sendo usadas (lead que já existia, por exemplo) */
-export async function devolverCota(conta: string, quantos: number): Promise<void> {
+export async function devolverCota(conta: string, quantos: number, plano: Plano): Promise<void> {
   if (quantos <= 0) return;
+  if (plano === 'gratis') {
+    await db()`update contas set teste_usados = greatest(0, teste_usados - ${quantos}) where id = ${conta}`;
+  }
   await db()`
     update uso_semanal set novos = greatest(0, novos - ${quantos})
     where conta_id = ${conta} and semana = ${semanaAtual()}
@@ -366,6 +418,13 @@ export async function coletorDaChave(req: Request): Promise<ResultadoChave> {
   await sql`update chaves_extensao set ultimo_uso = now() where id = ${k.id}`;
 
   const ef = planoEfetivo(k.plano, k.pago_ate);
+  if (ef.plano === 'gratis') {
+    try {
+      await registrarSinais(k.conta_id, sinaisDaRequisicao(req.headers, { aparelho }));
+    } catch (e) {
+      console.error('[sinais]', e);
+    }
+  }
   return { ok: true, coletor: { contaId: k.conta_id, nome: k.nome, ...ef } };
 }
 
