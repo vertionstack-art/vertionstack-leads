@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
+import { buscaLigada } from '@/lib/google-places';
 import { lerFoto } from '@/lib/perfil';
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export default async function Home() {
     <Painel
       usuario={sessao.nome}
       foto={foto}
+      buscaGoogle={buscaLigada()}
       plano={sessao.plano}
       bloqueada={sessao.bloqueada}
       cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado }}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
-  Crown, Kanban, KeyRound, MessageCircle, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  Crown, Kanban, KeyRound, MessageCircle, Radar, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
@@ -255,9 +255,12 @@ export default function Painel({
   foto,
   plano,
   cota: cotaInicial,
+  buscaGoogle = false,
 }: {
   usuario: string;
   foto?: string | null;
+  /** a busca pelo Google está ligada: ela substitui a extensão nos atalhos */
+  buscaGoogle?: boolean;
   plano: Plano;
   bloqueada?: boolean;
   cota: CotaResumo;
@@ -536,11 +539,11 @@ export default function Painel({
         </button>
       )}
       <a
-        href="/extensao"
+        href={buscaGoogle ? '/buscar' : '/extensao'}
         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white"
       >
-        <Puzzle aria-hidden className="h-4 w-4" />
-        Extensão
+        {buscaGoogle ? <Radar aria-hidden className="h-4 w-4" /> : <Puzzle aria-hidden className="h-4 w-4" />}
+        {buscaGoogle ? 'Buscar leads' : 'Extensão'}
       </a>
     </div>
   </aside>
@@ -560,6 +563,11 @@ export default function Painel({
           <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
+          {buscaGoogle && (
+            <ItemTrilho rotulo="Buscar leads" href="/buscar">
+              <Radar className="h-5 w-5" strokeWidth={1.8} />
+            </ItemTrilho>
+          )}
           <ItemTrilho rotulo="CRM" href="/crm">
             <Kanban className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -572,9 +580,11 @@ export default function Painel({
           <ItemTrilho rotulo="Planos" href="/planos">
             <Crown className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
-          <ItemTrilho rotulo="Extensão do Maps" href="/extensao">
-            <Puzzle className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
+          {!buscaGoogle && (
+            <ItemTrilho rotulo="Extensão do Maps" href="/extensao">
+              <Puzzle className="h-5 w-5" strokeWidth={1.8} />
+            </ItemTrilho>
+          )}
           <ItemTrilho rotulo="Baixar CSV" href={'/api/leads/export?' + query}>
             <Download className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -599,7 +609,9 @@ export default function Painel({
       >
         {[
           { rotulo: 'Painel', Icone: LayoutGrid, acao: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-          { rotulo: 'Cadastrar', Icone: Plus, acao: () => setCadastrando(true) },
+          buscaGoogle
+            ? { rotulo: 'Buscar', Icone: Radar, acao: () => (location.href = '/buscar') }
+            : { rotulo: 'Cadastrar', Icone: Plus, acao: () => setCadastrando(true) },
         ].map(({ rotulo, Icone, acao }) => (
           <button key={rotulo} onClick={acao} className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
             <Icone className="h-5 w-5" strokeWidth={1.8} />
@@ -674,9 +686,15 @@ export default function Painel({
                     <KeyRound aria-hidden className="h-4 w-4 text-zinc-500" /> Chave e plano
                     <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-bold text-zinc-600">{NOME_DO_PLANO[plano]}</span>
                   </a>
-                  <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
-                    <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
-                  </a>
+                  {buscaGoogle ? (
+                    <a href="/buscar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                      <Radar aria-hidden className="h-4 w-4 text-zinc-500" /> Buscar leads
+                    </a>
+                  ) : (
+                    <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                      <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
+                    </a>
+                  )}
                   <button onClick={sair} className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-semibold hover:bg-zinc-100">
                     <LogOut aria-hidden className="h-4 w-4 text-zinc-500" /> Sair
                   </button>
@@ -1229,7 +1247,9 @@ export default function Painel({
                 <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-zinc-600">
                   {resumo.total
                     ? 'Afrouxe os filtros acima para ver mais resultados.'
-                    : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
+                    : buscaGoogle
+                      ? 'Escolha os tipos de comércio e a cidade em Buscar leads. Os que não têm site aparecem aqui.'
+                      : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
                 </p>
                 <p className="mt-5 flex flex-wrap justify-center gap-2">
                   {resumo.total ? (
@@ -1238,8 +1258,8 @@ export default function Painel({
                     </button>
                   ) : (
                     <>
-                      <a href="/extensao" className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
-                        Baixar a extensão
+                      <a href={buscaGoogle ? '/buscar' : '/extensao'} className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
+                        {buscaGoogle ? 'Buscar leads' : 'Baixar a extensão'}
                       </a>
                       <button
                         onClick={() => setCadastrando(true)}

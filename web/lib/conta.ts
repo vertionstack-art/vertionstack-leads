@@ -262,6 +262,22 @@ async function reservarTeste(conta: string, pedidos: number, total: number, sema
   return concedidos;
 }
 
+/**
+ * Confere o teste antes de gastar com o Google: conta nova que divide
+ * computador, navegador, internet ou e-mail com outra que já usou o teste
+ * fica negada aqui, antes da primeira chamada paga. Devolve o motivo ou null.
+ */
+export async function conferirTeste(conta: string): Promise<string | null> {
+  const sql = db();
+  const [c] = await sql`select teste_usados, teste_negado from contas where id = ${conta}`;
+  if (!c) return 'conta';
+  if (c.teste_negado) return c.teste_negado as string;
+  if (c.teste_usados > 0) return null;
+  const motivo = await testeJaUsadoPorOutra(conta);
+  if (motivo) await sql`update contas set teste_negado = ${motivo} where id = ${conta}`;
+  return motivo;
+}
+
 /** devolve vagas reservadas que acabaram não sendo usadas (lead que já existia, por exemplo) */
 export async function devolverCota(conta: string, quantos: number, plano: Plano): Promise<void> {
   if (quantos <= 0) return;
