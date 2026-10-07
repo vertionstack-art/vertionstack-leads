@@ -19,14 +19,16 @@ export interface Limites {
   pessoas: number;
   /** computadores por chave da extensão */
   aparelhos: number;
+  /** funis no CRM */
+  funis: number;
 }
 
 export const LIMITES: Record<Plano, Limites> = {
-  gratis: { semana: 10, guardados: 200, pessoas: 1, aparelhos: 2 },
-  basic: { semana: 150, guardados: 3000, pessoas: 1, aparelhos: 2 },
-  pro: { semana: 500, guardados: 15000, pessoas: 3, aparelhos: 3 },
+  gratis: { semana: 10, guardados: 200, pessoas: 1, aparelhos: 2, funis: 1 },
+  basic: { semana: 150, guardados: 3000, pessoas: 1, aparelhos: 2, funis: 5 },
+  pro: { semana: 500, guardados: 15000, pessoas: 3, aparelhos: 3, funis: 20 },
   // a conta da própria Vertion: sem teto prático
-  cortesia: { semana: 1_000_000, guardados: 1_000_000, pessoas: 20, aparelhos: 10 },
+  cortesia: { semana: 1_000_000, guardados: 1_000_000, pessoas: 20, aparelhos: 10, funis: 50 },
 };
 
 export interface InfoPlano {

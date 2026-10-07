@@ -44,7 +44,7 @@ export interface Financeiro {
   meta: number;
 }
 
-interface CfgProposta {
+export interface CfgProposta {
   marcacoes?: unknown;
   porte?: Porte;
   formalizacao?: Formalizacao;
@@ -54,7 +54,7 @@ interface CfgProposta {
   fechadoEm?: string;
 }
 
-function valores(cfg: CfgProposta | null): { entrada: number; mensalidade: number } | null {
+export function valores(cfg: CfgProposta | null): { entrada: number; mensalidade: number } | null {
   if (!cfg) return null;
   try {
     const p = montarProposta({

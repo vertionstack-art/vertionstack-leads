@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
-  Crown, KeyRound, MessageCircle, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  Crown, Kanban, KeyRound, MessageCircle, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import PromptModal, { type Variante } from './prompt-modal';
@@ -513,6 +513,9 @@ export default function Painel({
           <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
+          <ItemTrilho rotulo="CRM" href="/crm">
+            <Kanban className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
           <ItemTrilho rotulo="Financeiro" href="/financeiro">
             <Wallet className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -556,9 +559,9 @@ export default function Painel({
             {rotulo}
           </button>
         ))}
-        <a href="/planos" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
-          <Crown className="h-5 w-5" strokeWidth={1.8} />
-          Planos
+        <a href="/crm" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
+          <Kanban className="h-5 w-5" strokeWidth={1.8} />
+          CRM
         </a>
         <a href="/financeiro" className="flex min-h-[52px] min-w-[60px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
           <Wallet className="h-5 w-5" strokeWidth={1.8} />
@@ -610,6 +613,12 @@ export default function Painel({
                   </a>
                   <a href="/perfil" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <UserRound aria-hidden className="h-4 w-4 text-zinc-500" /> Meu perfil
+                  </a>
+                  <a href="/crm" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Kanban aria-hidden className="h-4 w-4 text-zinc-500" /> CRM
+                  </a>
+                  <a href="/planos" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Crown aria-hidden className="h-4 w-4 text-zinc-500" /> Planos
                   </a>
                   <a href="/financeiro" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Wallet aria-hidden className="h-4 w-4 text-zinc-500" /> Financeiro

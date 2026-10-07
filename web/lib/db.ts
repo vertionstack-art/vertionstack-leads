@@ -187,7 +187,7 @@ export function normalizarLead(
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function daLinha(r: any): Lead {
+export function daLinha(r: any): Lead {
   return {
     id: r.id,
     name: r.name,
@@ -348,7 +348,42 @@ export async function atualizarLead(
     where conta_id = ${conta} and id = ${id}
     returning *
   `;
-  return linhas.length ? daLinha(linhas[0]) : null;
+  if (!linhas.length) return null;
+  if (patch.status) await acompanharNoFunil(conta, id, patch.status);
+  return daLinha(linhas[0]);
+}
+
+/**
+ * Mudou o status pelo painel (ou fechou pela proposta): o card do CRM vai
+ * junto, para a primeira etapa do mesmo funil que corresponde ao novo status.
+ * Lead que ainda não está em funil nenhum entra no primeiro funil da conta
+ * assim que sai de "novo" — é o que mantém o CRM cheio sem trabalho dobrado.
+ * Se o funil não tem etapa para aquele status, o card fica onde está.
+ */
+async function acompanharNoFunil(conta: string, id: string, status: Status): Promise<void> {
+  await db()`
+    with atual as (
+      select l.etapa_id, e.funil_id, e.situacao
+      from leads l left join etapas e on e.id = l.etapa_id
+      where l.conta_id = ${conta} and l.id = ${id}
+    ),
+    funil as (
+      select coalesce(
+        (select funil_id from atual),
+        case when ${status} <> 'novo' then (select id from funis where conta_id = ${conta} order by posicao, criado_em limit 1) end
+      ) as id
+    ),
+    destino as (
+      select e.id from etapas e, funil f
+      where e.funil_id = f.id and e.conta_id = ${conta} and e.situacao = ${status}
+      order by e.posicao limit 1
+    )
+    update leads set etapa_id = (select id from destino), etapa_em = now(),
+      etapa_ordem = extract(epoch from now())
+    where conta_id = ${conta} and id = ${id}
+      and exists (select 1 from destino)
+      and coalesce((select situacao from atual), '') <> ${status}
+  `;
 }
 
 /**

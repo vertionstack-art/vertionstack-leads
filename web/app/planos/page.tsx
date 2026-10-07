@@ -103,6 +103,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                     `até ${numero(lim.guardados)} leads guardados`,
                     lim.pessoas > 1 ? `até ${lim.pessoas} pessoas na mesma conta` : '1 pessoa na conta',
                     `extensão em ${lim.aparelhos} computadores`,
+                    lim.funis > 1 ? `CRM com até ${lim.funis} funis` : `CRM com 1 funil`,
                     'temperatura, prévia, copy, proposta e entrega',
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2">

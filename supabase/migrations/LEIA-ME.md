@@ -13,3 +13,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 6. `0005_stripe.sql`
 7. `0006_perfil_financeiro_cobranca.sql`
 8. `0007_foto_de_perfil.sql`
+9. `0008_crm_funis.sql`
