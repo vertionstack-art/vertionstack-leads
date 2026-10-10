@@ -24,6 +24,15 @@
   --color-lavanda: #e8e3fa;  /* frios */
   --color-menta: #d9f0e0;    /* fila de contato */
 
+  /*
+   * Os cinzas mais claros um tom acima do padrão do Tailwind: sobre a folha
+   * branca, o padrão sumia e as áreas pareciam soltas umas das outras
+   * (pedido do Lucas em 10/10/2026).
+   */
+  --color-zinc-50: #f3f3f6;
+  --color-zinc-100: #ebebef;
+  --color-zinc-200: #dcdce2;
+
   --radius-folha: 28px;
 
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;

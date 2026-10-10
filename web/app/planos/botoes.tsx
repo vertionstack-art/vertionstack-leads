@@ -17,8 +17,9 @@ async function ir(rota: string, corpo: Record<string, string>): Promise<string |
   return d.erro || 'Não consegui abrir o pagamento.';
 }
 
-/** os dois jeitos de assinar um plano: cartão (renova sozinho) ou Pix (um mês) */
-export function BotoesAssinar({ plano, nome, escuro, comPix }: { plano: 'basic' | 'pro'; nome: string; escuro: boolean; comPix: boolean }) {
+/** os dois jeitos de assinar um plano: cartão (renova sozinho) ou Pix (um mês); no de 7 dias, os dois são avulsos */
+export function BotoesAssinar({ plano, nome, escuro, comPix }: { plano: 'semanal' | 'basic' | 'pro'; nome: string; escuro: boolean; comPix: boolean }) {
+  const semanal = plano === 'semanal';
   const [ocupado, setOcupado] = useState<'cartao' | 'pix' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export function BotoesAssinar({ plano, nome, escuro, comPix }: { plano: 'basic' 
         }`}
       >
         <CreditCard aria-hidden className="h-4 w-4" />
-        {ocupado === 'cartao' ? 'Abrindo…' : `Assinar o ${nome} no cartão`}
+        {ocupado === 'cartao' ? 'Abrindo…' : semanal ? 'Pagar 7 dias no cartão' : `Assinar o ${nome} no cartão`}
       </button>
       {comPix && (
       <button
@@ -53,7 +54,7 @@ export function BotoesAssinar({ plano, nome, escuro, comPix }: { plano: 'basic' 
         }`}
       >
         <QrCode aria-hidden className="h-4 w-4" />
-        {ocupado === 'pix' ? 'Abrindo…' : 'Pagar 1 mês no Pix'}
+        {ocupado === 'pix' ? 'Abrindo…' : semanal ? 'Pagar 7 dias no Pix' : 'Pagar 1 mês no Pix'}
       </button>
       )}
       {erro && (

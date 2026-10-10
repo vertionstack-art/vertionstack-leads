@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
-import { buscaLigada } from '@/lib/google-places';
+import { buscaLigada, buscasDaConta } from '@/lib/google-places';
+import { LIMITES } from '@/lib/planos';
 import BuscaGoogle from './busca';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,11 @@ export const dynamic = 'force-dynamic';
 export default async function PaginaBuscar() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
+  const [cota, usadas] = await Promise.all([
+    cotaDaConta(sessao.contaId, sessao.plano),
+    buscasDaConta(sessao.contaId, sessao.plano, sessao.pagoAte),
+  ]);
+  const periodo = sessao.plano === 'gratis' ? 'do teste' : sessao.plano === 'semanal' ? 'destes 7 dias' : 'do mês';
 
   return (
     <div className="min-h-screen px-3 py-3">
@@ -28,7 +33,11 @@ export default async function PaginaBuscar() {
             Voltar ao painel
           </Link>
         </header>
-        <BuscaGoogle ligada={buscaLigada()} cotaInicial={cotaParaJson(cota)} />
+        <BuscaGoogle
+          ligada={buscaLigada()}
+          cotaInicial={cotaParaJson(cota)}
+          buscasIniciais={{ usadas, limite: LIMITES[sessao.plano].buscas, periodo, ilimitado: sessao.plano === 'cortesia' }}
+        />
       </div>
     </div>
   );

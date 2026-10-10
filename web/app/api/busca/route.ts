@@ -3,10 +3,11 @@ import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { conferirTeste, cotaDaConta, cotaParaJson, devolverCota, reservarCota } from '@/lib/conta';
 import { idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
 import {
-  anotarBusca, buscaLigada, buscarPagina, chamadasDeHoje, chaveDaPergunta, contarChamada, ErroGoogle, memoriaDaBusca, somarLeads,
-  tetoDiario, tetoMensal, usoDoMes,
+  anotarBusca, buscaLigada, buscarPagina, buscasDaConta, buscasDosTestesNoMes, chamadasDeHoje, chaveDaPergunta, contarChamada,
+  ErroGoogle, memoriaDaBusca, reservaDosTestes, somarLeads, tetoDiario, tetoMensal, usoDoMes,
 } from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
+import { LIMITES } from '@/lib/planos';
 import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
 export const runtime = 'nodejs';
@@ -96,6 +97,26 @@ export async function POST(req: Request) {
     }
   }
 
+  /*
+   * O teto de buscas do plano: é a busca no Google que custa, então cada
+   * plano tem a sua cota, e o teste grátis ainda divide uma reserva do mês
+   * para nunca tirar busca de quem paga (lib/planos).
+   */
+  const limiteBuscas = LIMITES[plano].buscas;
+  const usadas = await buscasDaConta(contaId, plano, s.sessao.pagoAte);
+  if (usadas >= limiteBuscas) {
+    const msg =
+      plano === 'gratis'
+        ? `Você usou as ${limiteBuscas} buscas do teste grátis. Assine o plano de 7 dias para continuar buscando.`
+        : plano === 'semanal'
+          ? `Você usou as ${limiteBuscas} buscas destes 7 dias. Para buscar mais, assine o Basic ou o Pro.`
+          : `Você usou as ${limiteBuscas} buscas do mês. Elas voltam no dia 1º${plano === 'basic' ? ', ou passe para o Pro' : ''}.`;
+    return erro(msg, 402, { cota: cotaParaJson(cota), fim: true, buscas: { usadas, limite: limiteBuscas } });
+  }
+  if (plano === 'gratis' && (await buscasDosTestesNoMes()) >= reservaDosTestes()) {
+    return erro('Os testes grátis deste mês esgotaram. Assine o plano de 7 dias ou volte no dia 1º.', 402, { cota: cotaParaJson(cota), fim: true });
+  }
+
   let resultado;
   try {
     try {
@@ -171,6 +192,7 @@ export async function POST(req: Request) {
       comercios: resultado.comercios.length,
       comSite: todos.length - leads.length,
       retomada,
+      buscas: { usadas: usadas + 1, limite: limiteBuscas },
       jaTinha: existentes.length,
       descartados,
       comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,

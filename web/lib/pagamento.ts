@@ -4,6 +4,7 @@
  * Duas formas de pagar o mesmo plano:
  *  - cartão: assinatura que a Stripe renova sozinha todo mês;
  *  - Pix: pagamento avulso que libera 31 dias (Pix na Stripe não renova sozinho).
+ *  - 7 dias: pagamento avulso, no cartão ou no Pix, que libera uma semana e não renova.
  *
  * Quem libera o plano é SEMPRE o aviso da Stripe (webhook), conferido pela
  * assinatura criptográfica dela — nunca a volta do navegador para a página
@@ -12,15 +13,13 @@
 
 import Stripe from 'stripe';
 import { db } from './sql';
-import { PLANOS_A_VENDA } from './planos';
+import { DIAS_DO_PLANO, PLANOS_A_VENDA } from './planos';
 
-export type PlanoPago = 'basic' | 'pro';
+export type PlanoPago = 'semanal' | 'basic' | 'pro';
 export type Forma = 'cartao' | 'pix';
 
 /** dias de folga depois do vencimento do cartão, para a Stripe tentar cobrar de novo */
 const FOLGA_CARTAO_DIAS = 3;
-/** quanto um Pix libera */
-const DIAS_POR_PIX = 31;
 
 export const pagamentoLigado = Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET);
 /** o Pix precisa ser ativado no painel da Stripe; até lá o botão fica escondido para não dar erro */
@@ -39,7 +38,7 @@ export function precoCentavos(plano: PlanoPago): number {
 }
 
 /** o id do preço mensal recorrente de cada plano, criado na Stripe */
-function precoRecorrente(plano: PlanoPago): string {
+function precoRecorrente(plano: 'basic' | 'pro'): string {
   const id = plano === 'basic' ? process.env.STRIPE_PRECO_BASIC : process.env.STRIPE_PRECO_PRO;
   if (!id) throw new Error(`Falta o preço do plano ${plano} na Stripe (STRIPE_PRECO_${plano.toUpperCase()}).`);
   return id;
@@ -82,7 +81,7 @@ export async function abrirPagamento(opts: {
     cancel_url: `${opts.site}/planos`,
   };
 
-  if (opts.forma === 'cartao') {
+  if (opts.forma === 'cartao' && opts.plano !== 'semanal') {
     const s = await stripe().checkout.sessions.create({
       mode: 'subscription',
       customer,
@@ -96,19 +95,20 @@ export async function abrirPagamento(opts: {
     return s.url!;
   }
 
+  // pagamento avulso: o Pix de um mês, ou o plano de 7 dias (cartão ou Pix)
   const nome = PLANOS_A_VENDA.find((p) => p.plano === opts.plano)!.nome;
   const s = await stripe().checkout.sessions.create({
     mode: 'payment',
     customer,
     locale: 'pt-BR',
-    allowed_payment_method_types: ['pix'],
+    allowed_payment_method_types: [opts.forma === 'pix' ? 'pix' : 'card'],
     line_items: [
       {
         quantity: 1,
         price_data: {
           currency: 'brl',
           unit_amount: precoCentavos(opts.plano),
-          product_data: { name: `Vertion Leads ${nome} — 1 mês` },
+          product_data: { name: opts.plano === 'semanal' ? 'Vertion Leads — 7 dias' : `Vertion Leads ${nome} — 1 mês` },
         },
       },
     ],
@@ -132,11 +132,11 @@ export async function abrirPortal(contaId: string, site: string): Promise<string
 // ------------------------------------------------------------ aviso
 
 function ehPlanoPago(v: unknown): v is PlanoPago {
-  return v === 'basic' || v === 'pro';
+  return v === 'semanal' || v === 'basic' || v === 'pro';
 }
 
 /** o plano de um preço da Stripe; é pelo preço que se sabe a troca de plano feita no portal */
-function planoDoPreco(precoId: string | undefined): PlanoPago | null {
+function planoDoPreco(precoId: string | undefined): 'basic' | 'pro' | null {
   if (!precoId) return null;
   if (precoId === process.env.STRIPE_PRECO_BASIC) return 'basic';
   if (precoId === process.env.STRIPE_PRECO_PRO) return 'pro';
@@ -169,26 +169,29 @@ async function registrarPagamento(p: {
  * Expressão SQL que devolve a validade "convertida" para o plano novo.
  */
 function validadeConvertida(sql: ReturnType<typeof db>, novo: PlanoPago) {
-  const precoNovo = precoCentavos(novo);
+  // compara o preço por dia: o de 7 dias é bem mais caro por dia que o mensal
+  const porDia = (p: PlanoPago) => precoCentavos(p) / DIAS_DO_PLANO[p];
+  const novoPorDia = porDia(novo);
   return sql`
     case
       when pago_ate is null or pago_ate <= now() then now()
       when plano = ${novo} or (plano = 'pago' and ${novo} = 'pro') then pago_ate
-      when plano = 'basic' then now() + (pago_ate - now()) * (${precoCentavos('basic')}::float8 / ${precoNovo}::float8)
-      when plano in ('pro', 'pago') then now() + (pago_ate - now()) * (${precoCentavos('pro')}::float8 / ${precoNovo}::float8)
+      when plano = 'semanal' then now() + (pago_ate - now()) * (${porDia('semanal')}::float8 / ${novoPorDia}::float8)
+      when plano = 'basic' then now() + (pago_ate - now()) * (${porDia('basic')}::float8 / ${novoPorDia}::float8)
+      when plano in ('pro', 'pago') then now() + (pago_ate - now()) * (${porDia('pro')}::float8 / ${novoPorDia}::float8)
       else now()
     end
   `;
 }
 
-/** Pix: 31 dias a partir do que já estava pago no mesmo plano (ou de hoje) */
-async function liberarPix(contaId: string, plano: PlanoPago): Promise<void> {
+/** pagamento avulso: os dias do plano (31 no Pix mensal, 7 no semanal) a partir do que já estava pago */
+async function liberarAvulso(contaId: string, plano: PlanoPago, forma: Forma): Promise<void> {
   const sql = db();
   await sql`
     update contas set
-      pago_ate = ${validadeConvertida(sql, plano)} + make_interval(days => ${DIAS_POR_PIX}),
+      pago_ate = ${validadeConvertida(sql, plano)} + make_interval(days => ${DIAS_DO_PLANO[plano]}),
       plano = case when plano = 'cortesia' then plano else ${plano} end,
-      forma_pagamento = case when stripe_assinatura_id is null then 'pix' else forma_pagamento end
+      forma_pagamento = case when stripe_assinatura_id is null then ${forma} else forma_pagamento end
     where id = ${contaId}
   `;
 }
@@ -291,9 +294,11 @@ async function processarAviso(evento: Stripe.Event): Promise<string | null> {
       // confere que o valor pago é o do plano: metadado sozinho não prova nada
       if ((s.amount_total ?? 0) < precoCentavos(plano)) return null;
       const pi = typeof s.payment_intent === 'string' ? s.payment_intent : (s.payment_intent?.id ?? s.id);
-      // grava primeiro: o mesmo pagamento nunca libera 31 dias duas vezes
-      const primeiraVez = await registrarPagamento({ id: pi, contaId, plano, forma: 'pix', valorCentavos: s.amount_total ?? 0, descricao: 'Pix · 1 mês' });
-      if (primeiraVez) await liberarPix(contaId, plano);
+      const forma: Forma = s.metadata?.forma === 'cartao' ? 'cartao' : 'pix';
+      const descricao = `${forma === 'pix' ? 'Pix' : 'Cartão'} · ${plano === 'semanal' ? '7 dias' : '1 mês'}`;
+      // grava primeiro: o mesmo pagamento nunca libera os dias duas vezes
+      const primeiraVez = await registrarPagamento({ id: pi, contaId, plano, forma, valorCentavos: s.amount_total ?? 0, descricao });
+      if (primeiraVez) await liberarAvulso(contaId, plano, forma);
       return contaId;
     }
     // cartão: cada fatura paga (a primeira e as renovações) estende o plano

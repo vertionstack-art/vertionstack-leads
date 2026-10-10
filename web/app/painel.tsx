@@ -38,11 +38,11 @@ const TIPOS: { kind: WebsiteKind; rotulo: string; classe: string; barra: string 
 ];
 
 const STATUS: { valor: Status; rotulo: string; classe: string; ponto: string }[] = [
-  { valor: 'novo', rotulo: 'Novo', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-zinc-400' },
-  { valor: 'contatado', rotulo: 'Contatado', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-sky-500' },
-  { valor: 'negociando', rotulo: 'Negociando', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-roxo-600' },
-  { valor: 'fechado', rotulo: 'Fechado', classe: 'bg-white text-tinta ring-zinc-200', ponto: 'bg-emerald-600' },
-  { valor: 'descartado', rotulo: 'Descartado', classe: 'bg-white text-zinc-500 ring-zinc-200', ponto: 'bg-zinc-300' },
+  { valor: 'novo', rotulo: 'Novo', classe: 'bg-white text-tinta ring-zinc-300', ponto: 'bg-zinc-400' },
+  { valor: 'contatado', rotulo: 'Contatado', classe: 'bg-white text-tinta ring-zinc-300', ponto: 'bg-sky-500' },
+  { valor: 'negociando', rotulo: 'Negociando', classe: 'bg-white text-tinta ring-zinc-300', ponto: 'bg-roxo-600' },
+  { valor: 'fechado', rotulo: 'Fechado', classe: 'bg-white text-tinta ring-zinc-300', ponto: 'bg-emerald-600' },
+  { valor: 'descartado', rotulo: 'Descartado', classe: 'bg-white text-zinc-500 ring-zinc-300', ponto: 'bg-zinc-300' },
 ];
 
 /** os três cartões de temperatura, cada um num campo pastel fixo */
@@ -151,7 +151,7 @@ function Pilula({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         title={titulo}
-        className="min-h-[40px] w-full cursor-pointer appearance-none truncate rounded-full border border-zinc-200 bg-white py-2 pl-4 pr-9 text-[13px] font-semibold text-tinta outline-none transition-colors hover:border-zinc-400 focus-visible:border-roxo-500"
+        className="min-h-[40px] w-full cursor-pointer appearance-none truncate rounded-full border border-zinc-300 bg-white py-2 pl-4 pr-9 text-[13px] font-semibold text-tinta outline-none transition-colors hover:border-zinc-500 focus-visible:border-roxo-500"
       >
         {children}
       </select>
@@ -172,7 +172,7 @@ function Alternador({
       title={titulo}
       aria-pressed={ligado}
       className={`inline-flex min-h-[40px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-4 text-[13px] font-semibold transition-colors duration-200 ${
-        ligado ? 'bg-tinta text-white' : 'border border-zinc-200 bg-white text-tinta hover:border-zinc-400'
+        ligado ? 'bg-tinta text-white' : 'border border-zinc-300 bg-white text-tinta hover:border-zinc-500'
       }`}
     >
       {ligado && <Check aria-hidden className="h-3.5 w-3.5" />}
@@ -187,7 +187,7 @@ function Acao({
 }: {
   onClick: () => void; titulo: string; feito?: boolean; children: React.ReactNode;
 }) {
-  const cores = feito ? 'bg-tinta text-white hover:bg-tinta-70' : 'bg-zinc-100 text-tinta hover:bg-zinc-200';
+  const cores = feito ? 'bg-tinta text-white hover:bg-tinta-70' : 'bg-white text-tinta ring-1 ring-inset ring-zinc-300 hover:ring-tinta';
   return (
     <button
       onClick={onClick}
@@ -899,7 +899,8 @@ export default function Painel({
                 )}
               </div>
 
-              <div className="mt-4 -mx-5 flex flex-nowrap items-center gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
+              <div className="mt-4 rounded-[22px] bg-zinc-50 p-3 ring-1 ring-inset ring-zinc-200 md:p-4">
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0">
                 <Pilula titulo="Ordem da lista" value={ordem} onChange={(v) => { setOrdem(v as typeof ordem); setPagina(0); }}>
                   <option value="temperatura">Mais quentes primeiro</option>
                   <option value="recentes">Mais recentes</option>
@@ -940,8 +941,8 @@ export default function Painel({
                 )}
               </div>
 
-              <div className="-mx-5 mt-3 flex flex-nowrap items-center gap-1.5 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0">
-                <span className="mr-1 shrink-0 text-[12px] font-semibold text-zinc-500">Status</span>
+              <div className="mt-3 flex flex-nowrap items-center gap-1.5 overflow-x-auto border-t border-zinc-200 pb-1 pt-3 md:flex-wrap md:overflow-visible md:pb-0">
+                <span className="mr-1 shrink-0 text-[12px] font-bold text-zinc-600">Status</span>
                 {STATUS.map((s) => {
                   const ativo = statusFiltro.includes(s.valor);
                   return (
@@ -958,6 +959,7 @@ export default function Painel({
                     </button>
                   );
                 })}
+              </div>
               </div>
             </div>
 
@@ -996,17 +998,17 @@ export default function Painel({
             </div>
             {cartaoAcao('mt-6 flex md:hidden')}
 
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto rounded-[24px] border border-zinc-200 bg-white shadow-[0_1px_3px_rgba(11,11,15,0.05)] md:block">
               <table className="w-full text-left text-[13px]">
-                <thead className="text-[12px] font-semibold text-zinc-500">
-                  <tr className="border-b border-zinc-100">
-                    <th className="py-3 pl-1 pr-4 font-semibold">Comércio</th>
+                <thead className="bg-zinc-50 text-[11.5px] font-bold uppercase tracking-[0.04em] text-zinc-600">
+                  <tr className="border-b border-zinc-200">
+                    <th className="py-3 pl-5 pr-4 font-bold">Comércio</th>
                     <th className="px-4 py-3 font-semibold">Presença digital</th>
                     <th className="px-4 py-3 font-semibold">Contato</th>
                     <th className="px-4 py-3 font-semibold">Onde fica</th>
                     <th className="px-4 py-3 text-center font-semibold">Reputação</th>
                     <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="sticky right-0 z-10 bg-white px-3 py-3"><span className="sr-only">Ações</span></th>
+                    <th className="sticky right-0 z-10 bg-zinc-50 px-3 py-3"><span className="sr-only">Ações</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1016,8 +1018,8 @@ export default function Painel({
                     const temp = temperaturaDoLead(lead);
                     const situacao = lead.siteStatus ? SITE_STATUS[lead.siteStatus] : null;
                     return (
-                      <tr key={lead.id} className="group border-b border-zinc-100 align-top transition-colors duration-150 last:border-b-0 hover:bg-zinc-50">
-                        <td className="py-4 pl-1 pr-4">
+                      <tr key={lead.id} className="group border-b border-zinc-200 align-top transition-colors duration-150 last:border-b-0 hover:bg-zinc-50">
+                        <td className="py-4 pl-5 pr-4">
                           <div className="flex items-start gap-3">
                             <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tinta text-[15px] font-extrabold text-white">
                               {inicial(lead.name)}

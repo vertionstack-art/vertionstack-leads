@@ -11,6 +11,7 @@
  */
 
 import { db } from './sql';
+import type { Plano } from './planos';
 
 const URL_BUSCA = 'https://places.googleapis.com/v1/places:searchText';
 
@@ -228,6 +229,48 @@ export async function anotarBusca(conta: string, chave: string, proxima: string 
       esgotada = excluded.esgotada,
       atualizada_em = now()
   `;
+}
+
+// ------------------------------------------------ limite por plano
+
+/** quantas das buscas grátis do mês ficam para os testes, no máximo: o resto é de quem paga */
+export function reservaDosTestes(): number {
+  const n = Number(process.env.BUSCA_TETO_TESTES);
+  return Number.isFinite(n) && n >= 0 ? n : 300;
+}
+
+/**
+ * Buscas que a conta já fez no período do plano: o teste conta tudo desde
+ * sempre; o de 7 dias, os dias pagos; Basic, Pro e cortesia, o mês corrente.
+ */
+export async function buscasDaConta(conta: string, plano: Plano, pagoAte: string | null): Promise<number> {
+  const sql = db();
+  const hoje = sql`(now() at time zone 'America/Sao_Paulo')::date`;
+  const r =
+    plano === 'gratis'
+      ? await sql`select coalesce(sum(chamadas), 0)::int as n from busca_google where conta_id = ${conta}`
+      : plano === 'semanal' && pagoAte
+        ? await sql`
+            select coalesce(sum(chamadas), 0)::int as n from busca_google
+            where conta_id = ${conta} and dia >= ((${pagoAte}::timestamptz - interval '7 days') at time zone 'America/Sao_Paulo')::date
+          `
+        : await sql`
+            select coalesce(sum(chamadas), 0)::int as n from busca_google
+            where conta_id = ${conta} and date_trunc('month', dia) = date_trunc('month', ${hoje})
+          `;
+  return r[0].n as number;
+}
+
+/** buscas feitas neste mês por contas que estão só no teste grátis */
+export async function buscasDosTestesNoMes(): Promise<number> {
+  const [r] = await db()`
+    select coalesce(sum(b.chamadas), 0)::int as n
+    from busca_google b join contas c on c.id = b.conta_id
+    where date_trunc('month', b.dia) = date_trunc('month', (now() at time zone 'America/Sao_Paulo')::date)
+      and c.plano <> 'cortesia'
+      and not (c.plano in ('semanal', 'basic', 'pro', 'pago') and c.pago_ate > now())
+  `;
+  return r.n as number;
 }
 
 export async function chamadasDeHoje(): Promise<number> {

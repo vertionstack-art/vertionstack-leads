@@ -16,7 +16,7 @@ interface Linha {
   semana: number;
 }
 
-const ROTULO = { gratis: 'Teste', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
+const ROTULO = { gratis: 'Teste', semanal: '7 dias', basic: 'Basic', pro: 'Pro', cortesia: 'Cortesia' } as const;
 
 interface Receita {
   ativos: { basic: number; pro: number };
@@ -131,7 +131,7 @@ export default function PainelContas() {
             <ul className="mt-4 divide-y divide-zinc-100 rounded-[24px] border border-zinc-200 px-5">
               {receita.ultimos.map((u) => (
                 <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[13px]">
-                  <span><b>{u.conta}</b> <span className="text-zinc-500">· {u.plano === 'pro' ? 'Pro' : 'Basic'} · {u.forma === 'pix' ? 'Pix' : 'cartão'}</span></span>
+                  <span><b>{u.conta}</b> <span className="text-zinc-500">· {ROTULO[u.plano as keyof typeof ROTULO] ?? u.plano} · {u.forma === 'pix' ? 'Pix' : 'cartão'}</span></span>
                   <span className="flex gap-4 tabular-nums"><span className="text-zinc-500">{data(u.pagoEm)}</span><b>{brl(u.valorCentavos)}</b></span>
                 </li>
               ))}

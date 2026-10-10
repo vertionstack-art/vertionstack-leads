@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const PLANOS: Plano[] = ['gratis', 'basic', 'pro', 'cortesia'];
+const PLANOS: Plano[] = ['gratis', 'semanal', 'basic', 'pro', 'cortesia'];
 
 export async function GET() {
   const a = await exigirAdmin();

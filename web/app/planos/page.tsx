@@ -71,18 +71,20 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
           </p>
         )}
 
-        <section className="mt-9 grid gap-4 md:grid-cols-3" aria-label="Planos disponíveis">
+        <section className="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4" aria-label="Planos disponíveis">
           {PLANOS_A_VENDA.map((p) => {
             const lim = LIMITES[p.plano];
             const atual = sessao.plano === p.plano;
             const escuro = p.plano === 'pro';
+            const semanal = p.plano === 'semanal';
+            const temMensal = sessao.plano === 'basic' || sessao.plano === 'pro';
             const assunto = encodeURIComponent(`Quero assinar o plano ${p.nome}`);
             const corpo = encodeURIComponent(`Oi! Quero assinar o plano ${p.nome} do Vertion Leads.\nMinha conta: ${sessao.email}`);
             return (
               <article
                 key={p.plano}
                 className={`flex flex-col rounded-[24px] p-6 ${
-                  escuro ? 'bg-tinta text-white' : p.plano === 'basic' ? 'bg-ceu' : 'bg-zinc-50'
+                  escuro ? 'bg-tinta text-white' : p.plano === 'basic' ? 'bg-ceu' : semanal ? 'bg-lavanda' : 'bg-zinc-50 ring-1 ring-inset ring-zinc-200'
                 } ${atual ? 'ring-2 ring-roxo-600 ring-offset-2' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
@@ -99,15 +101,20 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                   <span className="text-[38px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">
                     {p.precoCentavos ? reais(p.precoCentavos) : 'Grátis'}
                   </span>
-                  {p.precoCentavos > 0 && <span className={`text-[13px] font-semibold ${escuro ? 'text-white/60' : 'text-zinc-500'}`}>/mês</span>}
+                  {p.precoCentavos > 0 && <span className={`whitespace-nowrap text-[13px] font-semibold ${escuro ? 'text-white/60' : 'text-zinc-500'}`}>{p.periodo}</span>}
                 </p>
 
                 <ul className="mt-6 space-y-2.5 text-[13.5px]">
                   {[
                     p.plano === 'gratis' ? `${numero(lim.semana)} leads no total, sem renovar` : `${numero(lim.semana)} leads novos por semana`,
+                    p.plano === 'gratis'
+                      ? `${lim.buscas} buscas no Google`
+                      : semanal
+                        ? `${lim.buscas} buscas no Google nos 7 dias`
+                        : `${lim.buscas} buscas no Google por mês`,
                     `até ${numero(lim.guardados)} leads guardados`,
                     lim.pessoas > 1 ? `até ${lim.pessoas} pessoas na mesma conta` : '1 pessoa na conta',
-                    `extensão em ${lim.aparelhos} computadores`,
+                    lim.aparelhos > 1 ? `extensão em ${lim.aparelhos} computadores` : "extensão em 1 computador",
                     lim.funis > 1 ? `CRM com até ${lim.funis} funis` : `CRM com 1 funil`,
                     'temperatura, prévia, copy, proposta e entrega',
                   ].map((item) => (
@@ -119,7 +126,20 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                 </ul>
 
                 <div className="mt-auto pt-7">
-                  {atual ? (
+                  {semanal && temMensal ? (
+                    <span className="flex min-h-[44px] items-center justify-center rounded-full text-center text-[13px] font-semibold text-zinc-600">
+                      Você já tem um plano mensal
+                    </span>
+                  ) : semanal && pagamentoLigado ? (
+                    <>
+                      {atual && sessao.pagoAte && (
+                        <p className="mb-2 text-center text-[12.5px] font-semibold text-zinc-600">
+                          Vale até {new Date(sessao.pagoAte).toLocaleDateString('pt-BR')}. Pagar de novo soma mais 7 dias.
+                        </p>
+                      )}
+                      <BotoesAssinar plano="semanal" nome={p.nome} escuro={false} comPix={pixLigado} />
+                    </>
+                  ) : atual ? (
                     <span className={`flex min-h-[44px] items-center justify-center rounded-full text-[13.5px] font-bold ${escuro ? 'bg-white/10' : 'bg-white'}`}>
                       Plano atual
                     </span>
@@ -130,7 +150,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                   ) : cobranca.assinaturaAtiva ? (
                     <BotaoGerenciar escuro={escuro} />
                   ) : pagamentoLigado ? (
-                    <BotoesAssinar plano={p.plano as 'basic' | 'pro'} nome={p.nome} escuro={escuro} comPix={pixLigado} />
+                    <BotoesAssinar plano={p.plano as 'semanal' | 'basic' | 'pro'} nome={p.nome} escuro={escuro} comPix={pixLigado} />
                   ) : (
                     <a
                       href={`mailto:${contato}?subject=${assunto}&body=${corpo}`}
@@ -160,7 +180,7 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
             <h2 className="text-[17px] font-extrabold">Como assinar</h2>
             <p className="mt-1.5 text-[13.5px] leading-relaxed text-zinc-600">
               {pagamentoLigado
-                ? `No cartão, a assinatura renova sozinha todo mês e você troca de plano ou cancela quando quiser.${pixLigado ? ' No Pix, cada pagamento libera 31 dias.' : ''} O plano é liberado assim que o pagamento cai.`
+                ? `No cartão, a assinatura renova sozinha todo mês e você troca de plano ou cancela quando quiser.${pixLigado ? ' No Pix, cada pagamento libera 31 dias.' : ''} O plano de 7 dias é pago uma vez, no cartão ou no Pix, e não renova. O plano é liberado assim que o pagamento cai.`
                 : 'O pagamento automático por Pix e cartão chega em breve. Por enquanto, clique em assinar e a gente libera a sua conta assim que o pagamento cair.'}{' '}
               Nos planos pagos, a cota renova toda segunda-feira.
             </p>

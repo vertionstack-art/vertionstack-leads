@@ -55,8 +55,24 @@ function lerPrefs(): { nichos: string[]; extras: string[]; cidade: string; bairr
   }
 }
 
-export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; cotaInicial: CotaJson }) {
+interface Buscas {
+  usadas: number;
+  limite: number;
+  periodo: string;
+  ilimitado: boolean;
+}
+
+export default function BuscaGoogle({
+  ligada,
+  cotaInicial,
+  buscasIniciais,
+}: {
+  ligada: boolean;
+  cotaInicial: CotaJson;
+  buscasIniciais: Buscas;
+}) {
   const [cota, setCota] = useState<CotaJson>(cotaInicial);
+  const [buscas, setBuscas] = useState<Buscas>(buscasIniciais);
   const [nichos, setNichos] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<string[]>([]);
   const [novoNicho, setNovoNicho] = useState('');
@@ -136,6 +152,7 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             break fora;
           }
           if (r.cota) setCota(r.cota);
+          if (r.buscas) setBuscas((b) => ({ ...b, usadas: r.buscas.usadas, limite: r.buscas.limite }));
           if (!r.ok) {
             setAviso({ texto: r.erro || 'A busca falhou.', fim: r.fim });
             if (r.fim || !r.erro) break fora;
@@ -299,6 +316,12 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
                 : cota.teste
                   ? `Restam ${cota.restantes ?? 0} do seu teste grátis.`
                   : `Restam ${cota.restantes ?? 0} nesta semana.`}
+              {!buscas.ilimitado && (
+                <>
+                  <br />
+                  Buscas no Google {buscas.periodo}: <b className="text-tinta">{Math.min(buscas.usadas, buscas.limite)} de {buscas.limite}</b>
+                </>
+              )}
             </p>
           </div>
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] bg-menta/60 px-4 py-3">

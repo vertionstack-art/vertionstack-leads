@@ -54,6 +54,7 @@ export function ehAdminEmail(email: string): boolean {
 export function planoEfetivo(plano: string, pagoAte: Date | string | null): { plano: Plano; ilimitado: boolean } {
   if (plano === 'cortesia') return { plano: 'cortesia', ilimitado: true };
   const emDia = Boolean(pagoAte && new Date(pagoAte).getTime() > Date.now());
+  if (emDia && plano === 'semanal') return { plano: 'semanal', ilimitado: false };
   if (emDia && plano === 'basic') return { plano: 'basic', ilimitado: false };
   // 'pago' é o nome antigo do pro
   if (emDia && (plano === 'pro' || plano === 'pago')) return { plano: 'pro', ilimitado: false };
