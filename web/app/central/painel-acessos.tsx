@@ -59,7 +59,7 @@ export default function PainelAcessos({ meuIp }: { meuIp: string }) {
   const carregar = useCallback(async (ip?: string) => {
     setCarregando(true);
     try {
-      const r = await fetch('/api/admin/acessos' + (ip ? `?ip=${encodeURIComponent(ip)}` : ''), {
+      const r = await fetch('/api/central/acessos' + (ip ? `?ip=${encodeURIComponent(ip)}` : ''), {
         cache: 'no-store',
       });
       const d = await r.json();
@@ -91,7 +91,7 @@ export default function PainelAcessos({ meuIp }: { meuIp: string }) {
       motivo = resposta;
     }
 
-    const r = await fetch('/api/admin/acessos', {
+    const r = await fetch('/api/central/acessos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ip, motivo, acao: bloqueado ? 'liberar' : 'bloquear' }),

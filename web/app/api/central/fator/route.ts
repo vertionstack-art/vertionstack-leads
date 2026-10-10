@@ -26,7 +26,7 @@ function erro(mensagem: string, status: number) {
 
 export async function GET() {
   const sessao = await sessaoAtual();
-  if (!sessao?.admin) return erro('Só o administrador usa isto.', 403);
+  if (!sessao?.admin) return erro('Não encontrado.', 404);
 
   const supabase = await supabaseServidor();
   const [{ data: fatores }, { data: nivel }] = await Promise.all([
@@ -40,7 +40,7 @@ export async function GET() {
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const sessao = await sessaoAtual();
-  if (!sessao?.admin) return erro('Só o administrador usa isto.', 403);
+  if (!sessao?.admin) return erro('Não encontrado.', 404);
 
   const corpo = (await req.json().catch(() => ({}))) as { acao?: string; fator?: string; codigo?: string };
   const codigo = String(corpo.codigo || '').replace(/\D/g, '');

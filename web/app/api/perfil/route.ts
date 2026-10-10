@@ -54,7 +54,7 @@ export async function DELETE(req: Request) {
   }
   if (admin) {
     return NextResponse.json(
-      { ok: false, erro: 'A conta do administrador não se exclui por aqui: tire o e-mail de ADMIN_EMAILS antes.' },
+      { ok: false, erro: 'Esta conta não pode ser excluída por aqui. Fale com o suporte.' },
       { status: 400 },
     );
   }

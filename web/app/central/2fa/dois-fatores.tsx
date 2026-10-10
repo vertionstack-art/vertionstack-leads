@@ -5,7 +5,7 @@ import { Moldura, botao, campo, postar, rotulo } from '../../moldura-auth';
 
 type Etapa = 'carregando' | 'cadastrar' | 'ler-qr' | 'codigo';
 
-export default function DoisFatores() {
+export default function DoisFatores({ destino }: { destino: string }) {
   const [etapa, setEtapa] = useState<Etapa>('carregando');
   const [qr, setQr] = useState('');
   const [segredo, setSegredo] = useState('');
@@ -15,11 +15,11 @@ export default function DoisFatores() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    fetch('/api/auth/2fa', { cache: 'no-store' })
+    fetch('/api/central/fator', { cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
         if (!d.ok) return window.location.assign('/');
-        if (d.confirmado) return window.location.assign('/admin');
+        if (d.confirmado) return window.location.assign(destino);
         setEtapa(d.ligado ? 'codigo' : 'cadastrar');
       })
       .catch(() => setErro('Sem conexão. Recarregue a página.'));
@@ -28,7 +28,7 @@ export default function DoisFatores() {
   async function gerarQr() {
     setEnviando(true);
     setErro(null);
-    const r = (await postar('/api/auth/2fa', { acao: 'cadastrar' })) as { ok: boolean; erro?: string; qr?: string; segredo?: string; fator?: string };
+    const r = (await postar('/api/central/fator', { acao: 'cadastrar' })) as { ok: boolean; erro?: string; qr?: string; segredo?: string; fator?: string };
     setEnviando(false);
     if (!r.ok || !r.qr) return setErro(r.erro || 'Não consegui gerar o QR Code.');
     setQr(r.qr);
@@ -41,8 +41,8 @@ export default function DoisFatores() {
     e.preventDefault();
     setEnviando(true);
     setErro(null);
-    const r = await postar('/api/auth/2fa', etapa === 'ler-qr' ? { acao: 'confirmar', fator, codigo } : { acao: 'verificar', codigo });
-    if (r.ok) window.location.assign('/admin');
+    const r = await postar('/api/central/fator', etapa === 'ler-qr' ? { acao: 'confirmar', fator, codigo } : { acao: 'verificar', codigo });
+    if (r.ok) window.location.assign(destino);
     else {
       setErro(r.erro || 'Código não confere.');
       setEnviando(false);

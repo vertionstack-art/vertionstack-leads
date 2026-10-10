@@ -19,3 +19,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 12. `0011_whatsapp_do_lead.sql`
 13. `0012_buscas_feitas.sql`
 14. `0013_plano_semanal.sql`
+15. `0014_central.sql`

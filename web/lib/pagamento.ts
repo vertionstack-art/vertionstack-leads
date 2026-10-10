@@ -66,6 +66,14 @@ async function clienteDaConta(contaId: string, email: string): Promise<string> {
   return c.id;
 }
 
+/** anota que a pessoa abriu a página de pagamento: é assim que a central sabe quem desistiu da compra */
+async function anotarCheckout(id: string, opts: { contaId: string; plano: PlanoPago; forma: Forma }): Promise<void> {
+  await db()`
+    insert into checkouts (id, conta_id, plano, forma) values (${id}, ${opts.contaId}, ${opts.plano}, ${opts.forma})
+    on conflict (id) do nothing
+  `.catch((e) => console.error('[checkout anotar]', e));
+}
+
 /** abre a tela de pagamento da Stripe e devolve o endereço para mandar a pessoa */
 export async function abrirPagamento(opts: {
   contaId: string;
@@ -92,6 +100,7 @@ export async function abrirPagamento(opts: {
       metadata: meta,
       ...volta,
     });
+    await anotarCheckout(s.id, opts);
     return s.url!;
   }
 
@@ -116,6 +125,7 @@ export async function abrirPagamento(opts: {
     metadata: meta,
     ...volta,
   });
+  await anotarCheckout(s.id, opts);
   return s.url!;
 }
 
@@ -287,6 +297,10 @@ async function processarAviso(evento: Stripe.Event): Promise<string | null> {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded': {
       const s = evento.data.object as Stripe.Checkout.Session;
+      // a compra iniciada vira compra feita (cartão ou Pix, mensal ou avulso)
+      if (s.payment_status === 'paid') {
+        await sql`update checkouts set pago_em = coalesce(pago_em, now()) where id = ${s.id}`;
+      }
       if (s.mode !== 'payment' || s.payment_status !== 'paid') return null;
       const plano = s.metadata?.plano;
       const contaId = s.metadata?.conta_id;

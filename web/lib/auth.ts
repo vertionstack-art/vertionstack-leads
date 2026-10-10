@@ -49,7 +49,7 @@ export function recusarOrigem(): NextResponse {
  * O administrador passou pelo código de 6 dígitos nesta sessão?
  *
  * "aal2" é o nível que o Supabase dá à sessão depois do segundo fator. Sem
- * ele, mesmo com a senha certa, o /admin não abre: roubar a senha não basta,
+ * ele, mesmo com a senha certa, a central não abre: roubar a senha não basta,
  * precisa também do celular com o Google Authenticator.
  */
 export async function nivelDaSessao(): Promise<'aal1' | 'aal2' | null> {
@@ -62,7 +62,8 @@ export async function nivelDaSessao(): Promise<'aal1' | 'aal2' | null> {
 /** sessão de administrador com o segundo fator confirmado, ou uma resposta pronta de recusa */
 export async function exigirAdmin(): Promise<{ sessao: Sessao; erro?: never } | { sessao?: never; erro: NextResponse }> {
   const sessao = await sessaoAtual();
-  if (!sessao?.admin) return { erro: NextResponse.json({ ok: false, erro: 'Só o administrador vê isto.' }, { status: 403 }) };
+  // para quem não é o administrador a rota simplesmente não existe
+  if (!sessao?.admin) return { erro: NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 }) };
   if ((await nivelDaSessao()) !== 'aal2') {
     return { erro: NextResponse.json({ ok: false, erro: 'Confirme o código do Google Authenticator.' }, { status: 401 }) };
   }

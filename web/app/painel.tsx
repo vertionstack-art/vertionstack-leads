@@ -272,7 +272,7 @@ export default function Painel({
   bloqueada?: boolean;
   cota: CotaResumo;
 }) {
-  // A tela de acessos (/admin) de propósito não tem link aqui: quem usa
+  // A central de administração de propósito não tem link aqui: quem usa
   // chega por endereço direto. A proteção continua sendo o servidor, que
   // só responde ao dono — esconder o botão não protegeria nada sozinho.
   const [leads, setLeads] = useState<Lead[]>([]);

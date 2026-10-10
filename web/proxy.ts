@@ -10,6 +10,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { caminhoCentral } from '@/lib/caminho-central';
 
 const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/'];
 
@@ -60,6 +61,27 @@ export async function proxy(req: NextRequest) {
     destino.pathname = '/login';
     destino.search = '';
     return comRastro(req, novoRastro, NextResponse.redirect(destino));
+  }
+
+  /*
+   * A central de administração não tem endereço fixo (lib/caminho-central).
+   * A pasta /central não abre direto: responde "não encontrado", como
+   * qualquer endereço inventado. Só o caminho secreto da Vercel leva até ela.
+   */
+  const segredo = caminhoCentral();
+  let interno: string | null = null;
+  if (caminho === '/central' || caminho.startsWith('/central/') || caminho === '/admin' || caminho.startsWith('/admin/')) {
+    interno = '/nao-encontrado';
+  } else if (segredo && (caminho === '/' + segredo || caminho.startsWith('/' + segredo + '/'))) {
+    interno = '/central' + caminho.slice(segredo.length + 1);
+  }
+  if (interno) {
+    const alvo = req.nextUrl.clone();
+    alvo.pathname = interno;
+    const desvio = NextResponse.rewrite(alvo, { request: req });
+    for (const c of resposta.cookies.getAll()) desvio.cookies.set(c);
+    desvio.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return comRastro(req, novoRastro, desvio);
   }
   return comRastro(req, novoRastro, resposta);
 }
