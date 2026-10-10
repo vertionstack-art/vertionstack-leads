@@ -181,3 +181,32 @@ export async function darDias(contaId: string, dias: number): Promise<void> {
 export async function liberarTeste(contaId: string): Promise<void> {
   await db()`update contas set teste_negado = null where id = ${contaId}`;
 }
+
+/**
+ * Apaga uma pessoa de vez: a assinatura é cancelada na Stripe antes (se não
+ * der, nada é apagado — ela não pode continuar sendo cobrada sem conta), e
+ * quem é dono da conta leva junto a conta inteira (leads, CRM, propostas).
+ * Os rastros do teste grátis ficam, sem dono: criar outra conta no mesmo
+ * computador ou e-mail não devolve o teste.
+ */
+export async function apagarPessoa(userId: string): Promise<{ apagouConta: boolean; leads: number }> {
+  const { cancelarAssinaturaJa } = await import('./pagamento');
+  const sql = db();
+  const [m] = await sql`select conta_id, papel from membros where user_id = ${userId}`;
+  let apagouConta = false;
+  let leads = 0;
+  if (m) {
+    if (m.papel === 'dono') {
+      await cancelarAssinaturaJa(m.conta_id);
+      const [n] = await sql`select count(*)::int as n from leads where conta_id = ${m.conta_id}`;
+      leads = n.n as number;
+      // quem mais estivesse na conta fica sem ela e ganha uma conta nova, vazia, ao entrar de novo
+      await sql`delete from contas where id = ${m.conta_id}`;
+      apagouConta = true;
+    } else {
+      await sql`delete from membros where user_id = ${userId}`;
+    }
+  }
+  await sql`select public.apagar_usuario(${userId})`;
+  return { apagouConta, leads };
+}

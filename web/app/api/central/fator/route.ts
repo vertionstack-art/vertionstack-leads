@@ -16,6 +16,9 @@ import { supabaseServidor } from '@/lib/supabase-server';
 import { sessaoAtual } from '@/lib/conta';
 import { origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
+import { aparelhoDoAdmin } from '@/lib/auth';
+import { ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
+import { codigoRecente } from '@/lib/guarda-central';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +29,7 @@ function erro(mensagem: string, status: number) {
 
 export async function GET() {
   const sessao = await sessaoAtual();
-  if (!sessao?.admin) return erro('Não encontrado.', 404);
+  if (!sessao?.admin || !(await aparelhoDoAdmin(sessao.userId))) return erro('Não encontrado.', 404);
 
   const supabase = await supabaseServidor();
   const [{ data: fatores }, { data: nivel }] = await Promise.all([
@@ -34,13 +37,15 @@ export async function GET() {
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
   ]);
   const ligado = (fatores?.totp || []).some((f) => f.status === 'verified');
-  return NextResponse.json({ ok: true, ligado, confirmado: nivel?.currentLevel === 'aal2' });
+  // "confirmado" só com código digitado nas últimas horas: depois disso a central pede de novo
+  const confirmado = nivel?.currentLevel === 'aal2' && codigoRecente(nivel.currentAuthenticationMethods as { method: string; timestamp: number }[]);
+  return NextResponse.json({ ok: true, ligado, confirmado });
 }
 
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const sessao = await sessaoAtual();
-  if (!sessao?.admin) return erro('Não encontrado.', 404);
+  if (!sessao?.admin || !(await aparelhoDoAdmin(sessao.userId))) return erro('Não encontrado.', 404);
 
   const corpo = (await req.json().catch(() => ({}))) as { acao?: string; fator?: string; codigo?: string };
   const codigo = String(corpo.codigo || '').replace(/\D/g, '');
@@ -62,7 +67,9 @@ export async function POST(req: Request) {
   }
 
   if (corpo.acao === 'confirmar' || corpo.acao === 'verificar') {
+    const ip = ipDaRequisicao(req);
     if (await estourou('2fa:' + sessao.userId, 6, 15 * 60)) return erro('Códigos errados demais. Espere 15 minutos.', 429);
+    if (await estourou('2fa-ip:' + ip, 10, 15 * 60)) return erro('Códigos errados demais. Espere 15 minutos.', 429);
     if (codigo.length !== 6) return erro('O código tem 6 números.', 400);
 
     let fator = corpo.acao === 'confirmar' ? String(corpo.fator || '') : '';
@@ -73,7 +80,10 @@ export async function POST(req: Request) {
     if (!fator) return erro('Ligue o Google Authenticator primeiro.', 400);
 
     const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: fator, code: codigo });
-    if (error) return erro('Código errado ou vencido. Use o número que está aparecendo agora no app.', 401);
+    if (error) {
+      await registrarAcesso(req, 'central-codigo', 'senha_errada', sessao.email);
+      return erro('Código errado ou vencido. Use o número que está aparecendo agora no app.', 401);
+    }
     return NextResponse.json({ ok: true });
   }
 

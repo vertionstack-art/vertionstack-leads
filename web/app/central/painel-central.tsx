@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Mail, RefreshCw, Search, ShieldOff } from 'lucide-react';
+import { KeyRound, Mail, RefreshCw, Search, ShieldOff, Trash2, X } from 'lucide-react';
 import type { PagamentoCentral, Pessoa, Situacao } from '@/lib/central';
 import PainelAcessos from './painel-acessos';
 
@@ -97,6 +97,87 @@ function Barras({ titulo, serie, cor }: { titulo: string; serie: { dia: string; 
   );
 }
 
+/**
+ * Apagar alguém de vez. Pede, na hora, o e-mail da pessoa por extenso, a
+ * senha do administrador e um código novo do Google Authenticator — o
+ * servidor confere os três antes de tocar em qualquer coisa.
+ */
+function ModalApagar({ pessoa, aoFechar, aoApagar }: { pessoa: Pessoa; aoFechar: () => void; aoApagar: (msg: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
+  const [codigo, setCodigo] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const pronto = email.trim().toLowerCase() === pessoa.email.toLowerCase() && senha.length > 0 && codigo.replace(/\D/g, '').length === 6;
+  const dono = pessoa.papel === 'dono';
+
+  async function apagar() {
+    setOcupado(true);
+    setErro(null);
+    try {
+      const d = await fetch('/api/central/apagar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: pessoa.userId, email, senha, codigo }),
+      }).then((r) => r.json());
+      if (d.ok) aoApagar(`${pessoa.email} foi apagado${d.apagouConta ? `, com a conta e ${d.leads} leads` : ''}.`);
+      else {
+        setErro(d.erro || 'Não deu certo.');
+        setCodigo('');
+      }
+    } catch {
+      setErro('Sem conexão.');
+    } finally {
+      setOcupado(false);
+      setSenha('');
+    }
+  }
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={`Apagar ${pessoa.email}`} className="fixed inset-0 z-50 flex items-center justify-center bg-tinta/50 p-4">
+      <div className="w-full max-w-[480px] rounded-[26px] bg-white p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-[20px] font-extrabold tracking-[-0.02em]">Apagar para sempre</h2>
+            <p className="mt-1 text-[13px] font-semibold text-zinc-600">{pessoa.email}</p>
+          </div>
+          <button type="button" onClick={aoFechar} aria-label="Fechar" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-zinc-100">
+            <X aria-hidden className="h-4 w-4" />
+          </button>
+        </div>
+        <ul className="mt-4 space-y-1.5 rounded-2xl bg-rosa px-4 py-3 text-[12.5px] font-semibold text-red-950">
+          <li>• O login da pessoa é apagado e não tem volta.</li>
+          {dono && <li>• A conta dela vai junto: {pessoa.leads} leads, CRM, propostas e pagamentos registrados.</li>}
+          {pessoa.situacao === 'assinante' && <li>• A assinatura é cancelada na Stripe antes, para não cobrar mais nada.</li>}
+          <li>• O teste grátis continua bloqueado para o computador e o e-mail dela.</li>
+        </ul>
+        <div className="mt-5 space-y-3">
+          <label className="block">
+            <span className="text-[12.5px] font-bold">Digite o e-mail da pessoa</span>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" spellCheck={false} placeholder={pessoa.email}
+              className="mt-1 w-full rounded-full border border-zinc-300 px-4 py-2.5 text-[14px] outline-none focus:border-tinta" />
+          </label>
+          <label className="block">
+            <span className="text-[12.5px] font-bold">A sua senha</span>
+            <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password"
+              className="mt-1 w-full rounded-full border border-zinc-300 px-4 py-2.5 text-[14px] outline-none focus:border-tinta" />
+          </label>
+          <label className="block">
+            <span className="flex items-center gap-1.5 text-[12.5px] font-bold"><KeyRound aria-hidden className="h-3.5 w-3.5" /> Código do Google Authenticator</span>
+            <input value={codigo} onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" placeholder="000000"
+              className="mt-1 w-full rounded-full border border-zinc-300 px-4 py-2.5 text-center text-[18px] font-bold tracking-[0.3em] tabular-nums outline-none focus:border-tinta" />
+          </label>
+        </div>
+        {erro && <p role="alert" className="mt-3 text-[12.5px] font-bold text-red-700">{erro}</p>}
+        <button type="button" disabled={!pronto || ocupado} onClick={apagar}
+          className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full bg-red-700 text-[14px] font-extrabold text-white hover:bg-red-800 disabled:opacity-35">
+          <Trash2 aria-hidden className="h-4 w-4" /> {ocupado ? 'Conferindo e apagando…' : 'Apagar para sempre'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PainelCentral({ meuIp }: { meuIp: string }) {
   const [dados, setDados] = useState<Dados | null>(null);
   const [aba, setAba] = useState<Aba>('geral');
@@ -106,6 +187,7 @@ export default function PainelCentral({ meuIp }: { meuIp: string }) {
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [apagando, setApagando] = useState<Pessoa | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -421,6 +503,17 @@ export default function PainelCentral({ meuIp }: { meuIp: string }) {
                                   {p.situacao === 'bloqueado' ? 'Desbloquear' : 'Bloquear'}
                                 </button>
                               )}
+                              {!minha && p.situacao !== 'cortesia' && (
+                                <button
+                                  type="button"
+                                  onClick={() => setApagando(p)}
+                                  aria-label={`Apagar ${p.email}`}
+                                  title="Apagar para sempre"
+                                  className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-red-700 ring-1 ring-inset ring-red-200 hover:bg-rosa"
+                                >
+                                  <Trash2 aria-hidden className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <span className="text-[12px] text-zinc-500">ainda não entrou na ferramenta</span>
@@ -477,6 +570,18 @@ export default function PainelCentral({ meuIp }: { meuIp: string }) {
           <div className="mt-6">
             <PainelAcessos meuIp={meuIp} />
           </div>
+        )}
+
+        {apagando && (
+          <ModalApagar
+            pessoa={apagando}
+            aoFechar={() => setApagando(null)}
+            aoApagar={(msg) => {
+              setApagando(null);
+              setAviso(msg);
+              carregar();
+            }}
+          />
         )}
       </div>
     </div>

@@ -11,6 +11,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { caminhoCentral } from '@/lib/caminho-central';
+import { aparelhoLiberado, COOKIE_APARELHO, DIAS_APARELHO, emailEhAdmin, liberacaoValida, tokenDoAparelho } from '@/lib/guarda-central';
 
 const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/'];
 
@@ -70,17 +71,57 @@ export async function proxy(req: NextRequest) {
    */
   const segredo = caminhoCentral();
   let interno: string | null = null;
+  let central = false;
   if (caminho === '/central' || caminho.startsWith('/central/') || caminho === '/admin' || caminho.startsWith('/admin/')) {
     interno = '/nao-encontrado';
   } else if (segredo && (caminho === '/' + segredo || caminho.startsWith('/' + segredo + '/'))) {
-    interno = '/central' + caminho.slice(segredo.length + 1);
+    /*
+     * Quem não é o administrador, ou é mas está num navegador que nunca foi
+     * liberado, recebe o mesmo "não encontrado" de um endereço inventado —
+     * decidido aqui, antes de qualquer página rodar, para nem o tempo de
+     * resposta denunciar que existe algo neste endereço.
+     */
+    const usuario = data.user!;
+    if (!emailEhAdmin(usuario.email)) {
+      interno = '/nao-encontrado';
+    } else if (req.nextUrl.searchParams.has('liberar')) {
+      if (!liberacaoValida(req.nextUrl.searchParams.get('liberar'))) {
+        interno = '/nao-encontrado';
+      } else {
+        // link de liberação certo: grava a chave deste navegador e tira o segredo da barra de endereço
+        const limpo = req.nextUrl.clone();
+        limpo.search = '';
+        const ir = NextResponse.redirect(limpo);
+        for (const c of resposta.cookies.getAll()) ir.cookies.set(c);
+        ir.cookies.set(COOKIE_APARELHO, (await tokenDoAparelho(usuario.id))!, {
+          httpOnly: true,
+          secure: req.nextUrl.protocol === 'https:',
+          sameSite: 'strict',
+          path: '/',
+          maxAge: 60 * 60 * 24 * DIAS_APARELHO,
+        });
+        ir.headers.set('Referrer-Policy', 'no-referrer');
+        ir.headers.set('Cache-Control', 'no-store');
+        return comRastro(req, novoRastro, ir);
+      }
+    } else if (!(await aparelhoLiberado(usuario.id, req.cookies.get(COOKIE_APARELHO)?.value))) {
+      interno = '/nao-encontrado';
+    } else {
+      interno = '/central' + caminho.slice(segredo.length + 1);
+      central = true;
+    }
   }
   if (interno) {
     const alvo = req.nextUrl.clone();
     alvo.pathname = interno;
+    alvo.search = '';
     const desvio = NextResponse.rewrite(alvo, { request: req });
     for (const c of resposta.cookies.getAll()) desvio.cookies.set(c);
-    desvio.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    if (central) {
+      // nunca fica guardada no navegador nem vai como origem para outro site
+      desvio.headers.set('Cache-Control', 'no-store, max-age=0');
+      desvio.headers.set('Referrer-Policy', 'no-referrer');
+    }
     return comRastro(req, novoRastro, desvio);
   }
   return comRastro(req, novoRastro, resposta);

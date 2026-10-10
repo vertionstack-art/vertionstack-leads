@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          // a ferramenta fica atrás do login: nada dela precisa aparecer no Google, e
+          // assim nenhuma página responde com um cabeçalho diferente das outras
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       },
     ];
