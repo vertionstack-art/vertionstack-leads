@@ -172,8 +172,9 @@ export async function registrarAcesso(
       insert into acessos (ip, rota, usuario, resultado, cidade, pais, navegador)
       values (${c.ip}, ${rota}, ${usuario}, ${resultado}, ${c.cidade}, ${c.pais}, ${c.navegador})
     `;
-    // de vez em quando apaga o que passou de 90 dias: é o prazo prometido na Política de privacidade
-    if (Math.random() < 0.02) limparAntigos(90).catch(() => {});
+    // de vez em quando apaga o que passou de ~6 meses: o Marco Civil (art. 15) obriga a guardar
+    // os registros de acesso por pelo menos 6 meses, e a Política de privacidade promete esse prazo
+    if (Math.random() < 0.02) limparAntigos(190).catch(() => {});
   } catch (err) {
     // registro é acessório: nunca pode derrubar a página que ele observa
     console.error('[acessos]', (err as Error).message);

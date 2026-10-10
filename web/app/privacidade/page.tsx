@@ -43,7 +43,8 @@ export default function Privacidade() {
             </>,
             <>
               <b>Segurança:</b> endereço IP, cidade e país aproximados, navegador e data e hora de logins e acessos. Servem
-              para barrar invasões e abusos e são apagados depois de 90 dias.
+              para barrar invasões e abusos e são guardados por 6 meses, como exige o art. 15 do Marco Civil da Internet
+              (Lei 12.965/2014), e depois apagados.
             </>,
           ]}
         />
@@ -69,9 +70,9 @@ export default function Privacidade() {
       <Secao n={3} titulo="Para que usamos">
         <Lista
           itens={[
-            'fazer a ferramenta funcionar e guardar o seu trabalho (execução do contrato);',
-            'cobrar o plano e emitir o histórico de pagamentos (execução do contrato e obrigações legais);',
-            'proteger a sua conta e a ferramenta contra invasão, fraude e abuso do teste grátis (legítimo interesse);',
+            'fazer a ferramenta funcionar e guardar o seu trabalho (execução do contrato — art. 7º, V, da LGPD);',
+            'cobrar o plano e emitir o histórico de pagamentos (execução do contrato e obrigações legais — art. 7º, II e V, da LGPD);',
+            'proteger a sua conta e a ferramenta contra invasão, fraude e abuso do teste grátis (legítimo interesse e prevenção à fraude — arts. 7º, IX, e 11, II, g, da LGPD);',
             'mandar e-mails sobre a conta, como confirmação de cadastro e troca de senha.',
           ]}
         />
@@ -131,7 +132,7 @@ export default function Privacidade() {
         />
         <p>
           Alguns desses serviços têm servidores fora do Brasil; nesses casos a transferência segue as regras da LGPD.
-          Também podemos fornecer dados quando a lei ou uma ordem judicial exigir.
+          Também podemos fornecer dados quando a lei, uma ordem judicial ou a requisição de autoridade competente exigir (arts. 10 e 22 do Marco Civil da Internet).
         </p>
       </Secao>
 
@@ -139,7 +140,7 @@ export default function Privacidade() {
         <Lista
           itens={[
             'Dados da conta, leads, propostas e CRM: enquanto a conta existir.',
-            'Registros de segurança (IP e acessos): 90 dias.',
+            'Registros de acesso (IP, data e hora): 6 meses, por obrigação do Marco Civil da Internet (art. 15 da Lei 12.965/2014).',
             'Códigos embaralhados contra abuso do teste: mesmo depois de excluir a conta (seção 4).',
             'Registros de pagamento: a Stripe mantém pelo prazo que a lei exige.',
           ]}
@@ -151,7 +152,7 @@ export default function Privacidade() {
       </Secao>
 
       <Secao n={8} titulo="Seus direitos">
-        <p>Pela LGPD, você pode a qualquer momento:</p>
+        <p>Pela LGPD (art. 18), você pode a qualquer momento:</p>
         <Lista
           itens={[
             'saber se tratamos seus dados e ter acesso a eles;',
@@ -161,14 +162,14 @@ export default function Privacidade() {
             'saber com quem compartilhamos e se opor a algum tratamento.',
           ]}
         />
-        <p>Para qualquer pedido, escreva para {email}. Respondemos em até 15 dias.</p>
+        <p>Para qualquer pedido, escreva para {email}. Respondemos em até 15 dias (art. 19, II, da LGPD). Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
       </Secao>
 
       <Secao n={9} titulo="Segurança">
         <p>
           Os dados ficam em banco com acesso bloqueado ao navegador, toda consulta é limitada à sua própria conta, as
           conexões são criptografadas (HTTPS) e há limite de tentativas no login e nas ações da ferramenta. Nenhum sistema
-          é invulnerável; se acontecer um incidente que possa trazer risco a você, avisaremos.
+          é invulnerável; se acontecer um incidente que possa trazer risco ou dano relevante a você, avisaremos você e a ANPD (art. 48 da LGPD).
         </p>
       </Secao>
 
