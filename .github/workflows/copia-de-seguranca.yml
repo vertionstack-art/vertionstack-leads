@@ -1,0 +1,71 @@
+# Cópia de segurança diária do banco do Vertion Leads (Supabase).
+#
+# Roda todo dia às 03:00 de Brasília (06:00 UTC) e também pelo botão
+# "Run workflow" na aba Actions. Copia as contas, logins, leads, CRM, propostas
+# e pagamentos, tranca o arquivo com senha (AES-256) e guarda por 30 dias como
+# "artifact" desta execução. O repositório é público: sem a senha (segredo
+# BACKUP_SENHA) o arquivo não serve para nada.
+#
+# Quem copia é o usuário de banco backup_vertion: só leitura (não altera nem
+# apaga nada). A conexão fica no segredo BACKUP_DB_URL.
+#
+# Como restaurar está no VERTION-LEADS-MEMORIA.md (seção da cópia de segurança).
+
+name: Cópia de segurança do banco
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copia-de-seguranca
+  cancel-in-progress: false
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Instala o pg_dump 17 (mesma versão do banco)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Copia o banco e tranca com senha
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+        run: |
+          set -euo pipefail
+          BIN=/usr/lib/postgresql/17/bin
+          NOME="vertion-leads-$(date -u +%Y-%m-%d)"
+          "$BIN/pg_dump" "$BACKUP_DB_URL" \
+            --format=custom --no-owner --no-privileges \
+            --schema=public --schema=auth \
+            --file="$NOME.dump"
+          # confere que a cópia veio de verdade antes de trancar
+          TAMANHO=$(stat -c%s "$NOME.dump")
+          test "$TAMANHO" -gt 5000
+          "$BIN/pg_restore" --list "$NOME.dump" > conteudo.txt
+          grep -q "TABLE DATA public leads" conteudo.txt
+          grep -q "TABLE DATA auth users" conteudo.txt
+          echo "Cópia de $TAMANHO bytes com $(grep -c 'TABLE DATA' conteudo.txt) tabelas."
+          gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+            --passphrase "$BACKUP_SENHA" --output "$NOME.dump.gpg" "$NOME.dump"
+          rm -f "$NOME.dump" conteudo.txt
+          echo "NOME=$NOME" >> "$GITHUB_ENV"
+
+      - name: Guarda por 30 dias
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOME }}
+          path: '*.dump.gpg'
+          retention-days: 30
+          if-no-files-found: error
