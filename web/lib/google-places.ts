@@ -177,6 +177,59 @@ export async function usoDoMes(): Promise<UsoDoMes> {
   };
 }
 
+// ------------------------------------------------ memória das buscas
+
+/** quanto tempo uma pergunta esgotada fica sem ser refeita (comércio novo aparece com o tempo) */
+const DIAS_ESGOTADA = 30;
+/** quanto tempo confiamos no token de página do Google para continuar de onde parou */
+const MINUTOS_TOKEN = 45;
+
+export function chaveDaPergunta(pergunta: string): string {
+  return pergunta
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+export interface Memoria {
+  /** já foi até a última página nos últimos dias: não vale chamar o Google de novo */
+  esgotada: boolean;
+  /** token para continuar da página onde parou, se ainda vale */
+  proxima: string | null;
+  paginas: number;
+}
+
+export async function memoriaDaBusca(conta: string, chave: string): Promise<Memoria | null> {
+  const [r] = await db()`
+    select paginas, proxima, esgotada,
+           atualizada_em > now() - make_interval(days => ${DIAS_ESGOTADA}) as recente,
+           proxima_em > now() - make_interval(mins => ${MINUTOS_TOKEN}) as token_vale
+    from buscas_feitas where conta_id = ${conta} and pergunta = ${chave}
+  `;
+  if (!r) return null;
+  return {
+    esgotada: Boolean(r.esgotada && r.recente),
+    proxima: r.token_vale && !r.esgotada ? (r.proxima as string) : null,
+    paginas: r.paginas as number,
+  };
+}
+
+export async function anotarBusca(conta: string, chave: string, proxima: string | null, recomecou: boolean): Promise<void> {
+  await db()`
+    insert into buscas_feitas (conta_id, pergunta, paginas, proxima, proxima_em, esgotada, atualizada_em)
+    values (${conta}, ${chave}, 1, ${proxima}, now(), ${!proxima}, now())
+    on conflict (conta_id, pergunta) do update set
+      paginas = case when ${recomecou} then 1 else buscas_feitas.paginas + 1 end,
+      proxima = excluded.proxima,
+      proxima_em = now(),
+      esgotada = excluded.esgotada,
+      atualizada_em = now()
+  `;
+}
+
 export async function chamadasDeHoje(): Promise<number> {
   const [r] = await db()`
     select coalesce(sum(chamadas), 0)::int as n from busca_google

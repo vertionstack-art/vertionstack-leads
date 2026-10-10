@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { conferirTeste, cotaDaConta, cotaParaJson, devolverCota, reservarCota } from '@/lib/conta';
 import { idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
-import { buscaLigada, buscarPagina, chamadasDeHoje, contarChamada, ErroGoogle, somarLeads, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
+import {
+  anotarBusca, buscaLigada, buscarPagina, chamadasDeHoje, chaveDaPergunta, contarChamada, ErroGoogle, memoriaDaBusca, somarLeads,
+  tetoDiario, tetoMensal, usoDoMes,
+} from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
 import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
@@ -69,14 +72,46 @@ export async function POST(req: Request) {
     return erro('A busca pelo Google chegou ao limite de hoje. Volta a funcionar amanhã.', 503, { fim: true });
   }
 
+  /*
+   * Não pagar por repetido: pergunta que esta conta já levou até a última
+   * página não chama o Google de novo; pergunta pela metade continua da
+   * página onde parou, em vez de recomeçar pelos mesmos resultados.
+   */
+  const pergunta = `${nicho} em ${local}`;
+  const chave = chaveDaPergunta(pergunta);
+  let token = pagina;
+  let retomada = false;
+  if (!pagina) {
+    const memoria = await memoriaDaBusca(contaId, chave);
+    if (memoria?.esgotada) {
+      return NextResponse.json({
+        ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
+        descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 },
+        cota: cotaParaJson(cota), fim: false,
+      });
+    }
+    if (memoria?.proxima) {
+      token = memoria.proxima;
+      retomada = true;
+    }
+  }
+
   let resultado;
   try {
-    resultado = await buscarPagina(`${nicho} em ${local}`, pagina);
+    try {
+      resultado = await buscarPagina(pergunta, token);
+    } catch (e) {
+      // token guardado que o Google não aceita mais: recomeça do começo
+      if (!retomada || !(e instanceof ErroGoogle) || e.status !== 400) throw e;
+      retomada = false;
+      resultado = await buscarPagina(pergunta, null);
+    }
   } catch (e) {
     if (e instanceof ErroGoogle) return erro(e.message, e.status === 429 ? 429 : 502);
     console.error('[busca]', e);
     return erro('A busca no Google falhou. Tente de novo.', 502);
   }
+  await anotarBusca(contaId, chave, resultado.proxima, !pagina && !retomada);
   // conta a chamada já, antes de qualquer coisa que possa falhar: o Google cobrou
   await contarChamada(contaId, resultado.comercios.length, 0);
 
@@ -135,6 +170,7 @@ export async function POST(req: Request) {
       ok: true,
       comercios: resultado.comercios.length,
       comSite: todos.length - leads.length,
+      retomada,
       jaTinha: existentes.length,
       descartados,
       comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,

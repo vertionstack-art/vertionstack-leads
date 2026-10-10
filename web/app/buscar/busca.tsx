@@ -27,6 +27,8 @@ interface Linha {
   novos: number;
   descartados: number;
   confirmados: number;
+  /** 'pulada': já buscada até o fim, sem chamar o Google; 'continuou': retomou de onde parou */
+  nota?: 'pulada' | 'continuou';
 }
 
 interface Descartes {
@@ -139,9 +141,14 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             if (r.fim || !r.erro) break fora;
             break; // erro desta pergunta: segue para a próxima
           }
+          if (r.jaFeita) {
+            const pulada: Linha = { chave: `${nicho}|${local}|pulada`, pergunta: `${nicho} em ${local}`, pagina: 0, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0, nota: 'pulada' };
+            setLinhas((l) => [...l, pulada]);
+            break; // próxima pergunta
+          }
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
-          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0 };
+          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0, nota: r.retomada ? 'continuou' : undefined };
           if (r.descartados) setDescartes((d) => ({ empresa_grande: d.empresa_grande + (r.descartados.empresa_grande || 0), site_proprio: d.site_proprio + (r.descartados.site_proprio || 0), sem_contato: d.sem_contato + (r.descartados.sem_contato || 0), sem_whatsapp: d.sem_whatsapp + (r.descartados.sem_whatsapp || 0) }));
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
@@ -359,7 +366,7 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             { rotulo: 'Leads novos', valor: totais.novos, fundo: 'bg-menta' },
             { rotulo: 'Já tinham site', valor: totais.comSite, fundo: 'bg-white' },
             { rotulo: 'Descartados', valor: totais.descartados, fundo: 'bg-white' },
-            { rotulo: 'Já no painel', valor: totais.jaTinha, fundo: 'bg-white' },
+            { rotulo: 'Repetidos (não contam)', valor: totais.jaTinha, fundo: 'bg-white' },
           ].map((k) => (
             <div key={k.rotulo} className={`rounded-[18px] px-3.5 py-3 ${k.fundo}`}>
               <p className="text-[24px] font-extrabold leading-none tabular-nums">{k.valor}</p>
@@ -393,11 +400,19 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             <li key={l.chave} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3.5 py-2.5 text-[12.5px]">
               <span className="min-w-0 truncate font-semibold">
                 {l.pergunta}
-                {l.pagina > 1 && <span className="text-zinc-400"> · pág. {l.pagina}</span>}
+                {l.nota === 'continuou' ? (
+                  <span className="text-zinc-400"> · continuou de onde parou</span>
+                ) : (
+                  l.pagina > 1 && <span className="text-zinc-400"> · pág. {l.pagina}</span>
+                )}
               </span>
-              <span className="shrink-0 tabular-nums text-zinc-500">
-                <b className="text-tinta">+{l.novos}</b> de {l.comercios}
-              </span>
+              {l.nota === 'pulada' ? (
+                <span className="shrink-0 text-zinc-500">já buscada até o fim · sem gastar</span>
+              ) : (
+                <span className="shrink-0 tabular-nums text-zinc-500">
+                  <b className="text-tinta">+{l.novos}</b> de {l.comercios}
+                </span>
+              )}
             </li>
           ))}
           {rodando && (
@@ -422,7 +437,9 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
         )}
         {terminou && totais.novos === 0 && linhas.length > 0 && (
           <p className="mt-4 text-[13px] text-zinc-600">
-            Nenhum comércio novo sem site nessa busca. Tente outros nichos ou liste bairros da cidade.
+            {linhas.every((l) => l.nota === 'pulada')
+              ? 'Você já fez essas buscas até o fim, então nada foi gasto. Para achar leads novos, liste bairros da cidade ou escolha outros nichos.'
+              : 'Nenhum comércio novo sem site nessa busca. Tente outros nichos ou liste bairros da cidade.'}
           </p>
         )}
       </section>
