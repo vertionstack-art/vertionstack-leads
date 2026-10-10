@@ -4,10 +4,11 @@ import { conferirTeste, cotaDaConta, cotaParaJson, devolverCota, reservarCota } 
 import { idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
 import { buscaLigada, buscarPagina, chamadasDeHoje, contarChamada, ErroGoogle, somarLeads, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
+import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
+export const maxDuration = 45;
 
 const erro = (msg: string, status: number, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: false, erro: msg, ...extra }, { status });
@@ -40,6 +41,8 @@ export async function POST(req: Request) {
   const local = texto(c.local, 90);
   const pagina = typeof c.pagina === 'string' && /^[A-Za-z0-9_\-=.]{1,2000}$/.test(c.pagina) ? c.pagina : null;
   const quero = Math.max(1, Math.min(200, Math.floor(Number(c.quero) || 20)));
+  // padrão ligado: lead sem WhatsApp quase nunca vira conversa
+  const soComWhatsapp = c.soComWhatsapp !== false;
   if (nicho.length < 2 || local.length < 2) return erro('Diga o nicho e a cidade.', 400);
 
   // nada de gastar com o Google se a pessoa não pode guardar lead nenhum
@@ -106,8 +109,22 @@ export async function POST(req: Request) {
   try {
     const novosIds = new Set(await idsNovos(contaId, leads.map((l) => l.id)));
     const existentes = leads.filter((l) => !novosIds.has(l.id));
+
+    // o filtro de precisão roda só nos que ainda não estão no painel (lib/enriquecer)
+    const descartados: Record<MotivoDescarte, number> = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 };
+    const candidatos = leads.filter((l) => novosIds.has(l.id));
+    const avaliacoes = await Promise.all(candidatos.map((l) => avaliarLead(l, soComWhatsapp)));
+    const aprovados = candidatos.flatMap((l, i) => {
+      const a = avaliacoes[i];
+      if (a.descarte) {
+        descartados[a.descarte]++;
+        return [];
+      }
+      return [aplicarAvaliacao(l, a)];
+    });
+
     const limite = cota.ilimitado ? quero : Math.min(quero, cota.restantes);
-    const novos = leads.filter((l) => novosIds.has(l.id)).slice(0, limite);
+    const novos = aprovados.slice(0, limite);
     const concedidos = await reservarCota(contaId, novos.length, plano);
     const r = await salvarLeads(contaId, [...existentes, ...novos], concedidos);
     if (!cota.ilimitado) await devolverCota(contaId, concedidos - r.novos, plano);
@@ -119,6 +136,8 @@ export async function POST(req: Request) {
       comercios: resultado.comercios.length,
       comSite: todos.length - leads.length,
       jaTinha: existentes.length,
+      descartados,
+      comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,
       novos: r.novos,
       proxima: resultado.proxima,
       cota: cotaParaJson(cota),

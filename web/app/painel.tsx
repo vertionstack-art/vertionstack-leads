@@ -6,6 +6,7 @@ import {
   Crown, Kanban, KeyRound, MessageCircle, Radar, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
+import { numeroWhatsapp } from '@/lib/telefone';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
@@ -69,13 +70,14 @@ const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean
 
 // ------------------------------------------------------------- utils
 
-/** transforma "(31) 99999-9999" no formato que o WhatsApp entende */
-function linkWhatsApp(telefone: string | null): string | null {
-  if (!telefone) return null;
-  const digitos = telefone.replace(/\D/g, '');
-  if (digitos.length < 10) return null;
-  const comPais = digitos.startsWith('55') ? digitos : '55' + digitos;
-  return `https://wa.me/${comPais}`;
+/**
+ * O link do WhatsApp do lead: o número que a empresa publicou num link (o
+ * mais confiável) ou o celular do Maps. Telefone fixo não tem WhatsApp na
+ * prática, então não ganha botão.
+ */
+function linkWhatsApp(lead: Pick<Lead, 'whatsapp' | 'phone' | 'telefoneTipo'>): string | null {
+  const n = lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone));
+  return n ? `https://wa.me/${n}` : null;
 }
 
 function tipoDe(kind: WebsiteKind) {
@@ -975,7 +977,7 @@ export default function Painel({
                   statusLista={STATUS}
                   tipo={tipoDe(lead.websiteKind)}
                   siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
-                  linkWhatsApp={linkWhatsApp(lead.phone)}
+                  linkWhatsApp={linkWhatsApp(lead)}
                   onStatus={(st) => salvarPatch(lead.id, { status: st })}
                   onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                   onApagar={() => apagar(lead.id, lead.name)}
@@ -1010,7 +1012,7 @@ export default function Painel({
                 <tbody>
                   {leads.map((lead) => {
                     const t = tipoDe(lead.websiteKind);
-                    const zap = linkWhatsApp(lead.phone);
+                    const zap = linkWhatsApp(lead);
                     const temp = temperaturaDoLead(lead);
                     const situacao = lead.siteStatus ? SITE_STATUS[lead.siteStatus] : null;
                     return (
@@ -1101,15 +1103,17 @@ export default function Painel({
                         </td>
 
                         <td className="px-4 py-4">
-                          {lead.phone ? (
+                          {lead.phone || zap ? (
                             <div className="flex flex-col items-start gap-1.5">
-                              <button
-                                onClick={() => copiar(lead.phone!, lead.id)}
-                                className="text-left font-bold tabular-nums text-tinta hover:text-roxo-700"
-                                title="Clique para copiar"
-                              >
-                                {copiado === lead.id ? 'copiado!' : lead.phone}
-                              </button>
+                              {lead.phone && (
+                                <button
+                                  onClick={() => copiar(lead.phone!, lead.id)}
+                                  className="text-left font-bold tabular-nums text-tinta hover:text-roxo-700"
+                                  title="Clique para copiar"
+                                >
+                                  {copiado === lead.id ? 'copiado!' : lead.phone}
+                                </button>
+                              )}
                               {zap && (
                                 <a
                                   href={zap}
@@ -1119,7 +1123,11 @@ export default function Painel({
                                 >
                                   <MessageCircle aria-hidden className="h-3 w-3" />
                                   WhatsApp
+                                  {lead.whatsappFonte === 'link' && <span className="font-semibold text-emerald-700">· confirmado</span>}
                                 </a>
+                              )}
+                              {!zap && lead.telefoneTipo === 'fixo' && (
+                                <span className="text-[11px] font-semibold text-zinc-400">fixo · sem WhatsApp</span>
                               )}
                             </div>
                           ) : (

@@ -131,15 +131,19 @@ export default function LeadCard({
       {lead.address && <p className="mt-2 text-[12.5px] leading-snug text-zinc-600">{lead.address}</p>}
 
       {/* contato: os dois botões que importam na hora de abordar */}
-      {lead.phone ? (
+      {lead.phone || linkWhatsApp ? (
         <div className="mt-3.5 grid grid-cols-2 gap-2">
-          <a
-            href={`tel:${telLimpo}`}
-            className={`flex ${TOQUE} items-center justify-center gap-2 rounded-full bg-tinta px-3 text-[14px] font-bold text-white active:bg-tinta-70`}
-          >
-            <Phone aria-hidden className="h-4 w-4" />
-            Ligar
-          </a>
+          {lead.phone ? (
+            <a
+              href={`tel:${telLimpo}`}
+              className={`flex ${TOQUE} items-center justify-center gap-2 rounded-full bg-tinta px-3 text-[14px] font-bold text-white active:bg-tinta-70`}
+            >
+              <Phone aria-hidden className="h-4 w-4" />
+              Ligar
+            </a>
+          ) : (
+            <span className={`flex ${TOQUE} items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-500`}>sem telefone</span>
+          )}
           {linkWhatsApp ? (
             <a
               href={linkWhatsApp}
@@ -152,10 +156,13 @@ export default function LeadCard({
             </a>
           ) : (
             <span className={`flex ${TOQUE} items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-500`}>
-              sem WhatsApp
+              {lead.telefoneTipo === 'fixo' ? 'fixo, sem WhatsApp' : 'sem WhatsApp'}
             </span>
           )}
-          <p className="col-span-2 text-center text-[12.5px] font-semibold tabular-nums text-zinc-500">{lead.phone}</p>
+          <p className="col-span-2 text-center text-[12.5px] font-semibold tabular-nums text-zinc-500">
+            {lead.phone}
+            {lead.whatsappFonte === 'link' && <span className="text-emerald-700"> · WhatsApp confirmado no link da empresa</span>}
+          </p>
         </div>
       ) : (
         <p className="mt-3.5 rounded-full bg-zinc-50 py-2.5 text-center text-[12.5px] font-semibold text-zinc-500">

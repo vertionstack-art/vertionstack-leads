@@ -14,6 +14,7 @@ import { classifyWebsite, type WebsiteKind } from './classify';
 import type { SiteStatus } from './verificar-site';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { db, json, temBanco } from './sql';
+import { numeroWhatsapp, tipoDoTelefone, type TipoTelefone } from './telefone';
 
 export { temBanco };
 
@@ -49,6 +50,11 @@ export interface Lead {
   responsavel: string | null;
   /** perfil do Instagram, separado do site: muitos comércios têm um e não o outro */
   instagram: string | null;
+  /** o número para abrir no WhatsApp (55 + DDD + número) e de onde ele veio */
+  whatsapp: string | null;
+  whatsappFonte: 'link' | 'celular' | null;
+  /** o telefone do Maps é celular ou fixo */
+  telefoneTipo: TipoTelefone | null;
   /** de onde veio: 'maps' pela extensão, 'manual' cadastrado à mão */
   origem: string;
   /**
@@ -148,13 +154,19 @@ export function normalizarLead(
     return s && /^https?:\/\//i.test(s) ? s : null;
   };
 
+  const phone = texto(cru.phone, 40);
+  const telefoneTipo = tipoDoTelefone(phone);
+  // WhatsApp achado num link da própria empresa vale mais que o celular do Maps
+  const doLink = typeof cru.whatsapp === 'string' ? numeroWhatsapp(cru.whatsapp) : null;
+  const doCelular = telefoneTipo === 'celular' ? numeroWhatsapp(phone) : null;
+
   return {
     id: normalizarId(chave),
     name: nome.slice(0, 250),
     category: texto(cru.category, 120),
     searchTerm: texto(cru.searchTerm, 120),
     city: texto(cru.city, 120),
-    phone: texto(cru.phone, 40),
+    phone,
     address: texto(cru.address, 300),
     website: veredito.url,
     websiteKind: veredito.kind,
@@ -169,6 +181,9 @@ export function normalizarLead(
     status: 'novo',
     notes: null,
     instagram: link(cru.instagram, 300),
+    whatsapp: doLink || doCelular,
+    whatsappFonte: doLink ? 'link' : doCelular ? 'celular' : null,
+    telefoneTipo,
     origem,
     previaUrl: link(cru.previaUrl, 500),
     cnpj: null,
@@ -212,6 +227,9 @@ export function daLinha(r: any): Lead {
     siteDetalhe: r.site_detalhe,
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
     instagram: r.instagram,
+    whatsapp: r.whatsapp ?? null,
+    whatsappFonte: r.whatsapp_fonte ?? null,
+    telefoneTipo: r.telefone_tipo ?? null,
     origem: r.origem || 'maps',
     previaUrl: r.previa_url,
     cnpj: json(r.cnpj),
@@ -277,12 +295,14 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
       insert into leads (
         conta_id, id, name, category, search_term, city, phone, address, website,
         website_kind, website_label, is_lead, rating, reviews, maps_url,
-        lat, lng, hours, status, coletado_por, instagram, origem, notes, updated_at
+        lat, lng, hours, status, coletado_por, instagram, origem, notes,
+        whatsapp, whatsapp_fonte, telefone_tipo, updated_at
       ) values (
         ${conta}, ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
-        'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes}, now()
+        'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes},
+        ${l.whatsapp}, ${l.whatsappFonte}, ${l.telefoneTipo}, now()
       )
       on conflict (conta_id, id) do update set
         name          = excluded.name,
@@ -303,6 +323,12 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         hours         = coalesce(excluded.hours, leads.hours),
         coletado_por  = coalesce(leads.coletado_por, excluded.coletado_por),
         instagram     = coalesce(excluded.instagram, leads.instagram),
+        -- o WhatsApp de link nunca é rebaixado para o "provável" de uma coleta nova
+        whatsapp       = case when leads.whatsapp_fonte = 'link' and excluded.whatsapp_fonte is distinct from 'link'
+                              then leads.whatsapp else coalesce(excluded.whatsapp, leads.whatsapp) end,
+        whatsapp_fonte = case when leads.whatsapp_fonte = 'link' and excluded.whatsapp_fonte is distinct from 'link'
+                              then leads.whatsapp_fonte else coalesce(excluded.whatsapp_fonte, leads.whatsapp_fonte) end,
+        telefone_tipo  = coalesce(excluded.telefone_tipo, leads.telefone_tipo),
         updated_at    = now()
     `;
   }

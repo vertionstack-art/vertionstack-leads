@@ -126,9 +126,9 @@ async function conferirEndereco(u: URL): Promise<void> {
   if (ips.some(ipInterno)) throw new EnderecoInterno('endereço interno');
 }
 
-async function buscar(url: string): Promise<Response> {
+async function buscar(url: string, limiteMs = TIMEOUT_MS): Promise<Response> {
   const controle = new AbortController();
-  const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
+  const relogio = setTimeout(() => controle.abort(), limiteMs);
   try {
     let atual = new URL(url);
     // segue os redirecionamentos na mão para conferir cada destino
@@ -323,3 +323,31 @@ export const ROTULO_SITE: Record<SiteStatus, string> = {
   certificado_vencido: 'Certificado vencido',
   bloqueado: 'Não deu para checar',
 };
+
+/**
+ * Lê uma página pública (Linktree, bit.ly, site do comércio) com as mesmas
+ * travas da verificação: só endereço público, cada redirecionamento conferido,
+ * tempo curto e no máximo 400 KB. Devolve null se não abrir.
+ */
+export async function lerPagina(url: string, limiteMs = 6000): Promise<{ url: string; html: string } | null> {
+  try {
+    const r = await buscar(url, limiteMs);
+    if (!r.ok) return null;
+    const tipo = r.headers.get('content-type') || '';
+    if (tipo && !/html|text/i.test(tipo)) return { url: r.url, html: '' };
+    const leitor = r.body?.getReader();
+    if (!leitor) return { url: r.url, html: '' };
+    const partes: Uint8Array[] = [];
+    let total = 0;
+    while (total < 400_000) {
+      const { done, value } = await leitor.read();
+      if (done || !value) break;
+      partes.push(value);
+      total += value.length;
+    }
+    leitor.cancel().catch(() => {});
+    return { url: r.url, html: Buffer.concat(partes).toString('utf8') };
+  } catch {
+    return null;
+  }
+}

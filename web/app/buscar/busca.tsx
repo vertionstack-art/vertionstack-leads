@@ -25,7 +25,23 @@ interface Linha {
   comSite: number;
   jaTinha: number;
   novos: number;
+  descartados: number;
+  confirmados: number;
 }
+
+interface Descartes {
+  empresa_grande: number;
+  site_proprio: number;
+  sem_contato: number;
+  sem_whatsapp: number;
+}
+
+const ROTULO_DESCARTE: Record<keyof Descartes, string> = {
+  sem_whatsapp: 'sem WhatsApp',
+  empresa_grande: 'empresa grande',
+  site_proprio: 'têm site fora do Maps',
+  sem_contato: 'sem nenhum contato',
+};
 
 const PREFS = 'vl-busca';
 
@@ -46,6 +62,8 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
   const [bairros, setBairros] = useState('');
   const max = cota.ilimitado ? 500 : Math.min(200, cota.restantes ?? 0);
   const [quero, setQuero] = useState(Math.min(30, max) || 1);
+  const [soComWhatsapp, setSoComWhatsapp] = useState(true);
+  const [descartes, setDescartes] = useState<Descartes>({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 });
   const [rodando, setRodando] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [aviso, setAviso] = useState<{ texto: string; fim?: boolean } | null>(null);
@@ -72,8 +90,15 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
   })();
   const perguntas = nichos.size * locais.length;
   const totais = linhas.reduce(
-    (t, l) => ({ comercios: t.comercios + l.comercios, comSite: t.comSite + l.comSite, jaTinha: t.jaTinha + l.jaTinha, novos: t.novos + l.novos }),
-    { comercios: 0, comSite: 0, jaTinha: 0, novos: 0 },
+    (t, l) => ({
+      comercios: t.comercios + l.comercios,
+      comSite: t.comSite + l.comSite,
+      jaTinha: t.jaTinha + l.jaTinha,
+      novos: t.novos + l.novos,
+      descartados: t.descartados + l.descartados,
+      confirmados: t.confirmados + l.confirmados,
+    }),
+    { comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0 },
   );
   const semCota = !cota.ilimitado && (cota.restantes ?? 0) <= 0;
 
@@ -87,6 +112,7 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
     setTerminou(false);
     setAviso(null);
     setLinhas([]);
+    setDescartes({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 });
     let faltam = quero;
 
     fora: for (const nicho of nichos) {
@@ -101,7 +127,7 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             r = await fetch('/api/busca', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nicho, local, pagina, quero: faltam }),
+              body: JSON.stringify({ nicho, local, pagina, quero: faltam, soComWhatsapp }),
             }).then((x) => x.json());
           } catch {
             setAviso({ texto: 'Falha de rede. Confira a internet e clique em Buscar de novo.' });
@@ -115,7 +141,8 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
           }
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
-          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos };
+          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0 };
+          if (r.descartados) setDescartes((d) => ({ empresa_grande: d.empresa_grande + (r.descartados.empresa_grande || 0), site_proprio: d.site_proprio + (r.descartados.site_proprio || 0), sem_contato: d.sem_contato + (r.descartados.sem_contato || 0), sem_whatsapp: d.sem_whatsapp + (r.descartados.sem_whatsapp || 0) }));
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
           pagina = r.proxima;
@@ -267,6 +294,20 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
                   : `Restam ${cota.restantes ?? 0} nesta semana.`}
             </p>
           </div>
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] bg-menta/60 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={soComWhatsapp}
+              onChange={(e) => setSoComWhatsapp(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#0b0b0f]"
+            />
+            <span>
+              <span className="block text-[13px] font-bold">Só com WhatsApp</span>
+              <span className="block text-[12px] leading-relaxed text-zinc-600">
+                Quem só tem telefone fixo e nenhum link com WhatsApp fica de fora e não gasta sua cota.
+              </span>
+            </span>
+          </label>
         </fieldset>
 
         {aviso && (
@@ -313,10 +354,11 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
       {/* -------------------------------------------------- progresso */}
       <section aria-live="polite" className="flex flex-col rounded-[24px] bg-zinc-50 p-6">
         <h2 className="text-[15px] font-extrabold">Resultado</h2>
-        <div className="mt-4 grid grid-cols-3 gap-2.5">
+        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             { rotulo: 'Leads novos', valor: totais.novos, fundo: 'bg-menta' },
             { rotulo: 'Já tinham site', valor: totais.comSite, fundo: 'bg-white' },
+            { rotulo: 'Descartados', valor: totais.descartados, fundo: 'bg-white' },
             { rotulo: 'Já no painel', valor: totais.jaTinha, fundo: 'bg-white' },
           ].map((k) => (
             <div key={k.rotulo} className={`rounded-[18px] px-3.5 py-3 ${k.fundo}`}>
@@ -325,6 +367,26 @@ export default function BuscaGoogle({ ligada, cotaInicial }: { ligada: boolean; 
             </div>
           ))}
         </div>
+
+        {(totais.descartados > 0 || totais.confirmados > 0) && (
+          <p className="mt-3 text-[12px] leading-relaxed text-zinc-600">
+            {totais.confirmados > 0 && (
+              <>
+                <b className="text-emerald-800">{totais.confirmados}</b> com WhatsApp confirmado no link da própria empresa.{' '}
+              </>
+            )}
+            {totais.descartados > 0 && (
+              <>
+                Descartados:{' '}
+                {(Object.keys(ROTULO_DESCARTE) as (keyof Descartes)[])
+                  .filter((k) => descartes[k] > 0)
+                  .map((k) => `${descartes[k]} ${ROTULO_DESCARTE[k]}`)
+                  .join(' · ')}
+                .
+              </>
+            )}
+          </p>
+        )}
 
         <ol className="mt-4 max-h-[340px] flex-1 space-y-1.5 overflow-y-auto">
           {linhas.map((l) => (

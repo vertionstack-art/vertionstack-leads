@@ -12,6 +12,7 @@
 
 import { db, json } from './sql';
 import { daLinha, type Status } from './db';
+import { numeroWhatsapp } from './telefone';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { valores, type CfgProposta } from './financeiro';
 
@@ -43,6 +44,8 @@ export interface Card {
   categoria: string | null;
   cidade: string | null;
   telefone: string | null;
+  /** número para o wa.me; null quando só há telefone fixo */
+  whatsapp: string | null;
   instagram: string | null;
   mapsUrl: string | null;
   notas: string | null;
@@ -147,6 +150,7 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       categoria: lead.category,
       cidade: lead.city,
       telefone: lead.phone,
+      whatsapp: lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone)),
       instagram: lead.instagram,
       mapsUrl: lead.mapsUrl,
       notas: lead.notes,

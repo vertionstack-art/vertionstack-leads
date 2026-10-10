@@ -39,11 +39,6 @@ function diasDesde(iso: string): string {
   return d <= 0 ? 'hoje' : d === 1 ? 'há 1 dia' : `há ${d} dias`;
 }
 
-function linkWhats(telefone: string): string {
-  const d = telefone.replace(/\D/g, '');
-  return 'https://wa.me/' + (d.length <= 11 ? '55' + d : d);
-}
-
 async function chamar(corpo: Record<string, unknown>): Promise<{ ok: boolean; erro?: string; id?: string }> {
   try {
     const r = await fetch('/api/crm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
@@ -383,9 +378,9 @@ function CardCrm({
       {card.notas && <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-zinc-500">{card.notas}</p>}
 
       <div className="mt-3 flex items-center gap-1.5">
-        {card.telefone && (
+        {card.whatsapp && (
           <a
-            href={linkWhats(card.telefone)}
+            href={`https://wa.me/${card.whatsapp}`}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Chamar ${card.nome} no WhatsApp`}

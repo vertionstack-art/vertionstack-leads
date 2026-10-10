@@ -16,3 +16,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 9. `0008_crm_funis.sql`
 10. `0009_teste_gratis.sql`
 11. `0010_busca_google.sql`
+12. `0011_whatsapp_do_lead.sql`
