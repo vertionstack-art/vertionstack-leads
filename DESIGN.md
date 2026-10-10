@@ -206,7 +206,7 @@ A white-purple-black brand palette set on a cool lavender floor, with five paste
 - **Rose** (rosa): temperature "quente" only (card and chip).
 - **Butter** (manteiga): temperature "morno" only.
 - **Lavender** (lavanda): temperature "frio" only.
-- **Mint** (menta): reserved, unassigned since the contact queue was removed (03/10/2026). Give it one owner before using it.
+- **Mint** (menta): money and confirmed good news only (10/10/2026): the "Proposta aberta" badge, "pagamento recebido", and the result panel of the sales-page calculator. Text on mint is emerald-950.
 
 Chip text on pastel uses the matching deep tone (red-900 on rose, amber-900 on butter, roxo-900 on lavender).
 
@@ -322,7 +322,7 @@ A 40px black rounded square (12px) with the business initial in white extra-bold
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, ceu opportunities summary and the dark-card primary pill; menta reserved.
+- **Do** keep each pastel with its owner: rosa quente, manteiga morno, lavanda frio, ceu opportunities summary and the dark-card primary pill; menta money and confirmed good news.
 - **Do** make every button, select and single-line input a full pill; give textareas and panels 16px corners, cards 24px, the sheet 28px, the rail 26px.
 - **Do** show a row action as zinc-100 while pending and tinta with a lucide Check once done.
 - **Do** color only the dot on presence and status chips; keep presence dots identical to the summary bar.

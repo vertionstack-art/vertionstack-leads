@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, Check, Eye, Flame, Plus, Search, Snowflake, Sun } from 'lucide-react';
 import Oportunidades from './inicio-oportunidades';
+import ContaDoSite from './inicio-conta';
 import { LIMITES, PLANOS_A_VENDA, reais } from '@/lib/planos';
 import { responsavel } from '@/lib/legal';
 import { PISO_ABSOLUTO } from '@/lib/proposta';
@@ -16,8 +17,6 @@ import { PISO_ABSOLUTO } from '@/lib/proposta';
 
 const numero = (n: number) => n.toLocaleString('pt-BR');
 
-/** o piso de preço de um site na proposta, em centavos: o mesmo argumento da página de Planos */
-const PISO_DE_UM_SITE = Math.round(PISO_ABSOLUTO * 100);
 
 const pilulaPreta =
   'inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-tinta px-6 text-[14px] font-bold text-white transition-colors hover:bg-tinta-70';
@@ -187,8 +186,6 @@ function itensDoPlano(p: (typeof PLANOS_A_VENDA)[number]): string[] {
 
 export default function Inicio() {
   const contato = responsavel().email;
-  const basic = PLANOS_A_VENDA.find((p) => p.plano === 'basic')!;
-  const pro = PLANOS_A_VENDA.find((p) => p.plano === 'pro')!;
 
   return (
     <div className="min-h-screen p-2 sm:p-3">
@@ -199,6 +196,7 @@ export default function Inicio() {
           <nav aria-label="Seções da página" className="hidden items-center gap-1 text-[13.5px] font-bold lg:flex">
             {[
               ['#como-funciona', 'Como funciona'],
+              ['#conta', 'Quanto rende'],
               ['#planos', 'Planos'],
               ['#duvidas', 'Dúvidas'],
             ].map(([href, rotulo]) => (
@@ -296,16 +294,37 @@ export default function Inicio() {
             </ol>
           </section>
 
+          {/* a conta: um site paga a ferramenta */}
+          <section id="conta" className="scroll-mt-4 border-t border-zinc-200 px-5 py-16 md:px-9 md:py-24" aria-labelledby="t-conta">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-end lg:gap-14">
+              <h2 id="t-conta" className="text-balance text-[34px] font-extrabold leading-[1] tracking-[-0.04em] md:text-[54px]">
+                De 100 comércios, feche 1. <span className="text-emerald-800">A ferramenta já se pagou.</span>
+              </h2>
+              <div className="max-w-[480px] space-y-3 text-[15px] font-medium leading-relaxed text-zinc-600">
+                <p>
+                  <b className="text-tinta">O resto é lucro.</b> Você não precisa virar vendedor nato: precisa conversar com quem
+                  precisa de site. Essa lista é o que a ferramenta entrega.
+                </p>
+                <p>
+                  Caro não é a assinatura. Caro é a tarde inteira abrindo ficha por ficha no Maps e terminar o dia sem nenhuma
+                  proposta enviada.
+                </p>
+              </div>
+            </div>
+            <div className="mt-10">
+              <ContaDoSite precoInicial={PISO_ABSOLUTO} />
+            </div>
+          </section>
+
           {/* planos */}
           <section id="planos" className="scroll-mt-4 border-t border-zinc-200 px-5 py-16 md:px-9 md:py-24" aria-labelledby="t-planos">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-end lg:gap-14">
               <h2 id="t-planos" className="text-balance text-[32px] font-extrabold leading-[1.02] tracking-[-0.035em] md:text-[44px]">
-                Um site vendido paga meses de ferramenta.
+                Comece grátis. Assine depois de ver o primeiro cliente na lista.
               </h2>
               <p className="max-w-[480px] text-[15px] font-medium leading-relaxed text-zinc-600">
-                Um único site no preço mínimo que a proposta sugere ({reais(PISO_DE_UM_SITE)}) paga{' '}
-                <b className="text-tinta">{Math.floor(PISO_DE_UM_SITE / basic.precoCentavos)} meses de Basic</b> ou{' '}
-                <b className="text-tinta">{Math.floor(PISO_DE_UM_SITE / pro.precoCentavos)} meses de Pro</b>.
+                Todo plano tem a ferramenta inteira: busca, temperatura, abordagem, proposta, CRM e Financeiro. O que muda é o
+                quanto você prospecta.
               </p>
             </div>
 
