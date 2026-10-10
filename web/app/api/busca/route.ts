@@ -8,6 +8,7 @@ import {
 } from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
 import { LIMITES } from '@/lib/planos';
+import { usarBuscaBonus } from '@/lib/indicacao';
 import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
 export const runtime = 'nodejs';
@@ -104,7 +105,9 @@ export async function POST(req: Request) {
    */
   const limiteBuscas = LIMITES[plano].buscas;
   const usadas = await buscasDaConta(contaId, plano, s.sessao.pagoAte);
-  if (usadas >= limiteBuscas) {
+  // a cota de buscas acabou, mas há busca de bônus por indicação: gasta uma e segue
+  const buscaDoBonus = usadas >= limiteBuscas && (await usarBuscaBonus(contaId));
+  if (usadas >= limiteBuscas && !buscaDoBonus) {
     const msg =
       plano === 'gratis'
         ? `Você usou as ${limiteBuscas} buscas do teste grátis. Assine o plano de 7 dias para continuar buscando.`
@@ -113,7 +116,7 @@ export async function POST(req: Request) {
           : `Você usou as ${limiteBuscas} buscas do mês. Elas voltam no dia 1º${plano === 'basic' ? ', ou passe para o Pro' : ''}.`;
     return erro(msg, 402, { cota: cotaParaJson(cota), fim: true, buscas: { usadas, limite: limiteBuscas } });
   }
-  if (plano === 'gratis' && (await buscasDosTestesNoMes()) >= reservaDosTestes()) {
+  if (plano === 'gratis' && !buscaDoBonus && (await buscasDosTestesNoMes()) >= reservaDosTestes()) {
     return erro('Os testes grátis deste mês esgotaram. Assine o plano de 7 dias ou volte no dia 1º.', 402, { cota: cotaParaJson(cota), fim: true });
   }
 

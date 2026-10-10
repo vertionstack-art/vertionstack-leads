@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Check, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { AlertTriangle, Bell, Check, History, MapPin, MessageCircle, Phone } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
@@ -34,6 +34,7 @@ export default function LeadCard({
   onPromptDesign,
   onPromptSite,
   onProposta,
+  onFicha,
   onNota,
   editandoNota,
   rascunho,
@@ -54,6 +55,7 @@ export default function LeadCard({
   onPromptDesign: () => void;
   onPromptSite: () => void;
   onProposta: () => void;
+  onFicha: (aba: 'whatsapp' | 'lembrete' | 'historico') => void;
   onNota: () => void;
   editandoNota: boolean;
   rascunho: string;
@@ -151,15 +153,14 @@ export default function LeadCard({
             <span className={`flex ${TOQUE} items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-500`}>sem telefone</span>
           )}
           {linkWhatsApp ? (
-            <a
-              href={linkWhatsApp}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => onFicha('whatsapp')}
               className={`flex ${TOQUE} items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-3 text-[14px] font-bold text-tinta active:bg-zinc-50`}
             >
               <MessageCircle aria-hidden className="h-4 w-4" />
               WhatsApp
-            </a>
+            </button>
           ) : (
             <span className={`flex ${TOQUE} items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-500`}>
               {lead.telefoneTipo === 'fixo' ? 'fixo, sem WhatsApp' : 'sem WhatsApp'}
@@ -221,6 +222,26 @@ export default function LeadCard({
           ENTREGA — publicar o site vendido
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={() => onFicha(lead.lembreteEm ? 'lembrete' : 'historico')}
+        className={`mt-2 flex w-full ${TOQUE} items-center justify-center gap-2 rounded-full text-[12.5px] font-bold ${
+          lead.lembreteEm ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta active:bg-zinc-200'
+        }`}
+      >
+        {lead.lembreteEm ? (
+          <>
+            <Bell aria-hidden className="h-4 w-4" />
+            Lembrete {new Date(lead.lembreteEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          </>
+        ) : (
+          <>
+            <History aria-hidden className="h-4 w-4" />
+            Ficha: lembrete e histórico
+          </>
+        )}
+      </button>
 
       <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
         <select

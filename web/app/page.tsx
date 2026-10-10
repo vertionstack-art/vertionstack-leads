@@ -8,6 +8,8 @@ import Inicio from './inicio';
 import { buscaLigada } from '@/lib/google-places';
 import { lerFoto } from '@/lib/perfil';
 import { avisoDeVencimento } from '@/lib/pagamento';
+import { primeirosPassos } from '@/lib/passos';
+import { quantosLembretesHoje } from '@/lib/eventos';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +37,9 @@ export default async function Home() {
   const cota = await cotaDaConta(sessao.contaId, sessao.plano);
   const foto = await lerFoto(sessao.contaId, sessao.userId);
   const vencimento = sessao.plano === 'cortesia' ? null : await avisoDeVencimento(sessao.contaId);
+  // uma por vez: consultas em paralelo prendem conexões no pooler do Supabase
+  const passos = await primeirosPassos(sessao.contaId);
+  const lembretesHoje = await quantosLembretesHoje(sessao.contaId);
 
   return (
     <Painel
@@ -42,9 +47,12 @@ export default async function Home() {
       foto={foto}
       buscaGoogle={buscaLigada()}
       vencimento={vencimento}
+      passos={passos}
+      planoEscolhido={sessao.plano === 'gratis' ? sessao.planoEscolhido : null}
+      lembretesHoje={lembretesHoje}
       plano={sessao.plano}
       bloqueada={sessao.bloqueada}
-      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado }}
+      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado, bonus: cota.bonus }}
     />
   );
 }

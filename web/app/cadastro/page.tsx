@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Moldura, botao, campo, postar, rotulo } from '../moldura-auth';
 
@@ -12,6 +12,19 @@ export default function Cadastro() {
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const [aceite, setAceite] = useState(false);
+  // o plano clicado na página de venda e o código do link de convite
+  const [plano, setPlano] = useState('');
+  const [convite, setConvite] = useState('');
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const p = q.get('plano') || '';
+    if (['semanal', 'basic', 'pro'].includes(p)) setPlano(p);
+    const c = (q.get('convite') || '').toLowerCase();
+    if (/^[a-z0-9]{6,12}$/.test(c)) setConvite(c);
+  }, []);
+
+  const NOMES: Record<string, string> = { semanal: '7 dias', basic: 'Basic', pro: 'Pro' };
 
   async function criar(e: React.FormEvent) {
     e.preventDefault();
@@ -19,7 +32,7 @@ export default function Cadastro() {
     if (!aceite) return setErro('Para criar a conta, aceite os Termos de uso e a Política de privacidade.');
     setEnviando(true);
     setErro(null);
-    const r = await postar('/api/auth/cadastrar', { nome, email, senha, aceite: aceite ? 'sim' : '' });
+    const r = await postar('/api/auth/cadastrar', { nome, email, senha, aceite: aceite ? 'sim' : '', plano, convite });
     if (!r.ok) {
       setErro(r.erro || 'Não consegui criar a conta.');
       setEnviando(false);
@@ -42,7 +55,14 @@ export default function Cadastro() {
   }
 
   return (
-    <Moldura titulo="Criar conta" subtitulo="Teste grátis com 30 leads. Sem cartão.">
+    <Moldura
+      titulo="Criar conta"
+      subtitulo={
+        plano
+          ? <>Você escolheu o <b className="text-tinta">{NOMES[plano]}</b>. Comece pelo teste grátis com 30 leads e assine quando quiser, sem cartão agora.</>
+          : 'Teste grátis com 30 leads. Sem cartão.'
+      }
+    >
       <form onSubmit={criar} noValidate>
         <label htmlFor="nome" className={rotulo}>Como podemos te chamar</label>
         <input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus autoComplete="given-name" maxLength={60} className={campo} />

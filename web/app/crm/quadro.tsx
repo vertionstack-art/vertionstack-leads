@@ -1,12 +1,33 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown, ArrowUp, Check, GripVertical, MapPin, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, Trash2, X,
+  ArrowDown, ArrowUp, Bell, Check, Clock, GripVertical, MapPin, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, Trash2, X,
 } from 'lucide-react';
 import type { Card, Cor, Etapa, Quadro } from '@/lib/crm';
 import type { Status } from '@/lib/db';
 import SeloProposta from '../selo-proposta';
+import FichaLead from '../ficha-lead';
+
+/** card que não sai da etapa há este tanto de dias ganha o aviso de parado */
+const DIAS_PARADO = 7;
+
+interface LembreteHoje {
+  leadId: string;
+  nome: string;
+  categoria: string | null;
+  em: string;
+  texto: string | null;
+  atrasado: boolean;
+}
+
+const horaOuDia = (iso: string) => {
+  const d = new Date(iso);
+  const hoje = new Date();
+  return d.toDateString() === hoje.toDateString()
+    ? d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
 
 const FUNDO: Record<Cor, string> = {
   zinco: 'bg-zinc-100',
@@ -59,6 +80,28 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
   const [editandoEtapas, setEditandoEtapas] = useState(false);
   const [menuFunil, setMenuFunil] = useState(false);
   const [nomeando, setNomeando] = useState<'novo' | 'renomear' | null>(null);
+  const [ficha, setFicha] = useState<{ id: string; aba: 'whatsapp' | 'lembrete' | 'historico' } | null>(null);
+  const [lembretes, setLembretes] = useState<LembreteHoje[]>([]);
+
+  const carregarLembretes = useCallback(async () => {
+    try {
+      const j = await (await fetch('/api/lembretes', { cache: 'no-store' })).json();
+      if (j.ok) setLembretes(j.lembretes);
+    } catch {
+      /* o quadro funciona sem a lista de hoje */
+    }
+  }, []);
+  useEffect(() => { carregarLembretes(); }, [carregarLembretes]);
+
+  async function concluirLembrete(leadId: string) {
+    setLembretes((l) => l.filter((x) => x.leadId !== leadId));
+    await fetch(`/api/leads/${encodeURIComponent(leadId)}/lembrete`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ em: null }),
+    }).catch(() => {});
+    recarregar();
+  }
 
   const funil = q.funis.find((f) => f.id === q.funilId)!;
   const porEtapa = useMemo(() => {
@@ -186,6 +229,45 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
         </p>
       )}
 
+      {/* ----------------------------------------------- para hoje */}
+      {lembretes.length > 0 && (
+        <section id="para-hoje" aria-labelledby="t-hoje" className="mt-5 scroll-mt-4 rounded-[22px] bg-white p-4 ring-2 ring-inset ring-tinta md:p-5">
+          <h2 id="t-hoje" className="flex items-center gap-2 text-[15px] font-extrabold">
+            <Bell aria-hidden className="h-4 w-4" />
+            Para hoje <span className="font-bold text-tinta/50 tabular-nums">{lembretes.length}</span>
+          </h2>
+          <ul className="mt-3 divide-y divide-zinc-200">
+            {lembretes.map((l) => (
+              <li key={l.leadId} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+                <span className={`w-[92px] shrink-0 text-[12.5px] font-bold tabular-nums ${l.atrasado ? 'text-red-700' : 'text-zinc-600'}`} suppressHydrationWarning>
+                  {l.atrasado ? 'atrasado · ' : ''}{horaOuDia(l.em)}
+                </span>
+                <button type="button" onClick={() => setFicha({ id: l.leadId, aba: 'lembrete' })} className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-[13.5px] font-extrabold hover:underline">{l.nome}</span>
+                  <span className="block truncate text-[12px] text-zinc-500">{l.texto || l.categoria || 'Voltar a falar'}</span>
+                </button>
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setFicha({ id: l.leadId, aba: 'whatsapp' })}
+                    className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-zinc-100 px-3 text-[12px] font-bold hover:bg-zinc-200"
+                  >
+                    <MessageCircle aria-hidden className="h-3.5 w-3.5" /> WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => concluirLembrete(l.leadId)}
+                    className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-tinta px-3 text-[12px] font-bold text-white hover:bg-tinta-70"
+                  >
+                    <Check aria-hidden className="h-3.5 w-3.5" /> Feito
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* --------------------------------------------------- resumo */}
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
@@ -252,6 +334,11 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
                       aoSoltarAntes={(id) => mover(id, etapa.id, card.id)}
                       aoMover={(etapaId) => mover(card.id, etapaId, null)}
                       aoTirar={() => tirar(card)}
+                      aoFicha={(aba) => setFicha({ id: card.id, aba })}
+                      parado={
+                        !['fechado', 'descartado'].includes(etapa.situacao) &&
+                        Date.now() - new Date(card.etapaEm).getTime() > DIAS_PARADO * 86_400_000
+                      }
                     />
                   ))}
                   {!cards.length && (
@@ -265,6 +352,16 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
           })}
         </div>
       </div>
+
+      {ficha && (
+        <FichaLead
+          key={ficha.id + ficha.aba}
+          leadId={ficha.id}
+          abaInicial={ficha.aba}
+          aoFechar={() => setFicha(null)}
+          aoMudar={() => { recarregar(); carregarLembretes(); }}
+        />
+      )}
 
       {adicionarEm && (
         <ModalAdicionar
@@ -321,8 +418,10 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
 // ------------------------------------------------------------- card
 
 function CardCrm({
-  card, etapas, arrastando, aoComecar, aoTerminar, aoSoltarAntes, aoMover, aoTirar,
+  card, etapas, arrastando, aoComecar, aoTerminar, aoSoltarAntes, aoMover, aoTirar, aoFicha, parado,
 }: {
+  aoFicha: (aba: 'whatsapp' | 'lembrete' | 'historico') => void;
+  parado: boolean;
   card: Card;
   etapas: Etapa[];
   arrastando: boolean;
@@ -352,7 +451,9 @@ function CardCrm({
       <div className="flex items-start gap-2">
         <GripVertical aria-hidden className="mt-0.5 hidden h-4 w-4 shrink-0 text-zinc-300 md:block" />
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-extrabold leading-snug">{card.nome}</p>
+          <button type="button" onClick={() => aoFicha('historico')} className="text-left text-[13.5px] font-extrabold leading-snug hover:underline">
+            {card.nome}
+          </button>
           <p className="mt-0.5 truncate text-[12px] text-zinc-500">
             {[card.categoria, card.cidade].filter(Boolean).join(' · ') || 'Sem categoria'}
           </p>
@@ -374,7 +475,22 @@ function CardCrm({
           {t.rotulo}
         </span>
         {card.entrada > 0 && <span className="tabular-nums text-tinta">{reais(card.entrada)}{card.mensalidade > 0 && ` + ${reais(card.mensalidade)}/mês`}</span>}
-        <span suppressHydrationWarning>{diasDesde(card.etapaEm)}</span>
+        <span suppressHydrationWarning className={parado ? 'inline-flex items-center gap-1 rounded-full bg-tinta px-2 py-0.5 text-white' : ''}>
+          {parado && <Clock aria-hidden className="h-3 w-3" />}
+          {parado ? `parado ${diasDesde(card.etapaEm)}` : diasDesde(card.etapaEm)}
+        </span>
+        {card.lembreteEm && (
+          <button
+            type="button"
+            onClick={() => aoFicha('lembrete')}
+            title={card.lembreteTexto || 'Lembrete'}
+            className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 ring-1 ring-inset ring-zinc-300 hover:ring-tinta"
+            suppressHydrationWarning
+          >
+            <Bell aria-hidden className="h-3 w-3" />
+            {horaOuDia(card.lembreteEm)}
+          </button>
+        )}
         <SeloProposta abertaEm={card.propostaAbertaEm} aberturas={card.propostaAberturas} primeiraEm={card.propostaPrimeiraEm} />
       </div>
 
@@ -382,17 +498,25 @@ function CardCrm({
 
       <div className="mt-3 flex items-center gap-1.5">
         {card.whatsapp && (
-          <a
-            href={`https://wa.me/${card.whatsapp}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => aoFicha('whatsapp')}
             aria-label={`Chamar ${card.nome} no WhatsApp`}
-            title="Abrir no WhatsApp"
-            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-menta text-emerald-950 hover:brightness-95"
+            title="Mensagem pronta para o WhatsApp"
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-zinc-100 text-tinta hover:bg-zinc-200"
           >
             <MessageCircle aria-hidden className="h-3.5 w-3.5" />
-          </a>
+          </button>
         )}
+        <button
+          type="button"
+          onClick={() => aoFicha('lembrete')}
+          aria-label={`Lembrete de ${card.nome}`}
+          title="Marcar lembrete"
+          className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-zinc-100 text-tinta hover:bg-zinc-200"
+        >
+          <Bell aria-hidden className="h-3.5 w-3.5" />
+        </button>
         {card.mapsUrl && (
           <a
             href={card.mapsUrl}

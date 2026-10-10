@@ -13,10 +13,12 @@ const numero = (n: number) => n.toLocaleString('pt-BR');
 /** o piso de preço de um site na proposta (lib/proposta): é o argumento de que o plano se paga */
 const PISO_DE_UM_SITE = 38745;
 
-export default async function PaginaPlanos({ searchParams }: { searchParams: Promise<{ pago?: string }> }) {
+export default async function PaginaPlanos({ searchParams }: { searchParams: Promise<{ pago?: string; plano?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  const { pago } = await searchParams;
+  const { pago, plano: pedido } = await searchParams;
+  // o plano que veio marcado (aviso do painel ou página de venda) ganha destaque
+  const destaque = ['semanal', 'basic', 'pro'].includes(pedido || '') ? pedido : sessao.plano === 'gratis' ? sessao.planoEscolhido : null;
   const [cota, cobranca] = await Promise.all([cotaDaConta(sessao.contaId, sessao.plano), situacaoDaCobranca(sessao.contaId)]);
   const contato = process.env.EMPRESA_EMAIL || 'vertionstack@gmail.com';
 
@@ -85,13 +87,18 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                 key={p.plano}
                 className={`flex flex-col rounded-[24px] p-6 ${
                   escuro ? 'bg-tinta text-white' : p.plano === 'basic' ? 'bg-ceu' : semanal ? 'bg-lavanda' : 'bg-zinc-50 ring-1 ring-inset ring-zinc-200'
-                } ${atual ? 'ring-2 ring-roxo-600 ring-offset-2' : ''}`}
+                } ${atual ? 'ring-2 ring-roxo-600 ring-offset-2' : destaque === p.plano ? 'ring-2 ring-tinta ring-offset-2' : ''}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-[22px] font-extrabold tracking-[-0.02em]">{p.nome}</h2>
                   {atual && (
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${escuro ? 'bg-white text-tinta' : 'bg-tinta text-white'}`}>
                       Seu plano
+                    </span>
+                  )}
+                  {!atual && destaque === p.plano && (
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${escuro ? 'bg-white text-tinta' : 'bg-tinta text-white'}`}>
+                      Você escolheu
                     </span>
                   )}
                 </div>

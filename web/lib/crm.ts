@@ -11,6 +11,7 @@
  */
 
 import { db, json } from './sql';
+import { registrarEventos } from './eventos';
 import { daLinha, type Status } from './db';
 import { numeroWhatsapp } from './telefone';
 import { temperaturaDoLead, type Nivel } from './temperatura';
@@ -55,6 +56,9 @@ export interface Card {
   propostaAbertaEm: string | null;
   propostaAberturas: number;
   propostaPrimeiraEm: string | null;
+  /** lembrete marcado na ficha do lead */
+  lembreteEm: string | null;
+  lembreteTexto: string | null;
   etapaId: string;
   /** desde quando está nesta etapa */
   etapaEm: string;
@@ -163,6 +167,8 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       propostaAbertaEm: lead.propostaAbertaEm,
       propostaAberturas: lead.propostaAberturas,
       propostaPrimeiraEm: lead.propostaPrimeiraEm,
+      lembreteEm: lead.lembreteEm,
+      lembreteTexto: lead.lembreteTexto,
       etapaId: r.etapa_id,
       etapaEm: new Date(r.etapa_em || r.updated_at).toISOString(),
       ordem: Number(r.etapa_ordem) || 0,
@@ -188,9 +194,13 @@ export async function moverCard(
 ): Promise<number> {
   if (!leadIds.length) return 0;
   const sql = db();
-  const [etapa] = await sql`select id, situacao from etapas where id = ${etapaId} and conta_id = ${conta}`;
+  const [etapa] = await sql`select id, situacao, nome from etapas where id = ${etapaId} and conta_id = ${conta}`;
   if (!etapa) return -1;
   const fechar = etapa.situacao === 'fechado';
+  // só quem muda de etapa ganha linha no histórico (reordenar na mesma coluna não)
+  const mudam = await sql`
+    select id from leads where conta_id = ${conta} and id = any(${leadIds}::text[]) and etapa_id is distinct from ${etapaId}::uuid
+  `;
   const r = await sql`
     update leads set
       etapa_em    = case when etapa_id is distinct from ${etapaId}::uuid then now() else etapa_em end,
@@ -209,6 +219,7 @@ export async function moverCard(
     where conta_id = ${conta} and id = any(${leadIds}::text[])
     returning id
   `;
+  await registrarEventos(conta, mudam.map((x) => x.id as string), 'etapa', `Movido no CRM para “${etapa.nome}”`, quem);
   return r.length;
 }
 

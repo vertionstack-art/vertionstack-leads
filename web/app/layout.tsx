@@ -9,6 +9,8 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
+  // base dos endereços absolutos (imagem de compartilhamento, links)
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://leads.vertionstack.com'),
   title: 'Vertion Leads',
   description: 'Comércios do Google Maps que ainda não têm site próprio.',
 };

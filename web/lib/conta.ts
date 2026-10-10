@@ -14,6 +14,8 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from './sql';
 import { supabaseServidor } from './supabase-server';
 import { LIMITES, type Plano } from './planos';
+import { cookies } from 'next/headers';
+import { FORMATO_CODIGO, registrarIndicacao, tirarDoBonus } from './indicacao';
 import { marcarTesteUsado, registrarSinais, sinaisDaPagina, sinaisDaRequisicao, testeJaUsadoPorOutra } from './teste';
 
 export type { Plano };
@@ -32,6 +34,8 @@ export interface Sessao {
   pagoAte: string | null;
   bloqueada: boolean;
   admin: boolean;
+  /** o plano que a pessoa clicou na página de venda antes de criar a conta */
+  planoEscolhido: 'semanal' | 'basic' | 'pro' | null;
 }
 
 // ------------------------------------------------------------- admin
@@ -65,14 +69,37 @@ export function planoEfetivo(plano: string, pagoAte: Date | string | null): { pl
 // ---------------------------------------------------------- sessão
 
 /** primeiro acesso de alguém que acabou de se cadastrar: cria a conta grátis dele */
-async function criarContaPara(userId: string, nome: string): Promise<void> {
+async function criarContaPara(userId: string, nome: string, convite: string | null): Promise<void> {
   const sql = db();
+  let nova: string | null = null;
   await sql.begin(async (tx) => {
     const ja = await tx`select 1 from membros where user_id = ${userId}`;
     if (ja.length) return;
     const [c] = await tx`insert into contas (nome) values (${nome}) returning id`;
     await tx`insert into membros (conta_id, user_id, nome, papel) values (${c.id}, ${userId}, ${nome}, 'dono')`;
+    nova = c.id as string;
   });
+  // chegou por um link de convite: anota quem indicou (lib/indicacao)
+  if (nova && convite) {
+    try {
+      await registrarIndicacao(nova, convite);
+    } catch (e) {
+      console.error('[convite]', e);
+    }
+  }
+}
+
+/** o convite vem do cadastro (dados do usuário) ou do cookie que o link de convite deixou */
+async function conviteDe(meta: Record<string, unknown> | undefined): Promise<string | null> {
+  const doCadastro = typeof meta?.convite === 'string' ? meta.convite : '';
+  const doCookie = (await cookies()).get('vl_convite')?.value || '';
+  const c = (doCadastro || doCookie).trim().toLowerCase();
+  return FORMATO_CODIGO.test(c) ? c : null;
+}
+
+function planoEscolhidoDe(meta: Record<string, unknown> | undefined): Sessao['planoEscolhido'] {
+  const p = meta?.plano_escolhido;
+  return p === 'semanal' || p === 'basic' || p === 'pro' ? p : null;
 }
 
 function nomeDe(email: string, meta: Record<string, unknown> | undefined): string {
@@ -96,7 +123,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
     where m.user_id = ${user.id}
   `;
   if (!linhas.length) {
-    await criarContaPara(user.id, nomeDe(user.email, user.user_metadata));
+    await criarContaPara(user.id, nomeDe(user.email, user.user_metadata), await conviteDe(user.user_metadata));
     linhas = await sql`
       select m.conta_id, m.nome, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
       from membros m join contas c on c.id = m.conta_id
@@ -125,6 +152,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
     pagoAte: r.pago_ate ? new Date(r.pago_ate).toISOString() : null,
     bloqueada: r.bloqueada,
     admin: ehAdminEmail(user.email),
+    planoEscolhido: planoEscolhidoDe(user.user_metadata),
   };
 }
 
@@ -161,6 +189,8 @@ export interface Cota {
   teste: boolean;
   /** o teste foi negado porque outra conta já usou neste computador, navegador, internet ou e-mail */
   testeNegado: string | null;
+  /** leads de bônus por indicação: gastos só depois da cota do plano (lib/indicacao) */
+  bonus: number;
 }
 
 export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
@@ -170,8 +200,9 @@ export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
   const [r, g, c] = await Promise.all([
     sql`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`,
     sql`select count(*)::int as n from leads where conta_id = ${conta}`,
-    sql`select teste_usados, teste_negado from contas where id = ${conta}`,
+    sql`select teste_usados, teste_negado, leads_bonus from contas where id = ${conta}`,
   ]);
+  const bonus = Number(c[0]?.leads_bonus) || 0;
   const testeNegado = teste ? ((c[0]?.teste_negado as string) ?? null) : null;
   const usados = teste ? ((c[0]?.teste_usados as number) ?? 0) : r.length ? (r[0].novos as number) : 0;
   const guardados = g[0].n as number;
@@ -184,12 +215,15 @@ export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
     ilimitado,
     usados,
     limite: lim.semana,
-    restantes: ilimitado ? Infinity : testeNegado ? 0 : Math.max(0, Math.min(lim.semana - usados, lim.guardados - guardados)),
+    restantes: ilimitado
+      ? Infinity
+      : Math.max(0, Math.min((testeNegado ? 0 : Math.max(0, lim.semana - usados)) + bonus, lim.guardados - guardados)),
     guardados,
     tetoGuardados: lim.guardados,
     renovaEm: proxima.toISOString(),
     teste,
     testeNegado,
+    bonus,
   };
 }
 
@@ -219,7 +253,15 @@ export async function reservarCota(conta: string, pedidos: number, plano: Plano)
   const g = await sql`select count(*)::int as n from leads where conta_id = ${conta}`;
   const cabem = Math.max(0, Math.min(pedidos, lim.guardados - (g[0].n as number)));
   if (!cabem) return 0;
-  if (plano === 'gratis') return reservarTeste(conta, cabem, lim.semana, semana);
+  let concedidos = plano === 'gratis' ? await reservarTeste(conta, cabem, lim.semana, semana) : await reservarSemana(conta, cabem, lim.semana, semana);
+  // a cota do plano acabou: o que falta sai do bônus de indicação
+  if (concedidos < cabem) concedidos += await tirarDoBonus(conta, cabem - concedidos);
+  return concedidos;
+}
+
+async function reservarSemana(conta: string, cabem: number, teto: number, semana: string): Promise<number> {
+  const sql = db();
+  const lim = { semana: teto };
   const r = await sql`
     with antes as (
       select novos from uso_semanal where conta_id = ${conta} and semana = ${semana} for update

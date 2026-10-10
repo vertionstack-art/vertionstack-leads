@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
+  AlertTriangle, Bell, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
   Crown, Kanban, KeyRound, MessageCircle, Radar, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
@@ -18,6 +18,9 @@ import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
 import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
 import Logo from './logo';
+import FichaLead from './ficha-lead';
+import PrimeirosPassos from './primeiros-passos';
+import type { Passo } from '@/lib/passos';
 
 // --------------------------------------------------------- constantes
 
@@ -204,6 +207,45 @@ function Acao({
   );
 }
 
+/**
+ * Quem clicou num plano na página de venda e criou a conta: o lembrete de que
+ * escolheu aquele plano, com o botão direto. Fecha e não volta (por navegador).
+ */
+function AvisoPlanoEscolhido({ plano }: { plano: 'semanal' | 'basic' | 'pro' }) {
+  const [fechado, setFechado] = useState(true);
+  useEffect(() => {
+    try {
+      setFechado(localStorage.getItem('vl_aviso_plano') === plano);
+    } catch {
+      setFechado(false);
+    }
+  }, [plano]);
+  if (fechado) return null;
+  const nome = NOME_DO_PLANO[plano];
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-5 py-3.5 text-[13.5px] font-semibold ring-1 ring-inset ring-zinc-300">
+      <span>
+        Você escolheu o <b>{nome}</b> na página de venda. Teste à vontade; quando quiser, ele está a um clique.
+      </span>
+      <span className="flex items-center gap-2">
+        <a href={`/planos?plano=${plano}`} className="inline-flex min-h-[38px] items-center rounded-full bg-tinta px-4 text-[13px] font-bold text-white hover:bg-tinta-70">
+          Assinar o {nome}
+        </a>
+        <button
+          type="button"
+          onClick={() => {
+            setFechado(true);
+            try { localStorage.setItem('vl_aviso_plano', plano); } catch { /* sem armazenamento: só some agora */ }
+          }}
+          className="rounded-full px-3 py-2 text-[12.5px] font-bold text-zinc-500 hover:bg-zinc-100 hover:text-tinta"
+        >
+          Agora não
+        </button>
+      </span>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------- tela
 
 export interface CotaResumo {
@@ -213,14 +255,17 @@ export interface CotaResumo {
   renovaEm: string;
   teste?: boolean;
   testeNegado?: string | null;
+  /** leads de bônus por indicação, gastos depois da cota do plano */
+  bonus?: number;
 }
 
 /**
  * O aviso do teste grátis: quanto falta, e depois o pedido para assinar. Os
  * leads, o CRM e as propostas continuam acessíveis; só a coleta para.
  */
-function AvisoTeste({ usados, limite, negado }: { usados: number; limite: number; negado: string | null }) {
-  const acabou = Boolean(negado) || usados >= limite;
+function AvisoTeste({ usados, limite, negado, bonus = 0 }: { usados: number; limite: number; negado: string | null; bonus?: number }) {
+  // com bônus de indicação a coleta continua, mesmo com o teste no fim
+  const acabou = bonus <= 0 && (Boolean(negado) || usados >= limite);
   return (
     <div
       role={acabou ? 'alert' : undefined}
@@ -244,7 +289,8 @@ function AvisoTeste({ usados, limite, negado }: { usados: number; limite: number
           </>
         ) : (
           <>
-            <b>Teste grátis:</b> {usados} de {limite} leads usados. {limite - usados === 1 ? 'Resta 1.' : `Restam ${limite - usados}.`}
+            <b>Teste grátis:</b> {negado ? 'já usado em outra conta.' : <>{Math.min(usados, limite)} de {limite} leads usados. {limite - usados === 1 ? 'Resta 1.' : limite - usados > 1 ? `Restam ${limite - usados}.` : ''}</>}
+            {bonus > 0 && <> Você tem mais <b className="tabular-nums">{bonus} leads de bônus</b> por indicação.</>}
           </>
         )}
       </span>
@@ -321,7 +367,16 @@ export default function Painel({
   cota: cotaInicial,
   buscaGoogle = false,
   vencimento = null,
+  passos = null,
+  lembretesHoje = 0,
+  planoEscolhido = null,
 }: {
+  /** o plano clicado na página de venda, enquanto a conta ainda está no teste */
+  planoEscolhido?: 'semanal' | 'basic' | 'pro' | null;
+  /** guia de primeiros passos; null quando já foi feito ou escondido */
+  passos?: Passo[] | null;
+  /** lembretes do CRM que vencem hoje ou já passaram */
+  lembretesHoje?: number;
   /** aviso de plano vencendo ou vencido (lib/pagamento) */
   vencimento?: AvisoVencimento | null;
   usuario: string;
@@ -366,6 +421,7 @@ export default function Painel({
   const [promptDe, setPromptDe] = useState<Lead | null>(null);
   const [variantePrompt, setVariantePrompt] = useState<Variante>('abordagem');
   const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
+  const [ficha, setFicha] = useState<{ id: string; aba: 'whatsapp' | 'lembrete' | 'historico' } | null>(null);
   const [cadastrando, setCadastrando] = useState(false);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
@@ -773,11 +829,26 @@ export default function Painel({
             </div>
           </header>
 
+          {passos && <PrimeirosPassos passos={passos} />}
+
           {/* ------------------------------------------------- avisos */}
           <div className="mt-6 space-y-3 empty:hidden">
             {vencimento && <AvisoDeVencimento aviso={vencimento} />}
+            {planoEscolhido && <AvisoPlanoEscolhido plano={planoEscolhido} />}
+            {lembretesHoje > 0 && (
+              <a
+                href="/crm#para-hoje"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-5 py-3.5 text-[13.5px] font-semibold ring-2 ring-inset ring-tinta transition-colors hover:bg-zinc-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Bell aria-hidden className="h-4 w-4" />
+                  {lembretesHoje === 1 ? 'Você tem 1 lembrete para hoje.' : `Você tem ${lembretesHoje} lembretes para hoje.`}
+                </span>
+                <span className="font-bold underline underline-offset-2">Ver no CRM</span>
+              </a>
+            )}
             {!cota.ilimitado && cota.teste && vencimento?.tipo !== 'venceu' && (
-              <AvisoTeste usados={cota.usados} limite={cota.limite} negado={cota.testeNegado ?? null} />
+              <AvisoTeste usados={cota.usados} limite={cota.limite} negado={cota.testeNegado ?? null} bonus={cota.bonus ?? 0} />
             )}
             {!cota.ilimitado && !cota.teste && (
               <div
@@ -788,13 +859,13 @@ export default function Painel({
                 <span>
                   {cota.usados >= cota.limite ? (
                     <>
-                      <b>Você usou os {cota.limite} leads novos desta semana do plano {NOME_DO_PLANO[plano]}.</b> A extensão volta a coletar{' '}
-                      {renovaTexto}. Para coletar mais, veja os planos.
+                      <b>Você usou os {cota.limite} leads novos desta semana do plano {NOME_DO_PLANO[plano]}.</b> A cota volta{' '}
+                      {renovaTexto}.{(cota.bonus ?? 0) > 0 ? <> Até lá, a coleta usa os seus <b className="tabular-nums">{cota.bonus} leads de bônus</b>.</> : ' Para coletar mais, veja os planos.'}
                     </>
                   ) : (
                     <>
                       <b>Plano {NOME_DO_PLANO[plano]}:</b> {cota.usados} de {cota.limite} leads novos usados nesta semana. Renova{' '}
-                      {renovaTexto}.
+                      {renovaTexto}.{(cota.bonus ?? 0) > 0 && <> E mais <b className="tabular-nums">{cota.bonus} de bônus</b> por indicação.</>}
                     </>
                   )}
                 </span>
@@ -1046,6 +1117,7 @@ export default function Painel({
                   onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
                   onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                   onProposta={() => setPropostaDe(lead)}
+                  onFicha={(aba) => setFicha({ id: lead.id, aba })}
                   onNota={() => { setNotaAberta(lead.id); setRascunho(lead.notes || ''); }}
                   editandoNota={notaAberta === lead.id}
                   rascunho={rascunho}
@@ -1102,6 +1174,19 @@ export default function Painel({
                                 <div className="mt-1.5">
                                   <SeloProposta abertaEm={lead.propostaAbertaEm} aberturas={lead.propostaAberturas} primeiraEm={lead.propostaPrimeiraEm} />
                                 </div>
+                              )}
+                              {lead.lembreteEm && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFicha({ id: lead.id, aba: 'lembrete' })}
+                                  title={lead.lembreteTexto || 'Lembrete'}
+                                  className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-inset ${
+                                    new Date(lead.lembreteEm).getTime() < Date.now() ? 'bg-tinta text-white ring-tinta' : 'bg-white text-tinta ring-zinc-300'
+                                  }`}
+                                >
+                                  <Bell aria-hidden className="h-3 w-3" />
+                                  {new Date(lead.lembreteEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                </button>
                               )}
                               {notaAberta === lead.id ? (
                                 <div className="mt-2">
@@ -1181,16 +1266,16 @@ export default function Painel({
                                 </button>
                               )}
                               {zap && (
-                                <a
-                                  href={zap}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => setFicha({ id: lead.id, aba: 'whatsapp' })}
+                                  title="Abre a mensagem pronta para este comércio"
                                   className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-bold text-tinta transition-colors hover:border-zinc-400"
                                 >
                                   <MessageCircle aria-hidden className="h-3 w-3" />
                                   WhatsApp
                                   {lead.whatsappFonte === 'link' && <span className="font-semibold text-emerald-700">· confirmado</span>}
-                                </a>
+                                </button>
                               )}
                               {!zap && lead.telefoneTipo === 'fixo' && (
                                 <span className="text-[11px] font-semibold text-zinc-400">fixo · sem WhatsApp</span>
@@ -1295,6 +1380,12 @@ export default function Painel({
                             >
                               PROPOSTA
                             </Acao>
+                            <Acao
+                              onClick={() => setFicha({ id: lead.id, aba: 'historico' })}
+                              titulo="Mensagem do WhatsApp, lembrete e histórico deste lead"
+                            >
+                              FICHA
+                            </Acao>
                           </div>
                           <div className="mt-2 flex w-[190px] items-center gap-3 px-1">
                             {lead.mapsUrl && (
@@ -1398,6 +1489,10 @@ export default function Painel({
 
       {cadastrando && (
         <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
+      )}
+
+      {ficha && (
+        <FichaLead key={ficha.id + ficha.aba} leadId={ficha.id} abaInicial={ficha.aba} aoFechar={() => setFicha(null)} aoMudar={carregar} />
       )}
 
       {/* ---------------------------- confirmar exclusão em lote */}

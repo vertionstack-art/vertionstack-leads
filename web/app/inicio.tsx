@@ -358,7 +358,7 @@ export default function Inicio() {
                     </ul>
                     <div className="mt-auto pt-8">
                       <Link
-                        href="/cadastro"
+                        href={gratis ? '/cadastro' : `/cadastro?plano=${p.plano}`}
                         className={`flex min-h-[44px] items-center justify-center rounded-full text-[13.5px] font-bold transition-colors ${
                           escuro
                             ? 'bg-ceu text-tinta hover:bg-white'

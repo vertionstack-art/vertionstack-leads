@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { sessaoAtual } from '@/lib/conta';
 import PainelPerfil from './painel-perfil';
 import { lerFoto } from '@/lib/perfil';
+import Indique from './indique';
+import { BONUS_BUSCAS, BONUS_LEADS, resumoDaIndicacao } from '@/lib/indicacao';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,7 @@ export default async function PaginaPerfil() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
   const foto = await lerFoto(sessao.contaId, sessao.userId);
+  const indicacao = await resumoDaIndicacao(sessao.contaId);
 
   return (
     <div className="min-h-screen px-3 py-3">
@@ -28,6 +31,7 @@ export default async function PaginaPerfil() {
             Voltar ao painel
           </Link>
         </header>
+        <Indique resumo={indicacao} bonusLeads={BONUS_LEADS} bonusBuscas={BONUS_BUSCAS} />
         <PainelPerfil fotoInicial={foto} />
         <p className="mt-10 text-center text-[12px] font-medium text-zinc-500">
           <a href="/termos" className="hover:text-tinta hover:underline">Termos de uso</a>

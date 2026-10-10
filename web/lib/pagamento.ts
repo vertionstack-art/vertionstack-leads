@@ -13,6 +13,7 @@
 
 import Stripe from 'stripe';
 import { db } from './sql';
+import { creditarIndicacao } from './indicacao';
 import { DIAS_DO_PLANO, PLANOS_A_VENDA } from './planos';
 
 export type PlanoPago = 'semanal' | 'basic' | 'pro';
@@ -204,6 +205,7 @@ async function liberarAvulso(contaId: string, plano: PlanoPago, forma: Forma): P
       forma_pagamento = case when stripe_assinatura_id is null then ${forma} else forma_pagamento end
     where id = ${contaId}
   `;
+  await creditarIndicacao(contaId);
 }
 
 /**
@@ -241,6 +243,7 @@ async function sincronizarAssinatura(sub: Stripe.Subscription, pagouAgora: boole
         pagamento_falhou = false
       where id = ${contaId}
     `;
+    await creditarIndicacao(contaId);
   } else {
     // troca de plano no portal ou cancelamento agendado: muda o plano, não a validade
     await sql`

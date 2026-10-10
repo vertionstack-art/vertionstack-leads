@@ -8,10 +8,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  const corpo = (await req.json().catch(() => ({}))) as { nome?: string; email?: string; senha?: string; aceite?: string };
+  const corpo = (await req.json().catch(() => ({}))) as { nome?: string; email?: string; senha?: string; aceite?: string; plano?: string; convite?: string };
   const email = emailValido(corpo.email);
   const nome = String(corpo.nome || '').trim().slice(0, 60);
   const senha = String(corpo.senha || '');
+  const planoEscolhido = ['semanal', 'basic', 'pro'].includes(String(corpo.plano)) ? String(corpo.plano) : null;
+  // o convite chega pela URL do cadastro ou pelo cookie que o link de convite deixou (proxy.ts)
+  const conviteBruto = String(corpo.convite || '').toLowerCase() || (req.headers.get('cookie')?.match(/(?:^|;\s*)vl_convite=([a-z0-9]{6,12})/)?.[1] ?? '');
+  const convite = /^[a-z0-9]{6,12}$/.test(conviteBruto) ? conviteBruto : null;
 
   // cadastro é a porta preferida de robô: 5 por IP por hora
   const barrado = await barrarSePreciso(req, 'cadastro', email, { porIp: 5, porEmail: 3, janelaSegundos: 60 * 60 });
@@ -29,7 +33,13 @@ export async function POST(req: Request) {
     password: senha,
     options: {
       // qual versão dos Termos e da Política a pessoa aceitou, e quando (prova do aceite)
-      data: { nome, termos_versao: VERSAO_TERMOS, termos_aceitos_em: new Date().toISOString() },
+      data: {
+        nome,
+        termos_versao: VERSAO_TERMOS,
+        termos_aceitos_em: new Date().toISOString(),
+        ...(planoEscolhido ? { plano_escolhido: planoEscolhido } : {}),
+        ...(convite ? { convite } : {}),
+      },
       emailRedirectTo: `${origemDoSite(req)}/auth/confirmar`,
     },
   });

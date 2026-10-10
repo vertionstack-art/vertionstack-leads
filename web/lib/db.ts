@@ -15,6 +15,7 @@ import type { SiteStatus } from './verificar-site';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { db, json, temBanco } from './sql';
 import { numeroWhatsapp, tipoDoTelefone, type TipoTelefone } from './telefone';
+import { registrarEvento, rotuloDoStatus } from './eventos';
 
 export { temBanco };
 
@@ -97,6 +98,9 @@ export interface Lead {
   propostaPrimeiraEm: string | null;
   propostaAbertaEm: string | null;
   propostaAberturas: number;
+  /** "ligar dia 12": quando lembrar de voltar a este lead, e o quê */
+  lembreteEm: string | null;
+  lembreteTexto: string | null;
   /**
    * Caminho público da proposta. Não existe no banco: a rota calcula na
    * hora, porque o token depende de um segredo que só o servidor tem.
@@ -203,6 +207,8 @@ export function normalizarLead(
     propostaPrimeiraEm: null,
     propostaAbertaEm: null,
     propostaAberturas: 0,
+    lembreteEm: null,
+    lembreteTexto: null,
     createdAt: agora,
     updatedAt: agora,
   };
@@ -249,6 +255,8 @@ export function daLinha(r: any): Lead {
     propostaPrimeiraEm: r.proposta_primeira_em ? new Date(r.proposta_primeira_em).toISOString() : null,
     propostaAbertaEm: r.proposta_aberta_em ? new Date(r.proposta_aberta_em).toISOString() : null,
     propostaAberturas: Number(r.proposta_aberturas) || 0,
+    lembreteEm: r.lembrete_em ? new Date(r.lembrete_em).toISOString() : null,
+    lembreteTexto: r.lembrete_texto ?? null,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -361,6 +369,7 @@ export async function atualizarLead(
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
+  const [antes] = await db()`select status, notes, proposta, previa_url from leads where conta_id = ${conta} and id = ${id}`;
   const linhas = await db()`
     update leads set
       status      = coalesce(${patch.status ?? null}, status),
@@ -386,7 +395,36 @@ export async function atualizarLead(
   `;
   if (!linhas.length) return null;
   if (patch.status) await acompanharNoFunil(conta, id, patch.status);
-  return daLinha(linhas[0]);
+  const depois = daLinha(linhas[0]);
+  if (antes) await anotarMudancas(conta, id, antes, depois, patch, quem ?? null);
+  return depois;
+}
+
+/** o que mudou vira linha no histórico da ficha (lib/eventos) */
+async function anotarMudancas(
+  conta: string,
+  id: string,
+  antes: Record<string, any>,
+  depois: Lead,
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null },
+  quem: string | null,
+): Promise<void> {
+  if (patch.status && antes.status !== depois.status) {
+    await registrarEvento(conta, id, 'status', `${rotuloDoStatus(antes.status)} → ${rotuloDoStatus(depois.status)}`, quem);
+  }
+  if (patch.notes !== undefined && (antes.notes || '') !== (depois.notes || '')) {
+    await registrarEvento(conta, id, 'nota', depois.notes ? `Anotação: “${depois.notes.slice(0, 160)}”` : 'Anotação apagada', quem);
+  }
+  if (patch.proposta !== undefined && patch.proposta) {
+    const velha = (antes.proposta && typeof antes.proposta === 'object' ? antes.proposta : null) as Record<string, unknown> | null;
+    const nova = depois.proposta as Record<string, unknown> | null;
+    if (nova?.fechado && !velha?.fechado) await registrarEvento(conta, id, 'proposta_fechada', 'Cliente fechou a proposta', quem);
+    else if (!velha) await registrarEvento(conta, id, 'proposta', 'Proposta montada', quem);
+    else if (JSON.stringify(velha) !== JSON.stringify(nova)) await registrarEvento(conta, id, 'proposta', 'Proposta atualizada', quem);
+  }
+  if (patch.previaUrl !== undefined && patch.previaUrl && patch.previaUrl !== antes.previa_url) {
+    await registrarEvento(conta, id, 'previa', 'Prévia do site publicada', quem);
+  }
 }
 
 /**
@@ -428,14 +466,22 @@ async function acompanharNoFunil(conta: string, id: string, status: Status): Pro
  * "abriu de novo". A data da última abertura sempre atualiza.
  */
 export async function marcarPropostaAberta(conta: string, id: string): Promise<void> {
-  await db()`
+  const r = await db()`
     update leads set
       proposta_aberturas = proposta_aberturas + case
         when proposta_aberta_em is null or proposta_aberta_em < now() - interval '30 minutes' then 1 else 0 end,
       proposta_primeira_em = coalesce(proposta_primeira_em, now()),
       proposta_aberta_em = now()
     where conta_id = ${conta} and id = ${id}
+    returning proposta_aberturas, (proposta_aberta_em = proposta_primeira_em) as primeira
   `;
+  // no histórico, uma linha por abertura que contou (não a cada recarregar)
+  if (r.length) {
+    const n = Number(r[0].proposta_aberturas) || 0;
+    const [ult] = await db()`select detalhe from lead_eventos where conta_id = ${conta} and lead_id = ${id} and tipo = 'proposta_aberta' order by id desc limit 1`;
+    const texto = n <= 1 ? 'Cliente abriu a proposta' : `Cliente abriu a proposta de novo (${n}ª vez)`;
+    if (!ult || ult.detalhe !== texto) await registrarEvento(conta, id, 'proposta_aberta', texto, null);
+  }
 }
 
 /**

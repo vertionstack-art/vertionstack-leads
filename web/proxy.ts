@@ -13,7 +13,7 @@ import { createServerClient } from '@supabase/ssr';
 import { caminhoCentral } from '@/lib/caminho-central';
 import { aparelhoLiberado, COOKIE_APARELHO, DIAS_APARELHO, emailEhAdmin, liberacaoValida, tokenDoAparelho } from '@/lib/guarda-central';
 
-const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade'];
+const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade', '/opengraph-image'];
 
 /**
  * O rastro do navegador para a trava do teste grátis (lib/teste): um id
@@ -33,7 +33,30 @@ function comRastro(req: NextRequest, novo: string | null, r: NextResponse): Next
   return r;
 }
 
+/**
+ * Link de convite (leads.vertionstack.com/?convite=abc123): o código fica num
+ * cookie por 30 dias, para valer mesmo que a pessoa navegue pela página de
+ * venda antes de criar a conta (lib/indicacao).
+ */
+function comConvite(req: NextRequest, r: NextResponse): NextResponse {
+  const c = (req.nextUrl.searchParams.get('convite') || '').toLowerCase();
+  if (/^[a-z0-9]{6,12}$/.test(c)) {
+    r.cookies.set('vl_convite', c, {
+      httpOnly: true,
+      secure: req.nextUrl.protocol === 'https:',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  }
+  return r;
+}
+
 export async function proxy(req: NextRequest) {
+  return comConvite(req, await proxyDaSessao(req));
+}
+
+async function proxyDaSessao(req: NextRequest) {
   const novoRastro = req.cookies.get('vl_disp') ? null : crypto.randomUUID();
   if (novoRastro) req.cookies.set('vl_disp', novoRastro);
   let resposta = NextResponse.next({ request: req });
