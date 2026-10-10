@@ -56,7 +56,8 @@ function reputacao(d: DadosMensagem): string | null {
 
 export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
   const eu = primeiroNome(r.nome || '') || 'eu';
-  const apresentacao = r.empresa ? `Aqui é ${eu}, da ${r.empresa}.` : `Aqui é ${eu}, trabalho com criação de sites.`;
+  // sem "da"/"do": não dá para saber o gênero do nome da empresa
+  const apresentacao = r.empresa ? `Aqui é ${eu}, do time ${r.empresa}.` : `Aqui é ${eu}, trabalho com criação de sites.`;
   const rep = reputacao(d);
   const ramo = (d.category || 'o serviço de vocês').toLowerCase();
   const onde = d.city ? ` em ${d.city}` : '';

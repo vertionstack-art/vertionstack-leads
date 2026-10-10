@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Check, Eye, Flame, Plus, Search, Snowflake, Sun } from 'lucide-react';
 import Oportunidades from './inicio-oportunidades';
 import ContaDoSite from './inicio-conta';
+import PrintsDaFerramenta from './inicio-prints';
 import { LIMITES, PLANOS_A_VENDA, reais } from '@/lib/planos';
 import { responsavel } from '@/lib/legal';
 import { PISO_ABSOLUTO } from '@/lib/proposta';
@@ -267,6 +268,8 @@ export default function Inicio() {
               />
             </div>
           </section>
+
+          <PrintsDaFerramenta />
 
           {/* do lead ao dinheiro */}
           <section id="como-funciona" className="scroll-mt-4 border-t border-zinc-200 px-5 py-16 md:px-9 md:py-24" aria-labelledby="t-como">

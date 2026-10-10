@@ -178,7 +178,7 @@ export default function FichaLead({
       role="tab"
       aria-selected={aba === a}
       onClick={() => { setAba(a); setAviso(null); }}
-      className={`inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-4 text-[13px] font-bold transition-colors ${
+      className={`inline-flex min-h-[40px] items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-bold transition-colors sm:px-4 ${
         aba === a ? 'bg-tinta text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-tinta'
       }`}
     >
@@ -213,7 +213,7 @@ export default function FichaLead({
 
         <div role="tablist" className="flex gap-1 border-b border-zinc-200 px-5 pb-3">
           {abaBotao('whatsapp', 'WhatsApp', MessageCircle)}
-          {abaBotao('lembrete', lead?.lembreteEm ? 'Lembrete ·1' : 'Lembrete', Bell)}
+          {abaBotao('lembrete', lead?.lembreteEm ? 'Lembrete (1)' : 'Lembrete', Bell)}
           {abaBotao('historico', 'Histórico', History)}
         </div>
 
