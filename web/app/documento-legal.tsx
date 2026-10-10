@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Logo from './logo';
 
 /** a moldura das páginas de Termos e Privacidade: folha branca, texto confortável de ler */
 export function DocumentoLegal({
@@ -15,7 +16,7 @@ export function DocumentoLegal({
       <article className="mx-auto max-w-[820px] rounded-[var(--radius-folha)] bg-white px-6 pb-14 pt-8 md:px-12">
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 pb-6">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-tinta text-[18px] font-extrabold text-white">V</span>
+            <Logo tamanho={40} />
             <div>
               <h1 className="text-[26px] font-extrabold leading-none tracking-[-0.03em] md:text-[30px]">{titulo}</h1>
               <p className="mt-1.5 text-[12.5px] font-medium text-zinc-500">Vertion Leads · atualizado em {atualizado}</p>

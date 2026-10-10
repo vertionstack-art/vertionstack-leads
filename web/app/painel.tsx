@@ -17,6 +17,7 @@ import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
 import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
+import Logo from './logo';
 
 // --------------------------------------------------------- constantes
 
@@ -623,9 +624,7 @@ export default function Painel({
         className="group/trilho fixed inset-y-3 left-3 z-40 hidden w-[80px] flex-col overflow-hidden rounded-[26px] bg-tinta px-4 py-5 transition-[width,box-shadow] duration-200 ease-out hover:w-[224px] hover:shadow-[0_18px_50px_rgba(11,11,15,0.28)] focus-within:w-[224px] motion-reduce:transition-none md:flex"
       >
         <div className="mb-8 flex items-center">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-roxo-200 text-[20px] font-extrabold text-tinta">
-            V
-          </span>
+          <Logo tamanho={48} emQuadro />
           <span className="ml-3 whitespace-nowrap text-[15px] font-extrabold tracking-[-0.01em] text-white opacity-0 transition-opacity duration-200 group-hover/trilho:opacity-100 group-focus-within/trilho:opacity-100">
             Vertion Leads
           </span>

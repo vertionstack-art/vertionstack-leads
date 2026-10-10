@@ -195,11 +195,14 @@ This world replaces the gray SaaS admin with a toolbar of equal buttons. Actions
 
 A white-purple-black brand palette set on a cool lavender floor, with five pastel fields that each mean one thing.
 
+### Logo
+- The Vertion mark: two stacked #8f00ff chevrons (`web/public/logo.png`, component `web/app/logo.tsx`). Loose on light surfaces; inside a white 16px-radius tile on tinta (rail, login card). Its own purple is never used as a UI color. Favicon and app icons are generated from it (`app/icon.png`, `app/apple-icon.png`, `app/favicon.ico`).
+
 ### Primary
 - **Ink Black** (tinta): the action color. Primary buttons, toggled filter pills, the selected temperature card ring, row actions once done, the rail, the dark action card, the table monograms. Hover deepens to **Ink 70** (tinta-70) on black buttons.
 
 ### Secondary
-- **Vertion Purple ramp** (roxo-50 to roxo-900): brand and selection. roxo-200 fills the "V" brand tile and the user avatar and is the text-selection color; roxo-600 is the global focus outline (2px, 2px offset); roxo-500/600 borders and roxo-50 fills mark the chosen option inside form choice groups; roxo-600 / roxo-400 / roxo-200 are three steps of the presence-digital bar.
+- **Vertion Purple ramp** (roxo-50 to roxo-900): brand and selection. roxo-200 fills the user avatar and is the text-selection color; roxo-600 is the global focus outline (2px, 2px offset); roxo-500/600 borders and roxo-50 fills mark the chosen option inside form choice groups; roxo-600 / roxo-400 / roxo-200 are three steps of the presence-digital bar.
 
 ### Tertiary (pastel fields)
 - **Pale Sky** (ceu): the opportunities summary card only.
@@ -310,7 +313,7 @@ Small pills in a two-column grid at the end of each table row (CONTACT, COPY, DE
 - **Choice groups (briefing, proposal):** pill or rounded options; the chosen one gets a roxo-500/600 border and roxo-50 fill.
 
 ### Navigation
-- **Rail:** tinta, 80px wide, 26px radius. The roxo-200 "V" tile at top, then 48px icon buttons (16px radius) in white/55; hover white/8 fill; active white/12 fill with full-white icon. Tooltips slide in from the right as small ink pills.
+- **Rail:** tinta, 80px wide, 26px radius. The logo (public/logo.png, the two #8f00ff chevrons, via app/logo.tsx) in a 48px white 16px-radius tile at top, then 48px icon buttons (16px radius) in white/55; hover white/8 fill; active white/12 fill with full-white icon. Tooltips slide in from the right as small ink pills.
 - **Mobile:** the same items in a floating tinta bottom bar with icon over a small label.
 
 ### Modals

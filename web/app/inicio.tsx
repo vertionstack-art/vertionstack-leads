@@ -5,6 +5,7 @@ import ContaDoSite from './inicio-conta';
 import { LIMITES, PLANOS_A_VENDA, reais } from '@/lib/planos';
 import { responsavel } from '@/lib/legal';
 import { PISO_ABSOLUTO } from '@/lib/proposta';
+import Logo from './logo';
 
 /**
  * A página de venda: o que quem não está logado vê no endereço principal.
@@ -24,7 +25,7 @@ const pilulaPreta =
 function Marca() {
   return (
     <Link href="/" className="flex items-center gap-2.5" aria-label="Vertion Leads, início">
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-roxo-200 text-[17px] font-extrabold text-tinta">V</span>
+      <Logo tamanho={34} />
       <span className="text-[15px] font-extrabold tracking-[-0.01em]">Vertion Leads</span>
     </Link>
   );
