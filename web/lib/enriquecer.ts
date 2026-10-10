@@ -17,6 +17,7 @@ import { lookup } from 'node:dns/promises';
 import type { Lead } from './db';
 import { lerPagina } from './verificar-site';
 import { numeroWhatsapp, whatsappsNoTexto } from './telefone';
+import { emailNoTexto } from './email-lead';
 
 export type MotivoDescarte = 'empresa_grande' | 'site_proprio' | 'sem_contato' | 'sem_whatsapp';
 
@@ -25,6 +26,8 @@ export interface Avaliacao {
   /** WhatsApp achado num link da própria empresa */
   whatsappLink: string | null;
   instagram: string | null;
+  /** e-mail escrito no site ou no Linktree do comércio */
+  email: string | null;
 }
 
 const EMPRESA_GRANDE = /(\bS\.?\s?\/?\s?A\.?$|\bS\/A\b|\bS\.A\.|\bholding\b|\bgrupo\b|\bmultinacional\b|\bincorporadora\b)/i;
@@ -67,22 +70,23 @@ function hostDe(url: string): string | null {
 }
 
 /** procura WhatsApp e Instagram no link que o Google trouxe no lugar do site */
-async function seguirLink(site: string): Promise<{ whatsapp: string | null; instagram: string | null }> {
+async function seguirLink(site: string): Promise<{ whatsapp: string | null; instagram: string | null; email: string | null }> {
   const host = hostDe(site);
-  if (!host) return { whatsapp: null, instagram: null };
+  if (!host) return { whatsapp: null, instagram: null, email: null };
   const direto = whatsappsNoTexto(site)[0] || null;
-  if (direto) return { whatsapp: direto, instagram: null };
+  if (direto) return { whatsapp: direto, instagram: null, email: null };
   const ig = site.match(INSTAGRAM);
   // rede social não abre para quem não está logado: guarda o perfil e para aqui
-  if (REDE_SOCIAL.test(host)) return { whatsapp: null, instagram: ig ? `https://instagram.com/${ig[1]}` : null };
+  if (REDE_SOCIAL.test(host)) return { whatsapp: null, instagram: ig ? `https://instagram.com/${ig[1]}` : null, email: null };
 
   const pagina = await lerPagina(site, 6000);
-  if (!pagina) return { whatsapp: null, instagram: null };
+  if (!pagina) return { whatsapp: null, instagram: null, email: null };
   const texto = pagina.url + ' ' + pagina.html;
   const insta = texto.match(INSTAGRAM);
   return {
     whatsapp: whatsappsNoTexto(texto)[0] || null,
     instagram: insta ? `https://instagram.com/${insta[1]}` : null,
+    email: emailNoTexto(pagina.html),
   };
 }
 
@@ -118,12 +122,12 @@ async function temSiteEscondido(nome: string): Promise<boolean> {
 }
 
 export async function avaliarLead(lead: Lead, soComWhatsapp: boolean): Promise<Avaliacao> {
-  const fora = (descarte: MotivoDescarte): Avaliacao => ({ descarte, whatsappLink: null, instagram: null });
+  const fora = (descarte: MotivoDescarte): Avaliacao => ({ descarte, whatsappLink: null, instagram: null, email: null });
 
   if (EMPRESA_GRANDE.test(lead.name.trim())) return fora('empresa_grande');
 
   const [link, escondido] = await Promise.all([
-    lead.website ? seguirLink(lead.website) : Promise.resolve({ whatsapp: null, instagram: null }),
+    lead.website ? seguirLink(lead.website) : Promise.resolve({ whatsapp: null, instagram: null, email: null }),
     lead.website ? Promise.resolve(false) : temSiteEscondido(lead.name).catch(() => false),
   ]);
   if (escondido) return fora('site_proprio');
@@ -134,7 +138,7 @@ export async function avaliarLead(lead: Lead, soComWhatsapp: boolean): Promise<A
 
   if (!lead.phone && !temWhatsapp && !instagram && !lead.website) return fora('sem_contato');
   if (soComWhatsapp && !temWhatsapp) return fora('sem_whatsapp');
-  return { descarte: null, whatsappLink, instagram };
+  return { descarte: null, whatsappLink, instagram, email: link.email };
 }
 
 /** aplica o que a avaliação achou no lead que vai ser gravado */
@@ -144,5 +148,6 @@ export function aplicarAvaliacao(lead: Lead, a: Avaliacao): Lead {
     whatsapp: a.whatsappLink || lead.whatsapp,
     whatsappFonte: a.whatsappLink ? 'link' : lead.whatsappFonte,
     instagram: a.instagram || lead.instagram,
+    email: lead.email || a.email,
   };
 }

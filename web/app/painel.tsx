@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Bell, Check, ChevronDown, Download, Flame, LayoutGrid, LogOut, MapPin,
-  Crown, Kanban, KeyRound, MessageCircle, Radar, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  AlertTriangle, Bell, Check, ChevronDown, Download, Upload, Flame, LayoutGrid, LogOut, MapPin,
+  Crown, Kanban, MessageCircle, Radar, Wallet, Plus, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import type { AvisoVencimento } from '@/lib/pagamento';
@@ -365,7 +365,6 @@ export default function Painel({
   foto,
   plano,
   cota: cotaInicial,
-  buscaGoogle = false,
   vencimento = null,
   passos = null,
   lembretesHoje = 0,
@@ -381,8 +380,6 @@ export default function Painel({
   vencimento?: AvisoVencimento | null;
   usuario: string;
   foto?: string | null;
-  /** a busca pelo Google está ligada: ela substitui a extensão nos atalhos */
-  buscaGoogle?: boolean;
   plano: Plano;
   bloqueada?: boolean;
   cota: CotaResumo;
@@ -517,12 +514,6 @@ export default function Painel({
       setTimeout(() => setProgressoVerif(null), 8000);
     }
   }
-
-  // recarrega sozinho enquanto a extensão está mandando dados
-  useEffect(() => {
-    const t = setInterval(carregar, 20000);
-    return () => clearInterval(t);
-  }, [carregar]);
 
   /*
    * Apagar é irreversível e não tem desfazer: o lead sai do banco e, se
@@ -662,11 +653,11 @@ export default function Painel({
         </button>
       )}
       <a
-        href={buscaGoogle ? '/buscar' : '/extensao'}
+        href="/buscar"
         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-white/30 px-3.5 text-[13px] font-bold text-white transition-colors hover:border-white"
       >
-        {buscaGoogle ? <Radar aria-hidden className="h-4 w-4" /> : <Puzzle aria-hidden className="h-4 w-4" />}
-        {buscaGoogle ? 'Buscar leads' : 'Extensão'}
+        <Radar aria-hidden className="h-4 w-4" />
+        Buscar leads
       </a>
     </div>
   </aside>
@@ -689,11 +680,9 @@ export default function Painel({
           <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
-          {buscaGoogle && (
-            <ItemTrilho rotulo="Buscar leads" href="/buscar">
-              <Radar className="h-5 w-5" strokeWidth={1.8} />
-            </ItemTrilho>
-          )}
+          <ItemTrilho rotulo="Buscar leads" href="/buscar">
+            <Radar className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
           <ItemTrilho rotulo="CRM" href="/crm">
             <Kanban className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -706,11 +695,9 @@ export default function Painel({
           <ItemTrilho rotulo="Planos" href="/planos">
             <Crown className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
-          {!buscaGoogle && (
-            <ItemTrilho rotulo="Extensão do Maps" href="/extensao">
-              <Puzzle className="h-5 w-5" strokeWidth={1.8} />
-            </ItemTrilho>
-          )}
+          <ItemTrilho rotulo="Importar planilha" href="/importar">
+            <Upload className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
           <ItemTrilho rotulo="Baixar CSV" href={'/api/leads/export?' + query}>
             <Download className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -735,9 +722,7 @@ export default function Painel({
       >
         {[
           { rotulo: 'Painel', Icone: LayoutGrid, acao: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-          buscaGoogle
-            ? { rotulo: 'Buscar', Icone: Radar, acao: () => (location.href = '/buscar') }
-            : { rotulo: 'Cadastrar', Icone: Plus, acao: () => setCadastrando(true) },
+          { rotulo: 'Buscar', Icone: Radar, acao: () => (location.href = '/buscar') },
         ].map(({ rotulo, Icone, acao }) => (
           <button key={rotulo} onClick={acao} className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
             <Icone className="h-5 w-5" strokeWidth={1.8} />
@@ -808,19 +793,12 @@ export default function Painel({
                   <a href="/financeiro" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Wallet aria-hidden className="h-4 w-4 text-zinc-500" /> Financeiro
                   </a>
-                  <a href="/conta" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
-                    <KeyRound aria-hidden className="h-4 w-4 text-zinc-500" /> Chave e plano
-                    <span className="ml-auto rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-bold text-zinc-600">{NOME_DO_PLANO[plano]}</span>
+                  <a href="/buscar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Radar aria-hidden className="h-4 w-4 text-zinc-500" /> Buscar leads
                   </a>
-                  {buscaGoogle ? (
-                    <a href="/buscar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
-                      <Radar aria-hidden className="h-4 w-4 text-zinc-500" /> Buscar leads
-                    </a>
-                  ) : (
-                    <a href="/extensao" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
-                      <Puzzle aria-hidden className="h-4 w-4 text-zinc-500" /> Extensão do Maps
-                    </a>
-                  )}
+                  <a href="/importar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <Upload aria-hidden className="h-4 w-4 text-zinc-500" /> Importar planilha
+                  </a>
                   <button onClick={sair} className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-semibold hover:bg-zinc-100">
                     <LogOut aria-hidden className="h-4 w-4 text-zinc-500" /> Sair
                   </button>
@@ -1245,6 +1223,15 @@ export default function Painel({
                               {'@' + lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}
                             </a>
                           )}
+                          {lead.email && (
+                            <a
+                              href={`mailto:${lead.email}`}
+                              title={lead.email}
+                              className="mt-1 block max-w-[220px] truncate text-[12px] text-zinc-500 hover:text-roxo-700 hover:underline"
+                            >
+                              {lead.email}
+                            </a>
+                          )}
                           {situacao && (
                             <div className={`mt-1 flex items-center gap-1 text-[11.5px] ${situacao.classe}`} title={lead.siteDetalhe || ''}>
                               {!situacao.bom && <AlertTriangle aria-hidden className="h-3.5 w-3.5" />}
@@ -1422,9 +1409,7 @@ export default function Painel({
                 <p className="mx-auto mt-2 max-w-md text-[13px] leading-relaxed text-zinc-600">
                   {resumo.total
                     ? 'Afrouxe os filtros acima para ver mais resultados.'
-                    : buscaGoogle
-                      ? 'Escolha os tipos de comércio e a cidade em Buscar leads. Os que não têm site aparecem aqui.'
-                      : 'Abra a extensão no Google Maps, escolha os tipos de comércio e a cidade, e clique em Iniciar coleta. Os resultados aparecem aqui sozinhos.'}
+                    : 'Escolha os tipos de comércio e a cidade em Buscar leads. Os que não têm site aparecem aqui.'}
                 </p>
                 <p className="mt-5 flex flex-wrap justify-center gap-2">
                   {resumo.total ? (
@@ -1433,8 +1418,8 @@ export default function Painel({
                     </button>
                   ) : (
                     <>
-                      <a href={buscaGoogle ? '/buscar' : '/extensao'} className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
-                        {buscaGoogle ? 'Buscar leads' : 'Baixar a extensão'}
+                      <a href="/buscar" className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
+                        Buscar leads
                       </a>
                       <button
                         onClick={() => setCadastrando(true)}

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Bell, BellOff, Check, Eye, FileText, Flag, History, MessageCircle, MoveRight, PencilLine, Phone, Sparkles, X,
+  Bell, BellOff, Check, Eye, FileText, Flag, History, Mail, MessageCircle, MoveRight, PencilLine, Phone, Save, Sparkles, Trash2, X,
 } from 'lucide-react';
-import { linkComTexto, mensagemPronta, type Remetente } from '@/lib/mensagem';
+import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
 
 /**
  * A ficha do lead: a mensagem do WhatsApp já escrita, o lembrete ("ligar dia
@@ -34,6 +34,13 @@ interface LeadFicha {
   lembreteEm: string | null;
   lembreteTexto: string | null;
   contatadoEm: string | null;
+  email: string | null;
+}
+
+interface Modelo {
+  id: string;
+  nome: string;
+  texto: string;
 }
 
 interface Evento {
@@ -48,6 +55,7 @@ interface Dados {
   lead: LeadFicha;
   eventos: Evento[];
   numero: string | null;
+  modelos: Modelo[];
   remetente: Remetente;
 }
 
@@ -102,6 +110,10 @@ export default function FichaLead({
   const [notaLembrete, setNotaLembrete] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // 'auto' = a mensagem montada pela ferramenta; senão, o id do modelo salvo
+  const [modelo, setModelo] = useState('auto');
+  const [nomeModelo, setNomeModelo] = useState<string | null>(null);
+  const [emailRascunho, setEmailRascunho] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     try {
@@ -146,6 +158,68 @@ export default function FichaLead({
       aoMudar?.();
     } catch {
       setAviso('O WhatsApp abriu, mas não consegui anotar no histórico.');
+    }
+  }
+
+  const dadosMsg = (d: Dados) => ({ ...d.lead, nome: d.lead.name });
+
+  function escolherModelo(id: string) {
+    if (!dados) return;
+    setModelo(id);
+    const m = dados.modelos.find((x) => x.id === id);
+    setTexto(m ? aplicarModelo(m.texto, dadosMsg(dados), dados.remetente) : mensagemPronta(dadosMsg(dados), dados.remetente));
+  }
+
+  async function salvarModelo() {
+    if (!dados || !nomeModelo?.trim()) return;
+    setSalvando(true);
+    try {
+      const r = await fetch('/api/modelos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeModelo.trim(), texto: virarModelo(texto, dadosMsg(dados), dados.remetente) }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erro);
+      setDados({ ...dados, modelos: [...dados.modelos, j.modelo] });
+      setModelo(j.modelo.id);
+      setNomeModelo(null);
+      setAviso(`Modelo "${j.modelo.nome}" salvo. Ele aparece aqui em todos os leads, já com os dados de cada um.`);
+    } catch (e) {
+      setAviso(e instanceof Error && e.message ? e.message : 'Não consegui salvar o modelo.');
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function apagarModeloAtual() {
+    if (!dados || modelo === 'auto') return;
+    const m = dados.modelos.find((x) => x.id === modelo);
+    if (!m || !window.confirm(`Apagar o modelo "${m.nome}"?`)) return;
+    await fetch(`/api/modelos?id=${m.id}`, { method: 'DELETE' }).catch(() => {});
+    setDados({ ...dados, modelos: dados.modelos.filter((x) => x.id !== m.id) });
+    setModelo('auto');
+    setTexto(mensagemPronta(dadosMsg(dados), dados.remetente));
+  }
+
+  async function salvarEmail() {
+    if (emailRascunho === null) return;
+    setSalvando(true);
+    try {
+      const r = await fetch(`/api/leads/${encodeURIComponent(leadId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailRascunho.trim() || null }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erro);
+      setEmailRascunho(null);
+      await carregar();
+      aoMudar?.();
+    } catch (e) {
+      setAviso(e instanceof Error && e.message ? e.message : 'Não consegui salvar o e-mail.');
+    } finally {
+      setSalvando(false);
     }
   }
 
@@ -205,6 +279,39 @@ export default function FichaLead({
                 {lead.phone && <> · {lead.phone}</>}
               </p>
             )}
+            {lead && emailRascunho === null && (
+              <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-zinc-600">
+                <Mail aria-hidden className="h-3.5 w-3.5 shrink-0" />
+                {lead.email ? (
+                  <a href={`mailto:${lead.email}`} className="truncate text-roxo-700 underline underline-offset-2">{lead.email}</a>
+                ) : (
+                  <span className="text-zinc-500">sem e-mail</span>
+                )}
+                <button type="button" onClick={() => setEmailRascunho(lead.email || '')} className="ml-1 font-bold text-zinc-500 hover:text-tinta">
+                  {lead.email ? 'editar' : 'adicionar'}
+                </button>
+              </p>
+            )}
+            {lead && emailRascunho !== null && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  type="email"
+                  autoFocus
+                  value={emailRascunho}
+                  onChange={(e) => setEmailRascunho(e.target.value.slice(0, 120))}
+                  onKeyDown={(e) => e.key === 'Enter' && salvarEmail()}
+                  placeholder="contato@comercio.com.br"
+                  aria-label="E-mail do comércio"
+                  className="min-h-[36px] w-[240px] max-w-full rounded-full border border-zinc-300 px-3.5 text-[13px] outline-none focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+                />
+                <button type="button" disabled={salvando} onClick={salvarEmail} className="min-h-[36px] rounded-full bg-tinta px-3.5 text-[12.5px] font-bold text-white hover:bg-tinta-70">
+                  Salvar
+                </button>
+                <button type="button" onClick={() => setEmailRascunho(null)} className="text-[12.5px] font-bold text-zinc-500 hover:text-tinta">
+                  Cancelar
+                </button>
+              </div>
+            )}
           </div>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-tinta">
             <X className="h-5 w-5" />
@@ -225,8 +332,28 @@ export default function FichaLead({
             <div>
               {dados.numero ? (
                 <>
-                  <label htmlFor="msg-zap" className="block text-[13px] font-bold">
-                    Mensagem pronta <span className="font-medium text-zinc-500">· edite à vontade antes de abrir</span>
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <label htmlFor="msg-modelo" className="text-[13px] font-bold">Mensagem</label>
+                    <select
+                      id="msg-modelo"
+                      value={modelo}
+                      onChange={(e) => escolherModelo(e.target.value)}
+                      className="min-h-[36px] max-w-[260px] cursor-pointer rounded-full border border-zinc-300 bg-white px-3.5 text-[13px] font-semibold outline-none focus:border-roxo-500"
+                    >
+                      <option value="auto">Automática (pelo motivo do lead)</option>
+                      {dados.modelos.map((m) => (
+                        <option key={m.id} value={m.id}>{m.nome}</option>
+                      ))}
+                    </select>
+                    {modelo !== 'auto' && (
+                      <button type="button" onClick={apagarModeloAtual} title="Apagar este modelo" className="rounded-full p-2 text-zinc-500 hover:bg-zinc-100 hover:text-red-700">
+                        <Trash2 aria-hidden className="h-4 w-4" />
+                        <span className="sr-only">Apagar este modelo</span>
+                      </button>
+                    )}
+                  </div>
+                  <label htmlFor="msg-zap" className="block text-[12.5px] font-medium text-zinc-500">
+                    Edite à vontade antes de abrir
                   </label>
                   <textarea
                     id="msg-zap"
@@ -247,12 +374,47 @@ export default function FichaLead({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setTexto(mensagemPronta({ ...dados.lead, nome: dados.lead.name }, dados.remetente))}
+                      onClick={() => escolherModelo(modelo)}
                       className="text-[12.5px] font-bold text-zinc-500 underline-offset-2 hover:text-tinta hover:underline"
                     >
                       Voltar ao texto original
                     </button>
+                    {nomeModelo === null && (
+                      <button
+                        type="button"
+                        onClick={() => setNomeModelo('')}
+                        className="inline-flex items-center gap-1 text-[12.5px] font-bold text-zinc-500 underline-offset-2 hover:text-tinta hover:underline"
+                      >
+                        <Save aria-hidden className="h-3.5 w-3.5" /> Salvar como modelo
+                      </button>
+                    )}
                   </div>
+                  {nomeModelo !== null && (
+                    <div className="mt-3 rounded-2xl bg-zinc-100 p-3.5">
+                      <label htmlFor="nome-modelo" className="block text-[12.5px] font-bold">Nome do modelo</label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <input
+                          id="nome-modelo"
+                          autoFocus
+                          value={nomeModelo}
+                          onChange={(e) => setNomeModelo(e.target.value.slice(0, 60))}
+                          onKeyDown={(e) => e.key === 'Enter' && salvarModelo()}
+                          placeholder="Ex.: Site fora do ar, curto"
+                          className="min-h-[38px] min-w-0 flex-1 rounded-full border border-zinc-300 bg-white px-3.5 text-[13px] outline-none focus:border-roxo-500"
+                        />
+                        <button type="button" disabled={salvando || !nomeModelo.trim()} onClick={salvarModelo} className="min-h-[38px] rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white hover:bg-tinta-70 disabled:bg-zinc-300">
+                          Salvar
+                        </button>
+                        <button type="button" onClick={() => setNomeModelo(null)} className="text-[12.5px] font-bold text-zinc-500 hover:text-tinta">
+                          Cancelar
+                        </button>
+                      </div>
+                      <p className="mt-2 text-[11.5px] leading-snug text-zinc-600">
+                        O nome deste comércio, a cidade, o ramo e o seu nome viram marcadores sozinhos: o modelo sai certo em qualquer lead.
+                        Marcadores que você pode digitar: {MARCADORES.map((m) => m.chave).join(' ')}.
+                      </p>
+                    </div>
+                  )}
                   <p className="mt-3 text-[12px] leading-relaxed text-zinc-500">
                     O WhatsApp abre com o texto preenchido e você aperta enviar. Fica anotado no histórico
                     {dados.lead.status === 'novo' ? ' e o lead passa para "Contatado"' : ''}.

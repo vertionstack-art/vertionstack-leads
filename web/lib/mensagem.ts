@@ -103,3 +103,74 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
 export function linkComTexto(numero: string, texto: string): string {
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
+
+// --------------------------------------------------- modelos salvos
+
+/** os marcadores que um modelo pode usar, com o que cada um vira */
+export const MARCADORES: { chave: string; rotulo: string }[] = [
+  { chave: '{comercio}', rotulo: 'nome do comércio' },
+  { chave: '{ramo}', rotulo: 'ramo' },
+  { chave: '{cidade}', rotulo: 'cidade' },
+  { chave: '{problema}', rotulo: 'o problema do site, em poucas palavras' },
+  { chave: '{avaliacoes}', rotulo: 'nota e avaliações no Google' },
+  { chave: '{previa}', rotulo: 'link da prévia' },
+  { chave: '{meu_nome}', rotulo: 'seu nome' },
+  { chave: '{empresa}', rotulo: 'sua empresa' },
+];
+
+/** "o site de vocês não está abrindo", "vocês só têm Instagram"... */
+export function problemaCurto(d: DadosMensagem): string {
+  switch (d.siteStatus) {
+    case 'fora_do_ar':
+    case 'nao_encontrado':
+      return 'o site de vocês não está abrindo';
+    case 'certificado_vencido':
+      return 'o site de vocês aparece com aviso de "não seguro"';
+    case 'em_construcao':
+      return 'o site de vocês está vazio, em construção';
+    case 'sem_https':
+      return 'o site de vocês aparece como "não seguro"';
+    case 'virou_social':
+      return 'o link de site no Google leva para uma rede social';
+  }
+  if (d.websiteKind === 'social') return 'vocês só têm rede social, sem site próprio';
+  if (d.websiteKind === 'marketplace') return `vocês dependem do ${plataforma(d.website)}`;
+  if (d.websiteKind === 'weak') return 'o site de vocês está num construtor gratuito';
+  return 'vocês ainda não têm site';
+}
+
+function valores(d: DadosMensagem, r: Remetente): Record<string, string> {
+  return {
+    '{comercio}': d.nome,
+    '{ramo}': (d.category || '').toLowerCase(),
+    '{cidade}': d.city || '',
+    '{problema}': problemaCurto(d),
+    '{avaliacoes}': d.rating && d.reviews ? `${d.rating.toFixed(1).replace('.', ',')} estrelas e ${d.reviews} avaliações` : '',
+    '{previa}': d.previaUrl || '',
+    '{meu_nome}': primeiroNome(r.nome || ''),
+    '{empresa}': r.empresa || '',
+  };
+}
+
+/** troca os marcadores do modelo pelos dados deste lead */
+export function aplicarModelo(modelo: string, d: DadosMensagem, r: Remetente): string {
+  let t = modelo;
+  for (const [k, v] of Object.entries(valores(d, r))) t = t.split(k).join(v);
+  return t.replace(/[ \t]+\n/g, '\n').replace(/ {2,}/g, ' ').trim();
+}
+
+/**
+ * Ao salvar como modelo, o que é deste lead vira marcador sozinho (o nome do
+ * comércio vira {comercio}, a cidade {cidade}...), para servir em qualquer
+ * outro lead sem a pessoa precisar saber de marcador.
+ */
+export function virarModelo(texto: string, d: DadosMensagem, r: Remetente): string {
+  const v = valores(d, r);
+  const trocas = (['{comercio}', '{previa}', '{avaliacoes}', '{problema}', '{empresa}', '{cidade}', '{meu_nome}', '{ramo}'] as const)
+    .map((k) => [k, v[k]] as const)
+    .filter(([, val]) => val && val.length >= 3)
+    .sort((a, b) => b[1].length - a[1].length);
+  let t = texto;
+  for (const [k, val] of trocas) t = t.split(val).join(k);
+  return t;
+}

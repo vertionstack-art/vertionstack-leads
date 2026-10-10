@@ -16,6 +16,7 @@ import { supabaseServidor } from '@/lib/supabase-server';
 import { sessaoAtual } from '@/lib/conta';
 import { origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
+import { alertarCentral } from '@/lib/alerta-central';
 import { aparelhoDoAdmin } from '@/lib/auth';
 import { ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import { codigoRecente } from '@/lib/guarda-central';
@@ -82,8 +83,10 @@ export async function POST(req: Request) {
     const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: fator, code: codigo });
     if (error) {
       await registrarAcesso(req, 'central-codigo', 'senha_errada', sessao.email);
+      await alertarCentral('codigo_errado', req, sessao.email);
       return erro('Código errado ou vencido. Use o número que está aparecendo agora no app.', 401);
     }
+    await alertarCentral('entrou', req, sessao.email);
     return NextResponse.json({ ok: true });
   }
 

@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { exigirAdmin, origemConfere, recusarOrigem } from '@/lib/auth';
 import { ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
+import { alertarCentral } from '@/lib/alerta-central';
 import { estourou } from '@/lib/limite';
 import { emailEhAdmin } from '@/lib/guarda-central';
 import { apagarPessoa } from '@/lib/central';
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
   // 1) a senha de novo
   if (!(await senhaConfere(admin.email, senha))) {
     await registrarAcesso(req, `central-apagar ${pessoa.email}`, 'senha_errada', admin.email);
+    await alertarCentral('apagar_errado', req, `senha errada ao apagar ${pessoa.email}`);
     return erro('Senha errada.', 401);
   }
 
@@ -71,6 +73,7 @@ export async function POST(req: Request) {
   const verificado = fator ? await supabase.auth.mfa.challengeAndVerify({ factorId: fator.id, code: codigo }) : null;
   if (!verificado || verificado.error) {
     await registrarAcesso(req, `central-apagar ${pessoa.email}`, 'chave_errada', admin.email);
+    await alertarCentral('apagar_errado', req, `código errado ao apagar ${pessoa.email}`);
     return erro('Código errado ou vencido. Use o número que está aparecendo agora no app.', 401);
   }
 

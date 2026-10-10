@@ -120,7 +120,6 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                         ? `${lim.buscas} buscas no Google nos 7 dias`
                         : `${lim.buscas} buscas no Google por mês`,
                     `até ${numero(lim.guardados)} leads guardados`,
-                    lim.aparelhos > 1 ? `extensão em ${lim.aparelhos} computadores` : "extensão em 1 computador",
                     lim.funis > 1 ? `CRM com até ${lim.funis} funis` : `CRM com 1 funil`,
                     'temperatura, prévia, copy, proposta e entrega',
                   ].map((item) => (

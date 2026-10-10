@@ -169,6 +169,14 @@ export default function LeadCard({
           <p className="col-span-2 text-center text-[12.5px] font-semibold tabular-nums text-zinc-500">
             {lead.phone}
             {lead.whatsappFonte === 'link' && <span className="text-emerald-700"> · WhatsApp confirmado no link da empresa</span>}
+            {lead.email && (
+              <>
+                <br />
+                <a href={`mailto:${lead.email}`} className="text-roxo-700 underline underline-offset-2">
+                  {lead.email}
+                </a>
+              </>
+            )}
           </p>
         </div>
       ) : (

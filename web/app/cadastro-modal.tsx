@@ -23,6 +23,7 @@ interface Campos {
   city: string;
   website: string;
   instagram: string;
+  email: string;
   mapsUrl: string;
   notes: string;
 }
@@ -35,6 +36,7 @@ const VAZIO: Campos = {
   city: '',
   website: '',
   instagram: '',
+  email: '',
   mapsUrl: '',
   notes: '',
 };
@@ -93,7 +95,9 @@ export default function CadastroModal({
               city: c.city.trim() || null,
               website: c.website.trim() || null,
               instagram: normalizarInstagram(c.instagram) || null,
+              email: c.email.trim() || null,
               mapsUrl: c.mapsUrl.trim() || null,
+              notes: c.notes.trim() || null,
               searchTerm: 'cadastro manual',
             },
           ],
@@ -188,6 +192,11 @@ export default function CadastroModal({
             <p className="mt-1 text-[11px] text-zinc-500">
               Pode colar só o @ — a ferramenta monta o endereço.
             </p>
+          </div>
+
+          <div className="mb-4">
+            <label className={rotulo} htmlFor="c-email">E-mail</label>
+            <input id="c-email" type="email" value={c.email} onChange={set('email')} className={campo} placeholder="contato@barbeariadoze.com.br" />
           </div>
 
           <div className="mb-4">

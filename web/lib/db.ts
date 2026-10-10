@@ -16,6 +16,7 @@ import { temperaturaDoLead, type Nivel } from './temperatura';
 import { db, json, temBanco } from './sql';
 import { numeroWhatsapp, tipoDoTelefone, type TipoTelefone } from './telefone';
 import { registrarEvento, rotuloDoStatus } from './eventos';
+import { emailValido } from './email-lead';
 
 export { temBanco };
 
@@ -51,6 +52,8 @@ export interface Lead {
   responsavel: string | null;
   /** perfil do Instagram, separado do site: muitos comércios têm um e não o outro */
   instagram: string | null;
+  /** e-mail do comércio (achado no site, digitado ou importado) */
+  email: string | null;
   /** o número para abrir no WhatsApp (55 + DDD + número) e de onde ele veio */
   whatsapp: string | null;
   whatsappFonte: 'link' | 'celular' | null;
@@ -74,13 +77,6 @@ export interface Lead {
    */
   cnpj: unknown | null;
   /**
-   * Está na fila de contato — o que o programa de disparo vai buscar.
-   *
-   * É separado do status de propósito: "quero mandar mensagem para esse"
-   * e "já mandei" são momentos diferentes, e misturar os dois faria o
-   * programa reenviar para quem acabou de responder.
-   */
-  /**
    * O que você preencheu à mão sobre o comércio para a prévia sair boa.
    *
    * O Maps entrega nome, telefone e endereço; o que faz a landing parecer
@@ -89,7 +85,6 @@ export interface Lead {
    * digitado uma vez.
    */
   briefing: unknown | null;
-  contato: boolean;
   /** quando a mensagem saiu de verdade; null enquanto não saiu */
   contatadoEm: string | null;
   /** a simulação de proposta montada para este lead */
@@ -187,8 +182,10 @@ export function normalizarLead(
     lng: num(cru.lng),
     hours: texto(cru.hours, 200),
     status: 'novo',
-    notes: null,
+    // anotação só vem do cadastro manual e da planilha; numa coleta repetida o update não mexe nela
+    notes: texto(cru.notes, 2000),
     instagram: link(cru.instagram, 300),
+    email: emailValido(cru.email),
     whatsapp: doLink || doCelular,
     whatsappFonte: doLink ? 'link' : doCelular ? 'celular' : null,
     telefoneTipo,
@@ -196,7 +193,6 @@ export function normalizarLead(
     previaUrl: link(cru.previaUrl, 500),
     cnpj: null,
     briefing: null,
-    contato: false,
     contatadoEm: null,
     siteStatus: null,
     siteDetalhe: null,
@@ -240,6 +236,7 @@ export function daLinha(r: any): Lead {
     siteDetalhe: r.site_detalhe,
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
     instagram: r.instagram,
+    email: r.email ?? null,
     whatsapp: r.whatsapp ?? null,
     whatsappFonte: r.whatsapp_fonte ?? null,
     telefoneTipo: r.telefone_tipo ?? null,
@@ -247,7 +244,6 @@ export function daLinha(r: any): Lead {
     previaUrl: r.previa_url,
     cnpj: json(r.cnpj),
     briefing: json(r.briefing),
-    contato: r.contato === true,
     contatadoEm: r.contatado_em ? new Date(r.contatado_em).toISOString() : null,
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
@@ -314,13 +310,13 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         conta_id, id, name, category, search_term, city, phone, address, website,
         website_kind, website_label, is_lead, rating, reviews, maps_url,
         lat, lng, hours, status, coletado_por, instagram, origem, notes,
-        whatsapp, whatsapp_fonte, telefone_tipo, updated_at
+        whatsapp, whatsapp_fonte, telefone_tipo, email, updated_at
       ) values (
         ${conta}, ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
         'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes},
-        ${l.whatsapp}, ${l.whatsappFonte}, ${l.telefoneTipo}, now()
+        ${l.whatsapp}, ${l.whatsappFonte}, ${l.telefoneTipo}, ${l.email}, now()
       )
       on conflict (conta_id, id) do update set
         name          = excluded.name,
@@ -347,6 +343,8 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         whatsapp_fonte = case when leads.whatsapp_fonte = 'link' and excluded.whatsapp_fonte is distinct from 'link'
                               then leads.whatsapp_fonte else coalesce(excluded.whatsapp_fonte, leads.whatsapp_fonte) end,
         telefone_tipo  = coalesce(excluded.telefone_tipo, leads.telefone_tipo),
+        -- o e-mail que a pessoa corrigiu à mão não é trocado por um achado depois
+        email          = coalesce(leads.email, excluded.email),
         updated_at    = now()
     `;
   }
@@ -365,7 +363,7 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
 export async function atualizarLead(
   conta: string,
   id: string,
-  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown },
+  patch: { status?: Status; notes?: string | null; proposta?: unknown; previaUrl?: string | null; cnpj?: unknown; briefing?: unknown; email?: string | null },
   quem?: string | null,
 ): Promise<Lead | null> {
   const soltar = patch.status === 'novo';
@@ -382,6 +380,7 @@ export async function atualizarLead(
       cnpj        = case when ${patch.cnpj !== undefined}
                          then ${patch.cnpj === null || patch.cnpj === undefined ? null : JSON.stringify(patch.cnpj)}::jsonb
                          else cnpj end,
+      email       = case when ${patch.email !== undefined} then ${patch.email ?? null} else email end,
       briefing    = case when ${patch.briefing !== undefined}
                          then ${patch.briefing === null || patch.briefing === undefined ? null : JSON.stringify(patch.briefing)}::jsonb
                          else briefing end,

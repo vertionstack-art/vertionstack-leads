@@ -8,7 +8,8 @@
  * ninguém ver o painel vazio antes do redirecionamento.
  */
 
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server';
+import { alertarCentral } from '@/lib/alerta-central';
 import { createServerClient } from '@supabase/ssr';
 import { caminhoCentral } from '@/lib/caminho-central';
 import { aparelhoLiberado, COOKIE_APARELHO, DIAS_APARELHO, emailEhAdmin, liberacaoValida, tokenDoAparelho } from '@/lib/guarda-central';
@@ -52,11 +53,11 @@ function comConvite(req: NextRequest, r: NextResponse): NextResponse {
   return r;
 }
 
-export async function proxy(req: NextRequest) {
-  return comConvite(req, await proxyDaSessao(req));
+export async function proxy(req: NextRequest, event: NextFetchEvent) {
+  return comConvite(req, await proxyDaSessao(req, event));
 }
 
-async function proxyDaSessao(req: NextRequest) {
+async function proxyDaSessao(req: NextRequest, event: NextFetchEvent) {
   const novoRastro = req.cookies.get('vl_disp') ? null : crypto.randomUUID();
   if (novoRastro) req.cookies.set('vl_disp', novoRastro);
   let resposta = NextResponse.next({ request: req });
@@ -80,6 +81,12 @@ async function proxyDaSessao(req: NextRequest) {
   const caminho = req.nextUrl.pathname;
   // o endereço principal sem login é a página de venda (app/page.tsx decide qual das duas mostra)
   const publica = caminho === '/' || PUBLICAS.some((p) => caminho === p || caminho.startsWith(p));
+
+  // o endereço secreto aberto por quem nem está logado: avisa o administrador (lib/alerta-central)
+  const segredoDaCentral = caminhoCentral();
+  if (!data.user && segredoDaCentral && (caminho === '/' + segredoDaCentral || caminho.startsWith('/' + segredoDaCentral + '/'))) {
+    event.waitUntil(alertarCentral('endereco_por_outro', req, 'sem login'));
+  }
 
   if (!data.user && !publica) {
     const destino = req.nextUrl.clone();
@@ -108,9 +115,11 @@ async function proxyDaSessao(req: NextRequest) {
     const usuario = data.user!;
     if (!emailEhAdmin(usuario.email)) {
       interno = '/nao-encontrado';
+      event.waitUntil(alertarCentral('endereco_por_outro', req, `logado como ${usuario.email}`));
     } else if (req.nextUrl.searchParams.has('liberar')) {
       if (!liberacaoValida(req.nextUrl.searchParams.get('liberar'))) {
         interno = '/nao-encontrado';
+        event.waitUntil(alertarCentral('liberacao_errada', req));
       } else {
         // link de liberação certo: grava a chave deste navegador e tira o segredo da barra de endereço
         const limpo = req.nextUrl.clone();

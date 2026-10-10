@@ -179,15 +179,12 @@ export default function BuscaGoogle({
 
   if (!ligada) {
     return (
-      <div className="mt-9 rounded-[24px] bg-manteiga p-7">
-        <h2 className="text-[19px] font-extrabold">A busca pelo Google está sendo ligada</h2>
+      <div className="mt-9 rounded-[24px] bg-zinc-100 p-7">
+        <h2 className="text-[19px] font-extrabold">A busca está fora do ar agora</h2>
         <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-zinc-700">
-          Assim que estiver pronta, você busca os comércios por aqui, sem instalar nada. Enquanto isso, a extensão continua
-          funcionando.
+          Não consegui falar com o Google neste momento. Seus leads, o CRM e as propostas continuam funcionando normalmente.
+          Tente de novo em alguns minutos; se continuar, responda qualquer e-mail nosso que a gente resolve.
         </p>
-        <a href="/extensao" className="mt-4 inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
-          Usar a extensão
-        </a>
       </div>
     );
   }

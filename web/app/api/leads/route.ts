@@ -10,7 +10,7 @@ import {
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { coletorDaChave, cotaDaConta, cotaParaJson, devolverCota, equipeDaConta, reservarCota, type Plano } from '@/lib/conta';
+import { cotaDaConta, cotaParaJson, devolverCota, equipeDaConta, reservarCota, type Plano } from '@/lib/conta';
 import { estourou } from '@/lib/limite';
 import { caminhoDaProposta } from '@/lib/token-proposta';
 
@@ -51,37 +51,22 @@ export function filtrosDaUrl(url: URL): Filtros {
   };
 }
 
-// ------------------------------------------------- recebe da extensão
+// ------------------------------------------- cadastro feito à mão
 
 export async function POST(req: Request) {
   /*
-   * Duas portas para o mesmo lugar: a extensão chega com a chave, e quem
-   * está no painel chega com a sessão do navegador — este segundo caso é o
-   * cadastro feito à mão, de um comércio que veio por indicação.
-   *
-   * As duas gastam a mesma cota semanal: senão o plano grátis teria uma
-   * porta sem limite.
+   * O cadastro feito à mão, de um comércio que veio por indicação ou
+   * conversa. Gasta a mesma cota semanal da busca: senão o plano grátis
+   * teria uma porta sem limite. (A porta da extensão, com chave, saiu em
+   * 10/10/2026 junto com a extensão.)
    */
-  let contaId: string;
-  let coletor: string;
-  let ilimitado: boolean;
-  let plano: Plano;
-  let manual = false;
-
-  if (req.headers.get('x-api-key')) {
-    const r = await coletorDaChave(req);
-    if (!r.ok) return NextResponse.json({ ok: false, motivo: r.motivo, erro: r.erro }, { status: r.status });
-    ({ contaId, nome: coletor, ilimitado, plano } = r.coletor);
-    // a extensão manda em lotes; 60 lotes por minuto por conta é muito acima do uso normal
-    if (await estourou(`ingest:${contaId}`, 60, 60)) {
-      return NextResponse.json({ ok: false, erro: 'Envios demais em pouco tempo. Espere um minuto.' }, { status: 429 });
-    }
-  } else {
-    if (!origemConfere(req)) return recusarOrigem();
-    const s = await exigirSessao();
-    if (s.erro) return s.erro;
-    ({ contaId, nome: coletor, ilimitado, plano } = s.sessao);
-    manual = true;
+  if (!origemConfere(req)) return recusarOrigem();
+  const s = await exigirSessao();
+  if (s.erro) return s.erro;
+  const { contaId, nome: coletor, ilimitado, plano } = s.sessao;
+  const manual = true;
+  if (await estourou(`manual:${contaId}`, 60, 60)) {
+    return NextResponse.json({ ok: false, erro: 'Cadastros demais em pouco tempo. Espere um minuto.' }, { status: 429 });
   }
 
   let corpo: unknown;

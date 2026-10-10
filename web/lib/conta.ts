@@ -10,14 +10,13 @@
  * navegador é só "quem eu sou"; a conta sai do banco a partir disso.
  */
 
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { db } from './sql';
 import { supabaseServidor } from './supabase-server';
 import { LIMITES, type Plano } from './planos';
 import { cookies } from 'next/headers';
 import { FORMATO_CODIGO, registrarIndicacao, tirarDoBonus } from './indicacao';
 import { avisarBoasVindas, avisarTeste } from './avisos';
-import { marcarTesteUsado, registrarSinais, sinaisDaPagina, sinaisDaRequisicao, testeJaUsadoPorOutra } from './teste';
+import { marcarTesteUsado, registrarSinais, sinaisDaPagina, testeJaUsadoPorOutra } from './teste';
 
 export type { Plano };
 
@@ -335,160 +334,6 @@ export async function devolverCota(conta: string, quantos: number, plano: Plano)
     update uso_semanal set novos = greatest(0, novos - ${quantos})
     where conta_id = ${conta} and semana = ${semanaAtual()}
   `;
-}
-
-// ------------------------------------------------ chave da extensão
-
-function hashDaChave(chave: string): string {
-  return createHash('sha256').update('vertion-leads:chave:' + chave).digest('hex');
-}
-
-/** gera uma chave nova e revoga as anteriores desta pessoa; a chave só aparece aqui, uma vez */
-export async function gerarChave(conta: string, userId: string): Promise<{ chave: string; prefixo: string }> {
-  const chave = 'vl_' + randomBytes(24).toString('base64url');
-  const prefixo = chave.slice(0, 7);
-  const sql = db();
-  await sql.begin(async (tx) => {
-    await tx`update chaves_extensao set revogada_em = now() where user_id = ${userId} and revogada_em is null`;
-    await tx`insert into chaves_extensao (conta_id, user_id, hash, prefixo) values (${conta}, ${userId}, ${hashDaChave(chave)}, ${prefixo})`;
-  });
-  return { chave, prefixo };
-}
-
-export async function revogarChaves(userId: string): Promise<void> {
-  await db()`update chaves_extensao set revogada_em = now() where user_id = ${userId} and revogada_em is null`;
-}
-
-export interface InfoChave {
-  id: string;
-  prefixo: string;
-  criadaEm: string;
-  ultimoUso: string | null;
-  aparelhos: { id: string; primeiroUso: string; ultimoUso: string }[];
-}
-
-export async function chaveAtiva(userId: string): Promise<InfoChave | null> {
-  const sql = db();
-  const r = await sql`
-    select id, prefixo, criada_em, ultimo_uso from chaves_extensao
-    where user_id = ${userId} and revogada_em is null
-    order by criada_em desc limit 1
-  `;
-  if (!r.length) return null;
-  const ap = await sql`
-    select aparelho_id, primeiro_uso, ultimo_uso from aparelhos where chave_id = ${r[0].id} order by ultimo_uso desc
-  `;
-  return {
-    id: r[0].id,
-    prefixo: r[0].prefixo,
-    criadaEm: new Date(r[0].criada_em).toISOString(),
-    ultimoUso: r[0].ultimo_uso ? new Date(r[0].ultimo_uso).toISOString() : null,
-    aparelhos: ap.map((a) => ({
-      id: a.aparelho_id as string,
-      primeiroUso: new Date(a.primeiro_uso).toISOString(),
-      ultimoUso: new Date(a.ultimo_uso).toISOString(),
-    })),
-  };
-}
-
-/** tira um computador da chave — só da chave da própria pessoa */
-export async function soltarAparelho(userId: string, aparelhoId: string): Promise<void> {
-  await db()`
-    delete from aparelhos a using chaves_extensao c
-    where a.chave_id = c.id and c.user_id = ${userId} and a.aparelho_id = ${aparelhoId}
-  `;
-}
-
-export interface Coletor {
-  contaId: string;
-  nome: string;
-  ilimitado: boolean;
-  plano: Plano;
-}
-
-export type ResultadoChave =
-  | { ok: true; coletor: Coletor }
-  | { ok: false; status: number; motivo: 'sem_chave' | 'chave_invalida' | 'conta_bloqueada' | 'aparelhos' | 'sem_aparelho'; erro: string };
-
-/** chave antiga do INGEST_TOKEN, enquanto a extensão de quem já usava não for trocada */
-function chaveLegada(enviada: string): boolean {
-  const legadas = (process.env.INGEST_TOKEN || '')
-    .split(',')
-    .map((p) => p.trim())
-    .map((p) => (p.includes(':') ? p.slice(p.indexOf(':') + 1) : p))
-    .filter(Boolean);
-  return legadas.some((s) => {
-    const a = Buffer.from(s);
-    const b = Buffer.from(enviada);
-    return a.length === b.length && timingSafeEqual(a, b);
-  });
-}
-
-/**
- * Confere a chave e o computador de quem está mandando leads.
- *
- * O servidor é a trava de verdade: a extensão é código aberto no navegador
- * de qualquer um, então qualquer verificação feita lá dentro dá para tirar.
- * Aqui não.
- */
-export async function coletorDaChave(req: Request): Promise<ResultadoChave> {
-  const enviada = (req.headers.get('x-api-key') || '').trim();
-  const aparelho = (req.headers.get('x-aparelho') || '').trim().slice(0, 80);
-  if (!enviada) return { ok: false, status: 401, motivo: 'sem_chave', erro: 'Cole a sua chave nas configurações da extensão.' };
-
-  const sql = db();
-
-  if (chaveLegada(enviada)) {
-    const r = await sql`select id, nome, plano, pago_ate from contas where legado = true order by criada_em limit 1`;
-    if (r.length) {
-      const ef = planoEfetivo(r[0].plano, r[0].pago_ate);
-      return { ok: true, coletor: { contaId: r[0].id, nome: 'equipe', ...ef } };
-    }
-  }
-
-  const r = await sql`
-    select k.id, k.conta_id, m.nome, c.plano, c.pago_ate, c.bloqueada
-    from chaves_extensao k
-    join contas c on c.id = k.conta_id
-    join membros m on m.user_id = k.user_id and m.conta_id = k.conta_id
-    where k.hash = ${hashDaChave(enviada)} and k.revogada_em is null
-  `;
-  if (!r.length) {
-    return { ok: false, status: 401, motivo: 'chave_invalida', erro: 'Chave inválida ou trocada. Copie a chave atual em Minha conta, no painel.' };
-  }
-  const k = r[0];
-  if (k.bloqueada) return { ok: false, status: 403, motivo: 'conta_bloqueada', erro: 'Esta conta está suspensa. Fale com o suporte.' };
-
-  if (!aparelho) {
-    return { ok: false, status: 426, motivo: 'sem_aparelho', erro: 'Atualize a extensão para a versão mais nova (baixe de novo no painel).' };
-  }
-  const conhecido = await sql`select 1 from aparelhos where chave_id = ${k.id} and aparelho_id = ${aparelho}`;
-  if (!conhecido.length) {
-    const n = await sql`select count(*)::int as n from aparelhos where chave_id = ${k.id}`;
-    const maxAparelhos = LIMITES[planoEfetivo(k.plano, k.pago_ate).plano].aparelhos;
-    if (n[0].n >= maxAparelhos) {
-      return {
-        ok: false,
-        status: 403,
-        motivo: 'aparelhos',
-        erro: `Esta chave já está em ${maxAparelhos} computadores. Libere um em Minha conta, no painel.`,
-      };
-    }
-    await sql`insert into aparelhos (chave_id, aparelho_id) values (${k.id}, ${aparelho}) on conflict do nothing`;
-  } else {
-    await sql`update aparelhos set ultimo_uso = now() where chave_id = ${k.id} and aparelho_id = ${aparelho}`;
-  }
-  await sql`update chaves_extensao set ultimo_uso = now() where id = ${k.id}`;
-
-  const ef = planoEfetivo(k.plano, k.pago_ate);
-  if (ef.plano === 'gratis') {
-    try {
-      await registrarSinais(k.conta_id, sinaisDaRequisicao(req.headers, { aparelho }));
-    } catch (e) {
-      console.error('[sinais]', e);
-    }
-  }
-  return { ok: true, coletor: { contaId: k.conta_id, nome: k.nome, ...ef } };
 }
 
 /** a conta que recebeu os leads de antes das contas existirem (links antigos de proposta) */

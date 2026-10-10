@@ -5,7 +5,6 @@ import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
 import Inicio from './inicio';
-import { buscaLigada } from '@/lib/google-places';
 import { lerFoto } from '@/lib/perfil';
 import { avisoDeVencimento } from '@/lib/pagamento';
 import { primeirosPassos } from '@/lib/passos';
@@ -45,7 +44,6 @@ export default async function Home() {
     <Painel
       usuario={sessao.nome}
       foto={foto}
-      buscaGoogle={buscaLigada()}
       vencimento={vencimento}
       passos={passos}
       planoEscolhido={sessao.plano === 'gratis' ? sessao.planoEscolhido : null}

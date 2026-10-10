@@ -27,19 +27,17 @@ export interface Limites {
   guardados: number;
   /** pessoas na mesma conta: 1 em todo plano à venda (o Lucas não quer equipe, 10/10/2026); só a cortesia junta gente pela central */
   pessoas: number;
-  /** computadores por chave da extensão */
-  aparelhos: number;
   /** funis no CRM */
   funis: number;
 }
 
 export const LIMITES: Record<Plano, Limites> = {
-  gratis: { semana: 30, buscas: 10, guardados: 200, pessoas: 1, aparelhos: 2, funis: 1 },
-  semanal: { semana: 100, buscas: 25, guardados: 1000, pessoas: 1, aparelhos: 1, funis: 2 },
-  basic: { semana: 150, buscas: 60, guardados: 3000, pessoas: 1, aparelhos: 2, funis: 5 },
-  pro: { semana: 500, buscas: 120, guardados: 15000, pessoas: 1, aparelhos: 3, funis: 20 },
+  gratis: { semana: 30, buscas: 10, guardados: 200, pessoas: 1, funis: 1 },
+  semanal: { semana: 100, buscas: 25, guardados: 1000, pessoas: 1, funis: 2 },
+  basic: { semana: 150, buscas: 60, guardados: 3000, pessoas: 1, funis: 5 },
+  pro: { semana: 500, buscas: 120, guardados: 15000, pessoas: 1, funis: 20 },
   // a conta da própria Vertion: sem teto prático
-  cortesia: { semana: 1_000_000, buscas: 1_000_000, guardados: 1_000_000, pessoas: 20, aparelhos: 10, funis: 50 },
+  cortesia: { semana: 1_000_000, buscas: 1_000_000, guardados: 1_000_000, pessoas: 20, funis: 50 },
 };
 
 /** dias que um pagamento avulso libera: o de 7 dias, ou um mês no Pix */

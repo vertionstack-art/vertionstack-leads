@@ -4,6 +4,7 @@ import { exigirSessao } from '@/lib/auth';
 import { historicoDoLead } from '@/lib/eventos';
 import { db } from '@/lib/sql';
 import { numeroWhatsapp } from '@/lib/telefone';
+import { listarModelos } from '@/lib/modelos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +23,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (!lead) return NextResponse.json({ ok: false, erro: 'Lead não encontrado.' }, { status: 404 });
   const eventos = await historicoDoLead(contaId, idLead);
   const [c] = await db()`select empresa_nome from contas where id = ${contaId}`;
+  const modelos = await listarModelos(contaId);
 
   // o mesmo critério do painel: número confirmado no link, ou o telefone se for celular
   const numero = lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone));
@@ -31,6 +33,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     lead,
     eventos,
     numero,
+    modelos,
     remetente: { nome, empresa: (c?.empresa_nome as string) || null },
   });
 }

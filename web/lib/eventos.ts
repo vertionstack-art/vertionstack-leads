@@ -98,7 +98,7 @@ export async function historicoDoLead(conta: string, leadId: string): Promise<Ev
   eventos.push({
     id: 'criado',
     tipo: 'criado',
-    detalhe: lead.origem === 'manual' ? 'Cadastrado à mão' : 'Entrou na lista pela busca',
+    detalhe: lead.origem === 'manual' ? 'Cadastrado à mão' : lead.origem === 'planilha' ? 'Importado de planilha' : 'Entrou na lista pela busca',
     quem: null,
     em: new Date(lead.created_at).toISOString(),
   });

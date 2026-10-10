@@ -1,450 +1,69 @@
 # Vertion Leads
 
-Ferramenta de prospecção: varre o Google Maps procurando comércios e separa
-**quem ainda não tem site próprio** — que é exatamente quem você quer abordar
-para vender site, landing page ou automação.
+Ferramenta paga para freelancers que vendem site: acha no Google os comércios
+de uma cidade que ainda não têm site próprio e leva cada um do primeiro
+contato até o dinheiro no Financeiro.
 
-São duas peças que conversam:
+No ar em **https://leads.vertionstack.com** (quem não está logado vê a página
+de venda; quem está logado vê o painel).
 
-| Peça | O que faz | Onde roda |
-|---|---|---|
-| **Extensão do Chrome** | Varre o Maps e coleta os comércios | No seu navegador |
-| **Painel** | Recebe, organiza e vira sua lista de trabalho | Na Vercel |
+## O que tem dentro
 
----
-
-## O detalhe que faz a ferramenta valer
-
-O Google Maps mente sobre site. Quatro armadilhas que a ferramenta resolve:
-
-**1. Instagram não é site.** Muito comércio cadastra o Instagram no campo
-"Site". No Maps aparece o botãozinho e parece que já tem presença digital.
-Não tem — e é lead quente.
-
-**2. O botão da lista às vezes é outra coisa.** Numa busca por barbearias, o
-único link que aparece nos cards é o **"Agendar on-line"** (`appbarber`,
-`trinks`). Quem lê a lista sem cuidado marca esses como "já tem site" e perde
-a venda. A ferramenta só aceita como site o link que o Google marca de fato
-como *Website*.
-
-**3. iFood, Doctoralia e VivaReal também não são site.** São presença alugada.
-O comércio paga comissão e não tem nada que seja dele.
-
-**4. E tem site que existe só no cadastro.** Domínio vencido, página parada
-em "em construção", conta de hospedagem suspensa, endereço que virou
-redirecionamento pro Instagram. O Google continua exibindo o botão. O painel
-tem um botão **Conferir sites** que abre cada endereço e diz quais não estão
-de pé — esses voltam para a lista de oportunidades. Não custa nada: é o
-próprio painel abrindo o site.
-
-Por isso cada comércio recebe uma classificação:
-
-| Situação | Significa | Vale abordar? |
-|---|---|---|
-| **Sem site** | Nada cadastrado | Sim |
-| **Só rede social** | Instagram, Facebook, WhatsApp, Linktree | Sim |
-| **Só marketplace** | iFood, Doctoralia, VivaReal, Trinks | Sim |
-| **Site fraco** | `business.site`, Wix grátis, Blogspot | Sim |
-| **Tem site próprio** | Domínio de verdade | Não |
-
----
-
-## Instalação
-
-### Parte 1 — Publicar o painel
-
-1. Entre em [vercel.com](https://vercel.com) e faça login **com a conta do GitHub**.
-2. Clique em **Add New → Project**.
-3. Escolha o repositório `vertionstack-leads` e clique em **Import**.
-4. Em **Root Directory**, clique em *Edit* e selecione a pasta **`web`**. Esse passo é obrigatório.
-5. Clique em **Deploy** e espere.
-6. Copie o endereço que a Vercel te der (algo como `https://vertionstack-leads.vercel.app`).
-
-### Parte 2 — Ligar o banco de dados
-
-Sem isso os leads somem quando o servidor descansa.
-
-1. No projeto da Vercel, abra a aba **Storage**.
-2. **Create Database → Neon → Continue** e aceite o plano gratuito.
-3. **Connect** no projeto. A Vercel cria a variável `DATABASE_URL` sozinha.
-4. Vá em **Deployments**, clique nos três pontinhos do último e escolha **Redeploy**.
-
-### Parte 3 — Criar os acessos
-
-Na Vercel, em **Settings → Environment Variables**, crie duas variáveis:
-
-| Nome | Para quê |
+| Parte | O que faz |
 |---|---|
-| `USUARIOS` | quem entra no painel |
-| `INGEST_TOKEN` | quais extensões podem enviar leads |
+| Busca | Google Places (API New), filtro de precisão (empresa grande, site escondido, sem contato, só WhatsApp) e memória de buscas para não pagar repetido |
+| Painel | Leads com temperatura (quente/morno/frio e o motivo), conferência de sites, ficha do lead |
+| Ficha do lead | WhatsApp com mensagem pronta ou modelo salvo, e-mail, lembrete, histórico |
+| Importar | Planilha CSV própria (não gasta a cota semanal) |
+| CRM | Funis, etapas, "Para hoje" e card parado |
+| Proposta | Link público e PDF, selo de "proposta aberta" |
+| Financeiro | Clientes fechados, entrada, mensalidade, meta |
+| Planos | Teste grátis (30 leads), 7 dias, Basic e Pro pela Stripe (cartão e Pix) |
+| Indicação | 50 leads e 5 buscas de bônus quando o indicado paga |
+| E-mails | Resend: boas-vindas, teste acabando/acabou, plano vencendo/vencido, compra pela metade |
+| Central | Administração escondida (endereço secreto + aparelho liberado + Google Authenticator), com alerta por e-mail |
 
-As duas usam o mesmo formato, `nome:valor`, separando pessoas por vírgula:
-
-```
-USUARIOS=lucas:umaSenhaBoa,joao:outraSenhaBoa
-INGEST_TOKEN=lucas:vl_aaaa1111...,joao:vl_bbbb2222...
-```
-
-Nomes em minúsculas, sem espaço e sem acento. As senhas você escolhe; as
-chaves são as que cada extensão gera sozinha (veja a Parte 4).
-
-**Por que cada um com a sua:** é assim que o painel sabe quem coletou cada
-comércio e quem já está cuidando dele — vocês param de ligar duas vezes para
-a mesma pizzaria. E dá para tirar o acesso de uma pessoa sem trocar o de
-todo mundo.
-
-Trabalhando sozinho, cadastre só o seu:
+## Pastas
 
 ```
-USUARIOS=lucas:umaSenhaBoa
-INGEST_TOKEN=lucas:vl_aaaa1111...
+web/                   o site (Next.js 16, Tailwind v4)
+  app/                 páginas e rotas de API (app/api/*)
+  lib/                 regras: conta, planos, busca, pagamento, e-mails, CRM…
+  proxy.ts             sessão, página pública, central escondida, convite
+  vercel.json          agendamento diário dos avisos por e-mail
+supabase/migrations/   o banco, em ordem (aplicar na ordem do número)
+DESIGN.md / PRODUCT.md o sistema visual e as decisões de produto
 ```
 
-Depois de criar as duas, faça **Redeploy**.
+A extensão do Chrome e o disparador de WhatsApp foram aposentados em
+10/10/2026 e saíram do repositório (ficam no histórico do Git).
 
-> O formato antigo continua funcionando: uma `DASHBOARD_PASSWORD` sozinha e
-> um `INGEST_TOKEN` sem nome viram o usuário `equipe`. Quem já tinha
-> configurado assim não precisa mexer em nada.
-
-### Parte 4 — Instalar a extensão
-
-O próprio painel entrega a extensão e repete estas instruções: entre nele e
-clique em **Extensão**, no canto superior direito.
-
-1. Baixe o arquivo pelo botão **Baixar extensão** e descompacte num lugar
-   definitivo — se você apagar ou mover a pasta depois, o Chrome desativa a
-   extensão.
-2. No Chrome, abra `chrome://extensions`.
-3. Ligue o **Modo do desenvolvedor** (canto superior direito).
-4. Clique em **Carregar sem compactação** e escolha a pasta descompactada.
-5. O ícone roxo aparece na barra. Clique nele, depois na engrenagem.
-6. Cole o endereço do painel e a mesma chave que está no `INGEST_TOKEN`.
-7. Clique em **Salvar** e depois em **Testar conexão**.
-
-Se aparecer *"Conectado. O painel está gravando no banco de dados."*, acabou.
-
----
-
-## Usando
-
-1. Abra o Google Maps numa aba.
-2. Clique no ícone da extensão.
-3. Escreva onde procurar. **Prefira bairro a cidade inteira** — o Maps entrega
-   no máximo algumas dezenas de resultados por busca, então `Savassi BH`
-   rende muito mais que `Belo Horizonte` sozinho.
-4. Escolha os tipos de comércio.
-5. Clique em **Iniciar coleta** e vá fazer outra coisa.
-
-A aba do Maps vai trocar de página sozinha — é a extensão abrindo a ficha de
-quem parece não ter site, para confirmar. Não mexa nessa aba enquanto roda;
-pode usar o resto do navegador normalmente.
-
-Ao terminar, abra o painel. Clique em **oportunidades** para ver só quem vale
-a pena, use o botão **WhatsApp** para puxar conversa, e vá marcando *Contatado*,
-*Negociando*, *Fechado*.
-
-Antes de sair ligando, clique em **Conferir N sites** no topo. O painel abre um
-por um os endereços cadastrados e marca quais estão fora do ar, vazios, sem
-HTTPS ou com certificado vencido. Quem não passa no teste volta para as
-oportunidades e aparece no filtro *Site não está de pé* — são as conversas mais
-fáceis que você vai ter, porque o dono geralmente nem sabe.
-
-Uma nova varredura no mesmo bairro **não apaga suas anotações nem seus status** —
-ela só atualiza os dados que vieram do Google.
-
-### O botão COPY
-
-Cada lead tem um botão **COPY**. Ele abre o prompt de abordagem daquele
-comércio, pronto para colar no ChatGPT: copie, clique em **Abrir chat**, cole
-com Ctrl+V e o chat devolve briefing, três mensagens de WhatsApp, roteiro de
-ligação, as objeções mais prováveis com resposta, e uma faixa de preço.
-
-O prompt não é um modelo fixo com o nome trocado. O diagnóstico muda conforme
-o que foi encontrado, porque o argumento de venda é outro em cada caso:
-
-| Situação do lead | O ângulo que o prompt monta |
-|---|---|
-| Site fora do ar | Ele paga por algo que não abre e provavelmente não sabe |
-| Certificado vencido | O navegador afasta o cliente com aviso vermelho |
-| Só Instagram | Audiência alugada, não aparece no Google |
-| Só iFood/Doctoralia | Paga comissão e não é dono do cliente |
-| Sem site | Quem busca na região acha o concorrente |
-
-Cada um vem com um aviso de **como não estragar a conversa** — no caso do site
-fora do ar, por exemplo, chegar avisando de um problema em vez de vendendo, já
-que o dono pode ter sido abandonado por quem fez o site.
-
-A nota do Google entra no argumento: um comércio com 4,9 e 890 avaliações tem
-prova social pronta que hoje não tem onde ser mostrada.
-
-### Cadastrar um comércio à mão
-
-O botão **+ Cadastrar**, no topo do painel, abre um formulário para os leads
-que não vêm do Maps: indicação, conversa de balcão, um perfil que mandaram no
-WhatsApp. Só o nome é obrigatório — exigir mais faria você desistir de
-cadastrar no meio da rua, que é quando isso costuma acontecer.
-
-Além dos dados comuns, tem campo para **link do Google Maps** e **Instagram**
-(pode colar só o `@`, a ferramenta monta o endereço). Quem entra por aqui fica
-marcado com origem `manual`, para você distinguir do que veio da varredura.
-
-Deixar o campo de site vazio é o que marca o comércio como oportunidade.
-
-### O site de prévia
-
-Antes de abordar, você publica na Vercel um site de demonstração feito para
-aquele comércio. Cole o endereço no campo roxo que aparece no topo do modal
-**COPY** e clique em *Salvar e refazer*.
-
-A partir daí a prévia aparece em três lugares:
-
-- **No prompt do COPY**, como centro da abordagem. O texto passa de 3.000 para
-  quase 5.000 caracteres e o chat recebe instrução explícita de girar as
-  mensagens em torno do link, incluir o momento da ligação em que se pede para
-  ele abrir, e responder às objeções que a prévia provoca — *"isso é template
-  pronto?"*, *"por que de graça, qual a pegadinha?"*.
-- **Na proposta do cliente**, num bloco destacado com botão *Ver a prévia*. No
-  PDF impresso o endereço aparece escrito por extenso, já que no papel não se
-  clica.
-- **No texto de WhatsApp** da proposta.
-
-O tom que o prompt pede é deliberado: a prévia é ponto de partida, não produto
-final. Ela foi montada de fora, sem as fotos e os textos do comércio — dizer
-isso abre espaço para o cliente apontar o que mudaria, e a crítica dele vira
-briefing.
-
-### O botão SITE
-
-Ao lado do COPY. Gera o prompt para **construir** o site de prévia — o outro
-lado da moeda do COPY, que é para conversar com o dono.
-
-O prompt leva tudo o que se sabe do comércio: nome, ramo, endereço, cidade,
-telefone, Instagram, ficha do Maps, nota e número de avaliações, coordenadas,
-site atual e a situação dele, e as suas anotações. O link do WhatsApp é
-montado a partir do telefone, já pronto para entrar no site.
-
-O prompt começa mandando o assistente **parar e esperar o link do
-repositório** — quem cria é você, na conta certa. Assistente que cria
-repositório sozinho abre na conta errada e o trabalho já nasce no lugar errado.
-
-Depois do link, ele instala as skills com o comando literal. O uso delas é
-declarado **obrigatório**, com o papel de cada uma (direção visual, estrutura,
-mobile, revisão dos textos) e a exigência de dizer no fim quais consultou e o
-que cada uma mudou. A stack é Next.js com TypeScript e Tailwind, publicado na
-Vercel a partir do seu repositório.
-
-**O que muda conforme o ramo.** Barbearia recebe instrução de priorizar
-agendamento, galeria de cortes e tabela de preços; pizzaria, cardápio com foto
-e pedido por WhatsApp; clínica, especialidades, convênios e tom sóbrio sem
-promessa de resultado; oficina, lista de serviços e orçamento por foto. Sem
-isso o assistente entrega a mesma página para todos, que é o que faz site de
-pequeno negócio parecer template.
-
-O prompt também proíbe inventar dado que não existe — preço, horário, tempo de
-mercado. Prévia com informação inventada queima a conversa.
-
-Quando o site estiver no ar, cole o endereço no campo roxo do próprio modal.
-Ele vira a prévia usada na abordagem e na proposta, e o botão passa a mostrar
-**✓ SITE**.
-
-### O botão PROPOSTA
-
-Ao lado do COPY, abre o simulador — **sem nada marcado**. Você escolhe o porte
-do cliente, como a empresa é registrada, e clica nos serviços que vai oferecer.
-Clicar de novo tira. O preço se ajusta sozinho.
-
-Do lado direito sai o valor de entrada, a mensalidade e **quanto sobra para
-você** depois dos custos. Um botão copia tudo formatado para o WhatsApp.
-
-**As regras de preço que o simulador respeita:**
-
-| Regra | Valor | O que faz |
-|---|---|---|
-| Piso | R$ 387,45 | Nunca passa disso para baixo — é o custo |
-| Alvo mínimo | R$ 500 | Avisa quando a proposta fica abaixo |
-| Teto | R$ 1.200 × porte | Corta o que estourar |
-
-O teto acompanha o porte: micro para em R$ 1.200, pequena em R$ 1.620, média
-em R$ 2.220, grande em R$ 3.120. Quando estoura, é cortado e o simulador
-avisa.
-
-**Dá para marcar quantos produtos quiser.** Uma landing page para campanha e
-uma loja virtual são entregas diferentes e somam. Nesse caso o valor passa do
-teto de propósito — marque *Liberar o teto* embaixo do desconto. O piso
-continua valendo sempre. Os únicos itens que se excluem são os três níveis de
-suporte, porque são alternativas do mesmo serviço.
-
-O custo de cada item aparece na lista (o domínio custa R$ 45/ano). Sem esse
-número, é fácil fechar negócio no prejuízo achando que se negociou bem.
-
-**Itens que vão como cortesia.** Alguns serviços aparecem para o cliente com o
-selo *incluso*, como se fossem brinde, mas o valor entra no total normalmente.
-São: botão de WhatsApp, escrita dos textos, tratamento de fotos, os três
-níveis de suporte e o relatório mensal. No simulador eles mostram *"vai como cortesia"* embaixo do
-preço, para você lembrar do que está embutindo.
-
-Não é engano: o item está listado, é entregue e é cobrado dentro do pacote
-fechado — o cliente sabe o que vai receber e quanto vai pagar no total. O que
-muda é a percepção de valor, que é o ponto.
-
-### Quando o cliente fecha
-
-Clique em **"marcar como fechado"**. Aparece um botão verde **PDF do fechado**
-que gera um documento diferente: sem prazo de validade, com os itens em duas
-colunas e uma seção **O que acontece agora** em três passos.
-
-São dois papéis distintos. A proposta ainda tenta convencer; este aqui o
-cliente guarda para conferir se recebeu o que contratou. Por isso o verde no
-lugar do roxo: confirmação, não oferta.
-
-### Usando no celular
-
-O painel foi feito para funcionar com o telefone na mão durante a ligação.
-Em telas pequenas a tabela vira cartões, e cada lead traz os botões
-**Ligar** e **WhatsApp** em tamanho de dedo. Nada de rolagem lateral.
-
-### Quem entrou na ferramenta
-
-A tela fica em **/admin** e não tem link no painel de propósito — quem usa
-chega pelo endereço direto. Ela lista os endereços que bateram na porta: quantas vezes entraram, quantas erraram a senha, de que
-cidade, em qual navegador, e quando foi a última vez. Dá para bloquear um
-endereço ali mesmo — quem estiver bloqueado leva 403 no login, mesmo com a
-senha certa.
-
-Só o **dono** vê essa tela: o primeiro nome cadastrado em `USUARIOS`. Para
-trocar quem manda, inverta a ordem dos nomes na variável.
-
-O seu próprio endereço vem marcado como *você*, e o painel recusa bloqueá-lo
-— seria trancar a si mesmo do lado de fora.
-
-> **Não confie demais nisso.** Internet de casa troca de endereço quando o
-> roteador reinicia, operadora de celular põe dezenas de pessoas atrás do
-> mesmo IP (bloquear um bloqueia todas) e qualquer VPN contorna. Serve para
-> enxergar movimento estranho e cortar ruído; quem protege o painel é a senha.
-
-São registrados o login (certo e errado), a visita ao painel e cada abertura
-de proposta pelo cliente — dá para ver se ele chegou a olhar antes de você
-ligar. A visita ao painel só entra uma vez a cada 15 minutos por pessoa;
-sem isso, cada recarregamento viraria uma linha e a lista seria só ruído.
-
-Esconder o botão não é o que protege: o servidor só responde ao dono, e
-quem não for leva 403 mesmo digitando o endereço.
-
-### Trabalhando em dupla
-
-Os dois veem a mesma lista, e o painel mostra quem é quem:
-
-- **Quem coletou** vem da chave que a extensão usou para enviar.
-- **Quem está cuidando** é quem mexeu no status por último. Aparece embaixo do
-  status como *com você* ou *com joão*.
-- O seletor **Todo mundo / Meus / Sem dono / De fulano** filtra a lista.
-
-Antes de ligar, olhe se o lead já está com alguém. Se aparecer *com joão*, ele
-chegou primeiro. Para devolver um lead para a fila, volte o status para
-**Novo** — isso solta o responsável e ele vira *sem dono* de novo.
-
-Os dois nomes saem também no CSV, nas colunas *Responsável* e *Coletado por*.
-
----
-
-## Quando alguma coisa não funcionar
-
-**"Não consegui rodar dentro do Google Maps"**
-A aba do Maps foi aberta antes da extensão existir. Aperte F5 nela.
-
-**A coleta parou no meio**
-O Google às vezes pede confirmação de robô. Resolva na aba do Maps e comece
-de novo — o que já foi coletado está salvo.
-
-**Vem pouco resultado**
-Normal: o Maps limita cada busca. Varra bairro a bairro em vez da cidade toda.
-
-**O painel diz "Sem banco de dados"**
-A Parte 2 não foi concluída, ou faltou o Redeploy depois de conectar o Neon.
-
-**A extensão diz que a chave é inválida**
-O `INGEST_TOKEN` da Vercel está diferente da chave nas configurações da
-extensão. Compare os dois com cuidado e refaça o Redeploy. Com mais de uma
-pessoa, confira também se a vírgula e os dois-pontos estão no lugar:
-`lucas:vl_aaa,joao:vl_bbb`.
-
-**"Usuário ou senha incorretos"**
-Confira o nome: ele é o que está antes dos dois-pontos em `USUARIOS`, sempre
-em minúsculas. Mudar a senha de alguém desconecta só essa pessoa.
-
----
-
-## Para quem for mexer no código
-
-```
-extension/          extensão Chrome (Manifest V3)
-  content.js        o scraper — máquina de estados que sobrevive a recarregamentos
-  background.js     estado da coleta, fila de envio, retentativa
-  popup.*           a telinha do ícone
-  lib/classify.js   decide o que conta como site de verdade
-web/                painel Next.js
-  app/api/leads/    recebe da extensão, lista, exporta CSV
-  app/extensao/     página de download e instalação da extensão
-  lib/db.ts         Postgres (Neon), com modo memória para rodar local
-  lib/classify.ts   mesma lógica do classificador, do lado do servidor
-  lib/verificar-site.ts   abre o site do lead e diz se está mesmo no ar
-  scripts/          empacota a extension/ em .zip durante o build
-```
-
-O classificador existe nos dois lados de propósito: a extensão precisa dele
-offline, e o servidor reclassifica tudo que chega porque não se confia em
-dado vindo de um cliente HTTP. **Se editar as listas de domínio, edite nos dois.**
-
-Rodando o painel na sua máquina:
+## Rodar no computador
 
 ```bash
 cd web
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
-Sem `DATABASE_URL` ele funciona em memória — bom para testar, inútil em produção.
+Precisa de um `web/.env.local` com as variáveis abaixo (os valores ficam na
+Vercel, nunca no repositório).
 
-### Por que o scraper é uma máquina de estados
+## Variáveis (só os nomes)
 
-Três coisas descobertas testando contra o Maps de verdade, todas anotadas no
-começo do `content.js`:
+- **Banco e login (Supabase):** `SUPABASE_DB_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- **Administração:** `ADMIN_EMAILS`, `ADMIN_CAMINHO`, `ADMIN_CHAVE`
+- **Stripe:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRECO_BASIC`, `STRIPE_PRECO_PRO`, `STRIPE_PIX`
+- **Google:** `GOOGLE_PLACES_KEY` (opcionais: `BUSCA_TETO_MES`, `BUSCA_TETO_DIA`, `BUSCA_TETO_TESTES`)
+- **E-mails:** `RESEND_API_KEY`, `CRON_SECRET` (opcionais: `EMAIL_REMETENTE`, `EMPRESA_EMAIL`)
+- **Teste grátis:** `TESTE_SAL`
+- **Textos legais:** `LEGAL_NOME`, `LEGAL_DOCUMENTO`, `LEGAL_EMAIL`, `LEGAL_FORO`
+- **Não apagar:** `INGEST_TOKEN` (segredo dos links antigos de proposta)
 
-- O site só aparece na ficha do lugar (`a[data-item-id="authority"]`), e a
-  ficha **não abre com clique programático** — nem `.click()`, nem sequência
-  completa de eventos de mouse. Só navegando até a URL dela.
-- Navegar recarrega a página e mata o script. Por isso o trabalho vive em
-  `chrome.storage.local` e é retomado a cada carregamento.
-- Buscar digitando na caixa não funciona a partir de uma ficha aberta: o
-  título da página muda mas a lista nunca aparece. A busca é feita por URL.
+## Publicar
 
-E uma no scroll: `scrollTo({behavior:'smooth'})` não move o contêiner da
-lista. Só a atribuição direta `scrollTop = scrollHeight`.
+Todo `git push` na `main` publica sozinho na Vercel. Mudança no banco vai
+como um arquivo novo em `supabase/migrations/` e é aplicada no Supabase.
 
-### Duas armadilhas do verificador de sites
-
-Site feito em React monta o conteúdo por JavaScript: o HTML que chega tem
-título e scripts e quase nenhum texto. Medido num site real de barbearia,
-30 KB de HTML para 77 caracteres visíveis. Julgar "página vazia" só pelo
-texto marcaria justamente os sites bem-feitos como abandonados — por isso a
-regra exige que o HTML inteiro também seja pequeno.
-
-E tempo esgotado não é o mesmo que site morto. DNS que não resolve e conexão
-recusada são conclusivos; um timeout pode ser só lentidão. O primeiro caso
-vira oportunidade, o segundo fica como *não conclusivo*, para a lista não
-encher de lead falso.
-
----
-
-## Sobre uso responsável
-
-A ferramenta lê dados públicos de empresas — nome, telefone comercial,
-endereço, site — no mesmo ritmo de uma pessoa navegando, com pausas entre as
-ações. Ainda assim, varredura automatizada contraria os termos de uso do
-Google, e varreduras muito longas podem levar a bloqueio temporário do seu IP.
-Vá por bairro, sem pressa.
-
-Para contato comercial no Brasil, dado de empresa é diferente de dado pessoal,
-mas vale o bom senso de sempre: identifique-se, diga como chegou até eles e
-respeite quem pedir para não ser mais procurado.
+Cópia de segurança diária do banco: `.github/workflows/copia-de-seguranca.yml`
+(criptografada, guardada 30 dias em Actions → Artifacts).

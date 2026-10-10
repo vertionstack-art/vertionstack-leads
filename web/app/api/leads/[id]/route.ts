@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { atualizarLead, apagarLead, buscarLead, type Status } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
+import { emailValido } from '@/lib/email-lead';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
     previaUrl?: string | null;
     cnpj?: unknown;
     briefing?: unknown;
+    email?: string | null;
   };
 
   if (corpo.status && !STATUS_VALIDOS.includes(corpo.status as Status)) {
@@ -53,6 +55,12 @@ export async function PATCH(req: Request, ctx: Ctx) {
   }
 
   const idLead = decodeURIComponent(id).slice(0, 300);
+
+  let email: string | null | undefined = undefined;
+  if (corpo.email !== undefined) {
+    email = corpo.email ? emailValido(corpo.email) : null;
+    if (corpo.email && !email) return NextResponse.json({ ok: false, erro: 'Esse e-mail não parece certo.' }, { status: 400 });
+  }
 
   /*
    * A data do fechamento é carimbada aqui, no servidor, na primeira vez que a
@@ -84,6 +92,7 @@ export async function PATCH(req: Request, ctx: Ctx) {
       previaUrl,
       cnpj: corpo.cnpj,
       briefing: corpo.briefing,
+      email,
     },
     quem,
   );

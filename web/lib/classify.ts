@@ -1,12 +1,6 @@
 /**
- * Mesma lógica do classificador da extensão, do lado do servidor.
- *
- * Existe em dois lugares de propósito: a extensão precisa classificar
- * offline (para mostrar o número na hora e exportar CSV sem internet),
- * e o servidor precisa reclassificar tudo que chega, porque não dá para
- * confiar cegamente no que um cliente HTTP manda.
- *
- * Se você editar as listas aqui, edite também em extension/lib/classify.js.
+ * Classifica o endereço que o comércio cadastrou no Google: site próprio,
+ * rede social, marketplace, construtor grátis ou nada.
  */
 
 export type WebsiteKind = 'none' | 'social' | 'marketplace' | 'weak' | 'site';
