@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { type Plano } from '@/lib/conta';
 import { exigirAdmin, origemConfere, recusarOrigem } from '@/lib/auth';
+import { usoDoMes } from '@/lib/google-places';
 import { juntarNaConta, listarAssinantes, migrarDoNeon, mudarConta, receitaDaFerramenta } from '@/lib/admin';
 
 export const runtime = 'nodejs';
@@ -12,8 +13,8 @@ const PLANOS: Plano[] = ['gratis', 'basic', 'pro', 'cortesia'];
 export async function GET() {
   const a = await exigirAdmin();
   if (a.erro) return a.erro;
-  const [contas, receita] = await Promise.all([listarAssinantes(), receitaDaFerramenta()]);
-  return NextResponse.json({ ok: true, contas, receita, minhaConta: a.sessao.contaId });
+  const [contas, receita, google] = await Promise.all([listarAssinantes(), receitaDaFerramenta(), usoDoMes()]);
+  return NextResponse.json({ ok: true, contas, receita, google, minhaConta: a.sessao.contaId });
 }
 
 export async function POST(req: Request) {

@@ -29,6 +29,15 @@ interface Receita {
   ultimos: { id: string; conta: string; plano: string; forma: string; valorCentavos: number; pagoEm: string }[];
 }
 
+interface UsoGoogle {
+  chamadas: number;
+  comercios: number;
+  leads: number;
+  teto: number;
+  gratis: number;
+  custoDolares: number;
+}
+
 const brl = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 function data(iso: string | null) {
@@ -39,6 +48,7 @@ export default function PainelContas() {
   const [contas, setContas] = useState<Linha[]>([]);
   const [minha, setMinha] = useState('');
   const [receita, setReceita] = useState<Receita | null>(null);
+  const [google, setGoogle] = useState<UsoGoogle | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -51,6 +61,7 @@ export default function PainelContas() {
       setContas(d.contas);
       setMinha(d.minhaConta);
       setReceita(d.receita);
+      setGoogle(d.google);
     } else setErro(d.erro);
   }, []);
 
@@ -126,6 +137,42 @@ export default function PainelContas() {
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {google && (
+        <div className="mb-10">
+          <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">Busca no Google este mês</h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className={`rounded-[24px] p-6 ${google.custoDolares > 0 ? 'bg-rosa' : 'bg-menta'}`}>
+              <p className="text-[13px] font-bold text-tinta/60">Gasto estimado</p>
+              <p className="mt-2 text-[40px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">
+                {google.custoDolares.toLocaleString('pt-BR', { style: 'currency', currency: 'USD' })}
+              </p>
+              <p className="mt-2 text-[12.5px] font-semibold text-tinta/70">
+                {google.custoDolares > 0 ? 'Passou da faixa grátis do Google.' : `Dentro das ${google.gratis.toLocaleString('pt-BR')} buscas grátis do mês.`}
+              </p>
+            </div>
+            <div className="rounded-[24px] bg-zinc-50 p-6">
+              <p className="text-[13px] font-bold text-zinc-500">Buscas usadas</p>
+              <p className="mt-2 text-[30px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">
+                {google.chamadas.toLocaleString('pt-BR')}
+                <span className="text-[18px] text-zinc-400"> / {google.teto.toLocaleString('pt-BR')}</span>
+              </p>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-zinc-200" aria-hidden>
+                <div className="h-full rounded-full bg-tinta" style={{ width: `${Math.min(100, (google.chamadas / google.teto) * 100)}%` }} />
+              </div>
+              <p className="mt-2 text-[12.5px] text-zinc-500">ao chegar no teto, a busca para até o dia 1º</p>
+            </div>
+            <div className="rounded-[24px] bg-zinc-50 p-6">
+              <p className="text-[13px] font-bold text-zinc-500">Rendeu</p>
+              <p className="mt-2 text-[14px] font-semibold tabular-nums">{google.comercios.toLocaleString('pt-BR')} comércios encontrados</p>
+              <p className="mt-1 text-[14px] font-semibold tabular-nums">{google.leads.toLocaleString('pt-BR')} viraram lead (sem site)</p>
+              <p className="mt-1 text-[12.5px] text-zinc-500 tabular-nums">
+                {google.chamadas ? `${(google.leads / google.chamadas).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} leads por busca` : 'nenhuma busca ainda'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

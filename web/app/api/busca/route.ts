@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { conferirTeste, cotaDaConta, cotaParaJson, devolverCota, reservarCota } from '@/lib/conta';
 import { idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
-import { buscaLigada, buscarPagina, chamadasDeHoje, contarChamada, ErroGoogle, somarLeads, tetoDiario } from '@/lib/google-places';
+import { buscaLigada, buscarPagina, chamadasDeHoje, contarChamada, ErroGoogle, somarLeads, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
 
 export const runtime = 'nodejs';
@@ -58,6 +58,9 @@ export async function POST(req: Request) {
         ? `Sua conta chegou ao limite de ${cota.tetoGuardados} leads guardados do plano.`
         : `Você usou os ${cota.limite} leads novos desta semana. A cota renova na segunda.`;
     return erro(msg, 402, { cota: cotaParaJson(cota), fim: true });
+  }
+  if ((await usoDoMes()).chamadas >= tetoMensal()) {
+    return erro('A busca pelo Google chegou ao limite deste mês. Volta a funcionar no dia 1º.', 503, { fim: true });
   }
   if ((await chamadasDeHoje()) >= tetoDiario()) {
     return erro('A busca pelo Google chegou ao limite de hoje. Volta a funcionar amanhã.', 503, { fim: true });

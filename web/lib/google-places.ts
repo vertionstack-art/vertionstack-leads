@@ -66,6 +66,21 @@ export function tetoDiario(): number {
   return Number.isFinite(n) && n > 0 ? n : 300;
 }
 
+/**
+ * Quantas chamadas por mês. O Google dá 1.000 chamadas grátis por mês no
+ * Text Search Enterprise; o padrão de 950 deixa folga para o mês do Google
+ * (que vira no horário dos EUA) não começar a cobrar antes do nosso. Para
+ * permitir gasto, suba BUSCA_TETO_MES na Vercel.
+ */
+export function tetoMensal(): number {
+  const n = Number(process.env.BUSCA_TETO_MES);
+  return Number.isFinite(n) && n > 0 ? n : 950;
+}
+
+/** a faixa grátis do Google e o preço depois dela (US$ por chamada) */
+export const GRATIS_POR_MES = 1000;
+export const DOLAR_POR_CHAMADA = 0.035;
+
 export class ErroGoogle extends Error {
   constructor(msg: string, public status: number) {
     super(msg);
@@ -132,6 +147,34 @@ export async function somarLeads(conta: string, leads: number): Promise<void> {
     update busca_google set leads = leads + ${leads}
     where conta_id = ${conta} and dia = (now() at time zone 'America/Sao_Paulo')::date
   `;
+}
+
+export interface UsoDoMes {
+  chamadas: number;
+  comercios: number;
+  leads: number;
+  teto: number;
+  gratis: number;
+  /** estimativa pela tabela do Google; a fatura oficial fica no Google Cloud */
+  custoDolares: number;
+}
+
+export async function usoDoMes(): Promise<UsoDoMes> {
+  const [r] = await db()`
+    select coalesce(sum(chamadas), 0)::int as chamadas, coalesce(sum(resultados), 0)::int as comercios,
+           coalesce(sum(leads), 0)::int as leads
+    from busca_google
+    where date_trunc('month', dia) = date_trunc('month', (now() at time zone 'America/Sao_Paulo')::date)
+  `;
+  const chamadas = r.chamadas as number;
+  return {
+    chamadas,
+    comercios: r.comercios as number,
+    leads: r.leads as number,
+    teto: tetoMensal(),
+    gratis: GRATIS_POR_MES,
+    custoDolares: Math.max(0, chamadas - GRATIS_POR_MES) * DOLAR_POR_CHAMADA,
+  };
 }
 
 export async function chamadasDeHoje(): Promise<number> {
