@@ -16,6 +16,7 @@ import { supabaseServidor } from './supabase-server';
 import { LIMITES, type Plano } from './planos';
 import { cookies } from 'next/headers';
 import { FORMATO_CODIGO, registrarIndicacao, tirarDoBonus } from './indicacao';
+import { avisarBoasVindas, avisarTeste } from './avisos';
 import { marcarTesteUsado, registrarSinais, sinaisDaPagina, sinaisDaRequisicao, testeJaUsadoPorOutra } from './teste';
 
 export type { Plano };
@@ -69,7 +70,7 @@ export function planoEfetivo(plano: string, pagoAte: Date | string | null): { pl
 // ---------------------------------------------------------- sessão
 
 /** primeiro acesso de alguém que acabou de se cadastrar: cria a conta grátis dele */
-async function criarContaPara(userId: string, nome: string, convite: string | null): Promise<void> {
+async function criarContaPara(userId: string, nome: string, convite: string | null, email: string): Promise<void> {
   const sql = db();
   let nova: string | null = null;
   await sql.begin(async (tx) => {
@@ -79,6 +80,7 @@ async function criarContaPara(userId: string, nome: string, convite: string | nu
     await tx`insert into membros (conta_id, user_id, nome, papel) values (${c.id}, ${userId}, ${nome}, 'dono')`;
     nova = c.id as string;
   });
+  if (nova) await avisarBoasVindas(nova, email, nome);
   // chegou por um link de convite: anota quem indicou (lib/indicacao)
   if (nova && convite) {
     try {
@@ -123,7 +125,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
     where m.user_id = ${user.id}
   `;
   if (!linhas.length) {
-    await criarContaPara(user.id, nomeDe(user.email, user.user_metadata), await conviteDe(user.user_metadata));
+    await criarContaPara(user.id, nomeDe(user.email, user.user_metadata), await conviteDe(user.user_metadata), user.email);
     linhas = await sql`
       select m.conta_id, m.nome, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
       from membros m join contas c on c.id = m.conta_id
@@ -295,12 +297,14 @@ async function reservarTeste(conta: string, pedidos: number, total: number, sema
     with antes as (select teste_usados from contas where id = ${conta} for update)
     update contas c set teste_usados = least(${total}, c.teste_usados + ${pedidos})
       from antes where c.id = ${conta}
-    returning c.teste_usados - antes.teste_usados as concedidos
+    returning c.teste_usados - antes.teste_usados as concedidos, c.teste_usados as usados
   `;
   const concedidos = r.length ? Math.max(0, r[0].concedidos as number) : 0;
   if (concedidos > 0) {
     await sql`update uso_semanal set novos = novos + ${concedidos} where conta_id = ${conta} and semana = ${semana}`;
     await marcarTesteUsado(conta);
+    // e-mail de "restam poucos" e de "acabou" (lib/avisos), uma vez cada
+    await avisarTeste(conta, Number(r[0].usados) || 0, total);
   }
   return concedidos;
 }
