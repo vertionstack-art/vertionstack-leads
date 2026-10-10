@@ -100,33 +100,38 @@ function Selo({ children, classe, ponto }: { children: React.ReactNode; classe: 
 }
 
 /** botão da barra lateral preta: só o ícone, com o nome aparecendo ao passar o mouse */
+/**
+ * Item do trilho preto. Fechado, o trilho mostra só o ícone; com o mouse em
+ * cima (ou o foco do teclado dentro dele) o trilho alarga e o nome aparece ao
+ * lado. O nome está sempre no HTML, então leitor de tela lê mesmo fechado.
+ */
 function ItemTrilho({
   rotulo, ativo, onClick, href, children,
 }: {
   rotulo: string; ativo?: boolean; onClick?: () => void; href?: string; children: React.ReactNode;
 }) {
-  const classe = `group relative flex h-12 w-12 items-center justify-center rounded-2xl transition-colors duration-200 ${
+  const classe = `relative flex h-12 w-full shrink-0 items-center rounded-2xl transition-colors duration-200 ${
     ativo ? 'bg-white/12 text-white' : 'text-white/55 hover:bg-white/8 hover:text-white'
   }`;
-  const dica = (
-    <span className="pointer-events-none absolute left-[60px] top-1/2 z-30 -translate-y-1/2 translate-x-[-4px] whitespace-nowrap rounded-lg bg-tinta px-2.5 py-1.5 text-[12px] font-semibold text-white opacity-0 shadow-[0_6px_16px_rgba(11,11,15,0.25)] transition-all duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:opacity-100">
-      {rotulo}
-    </span>
+  const conteudo = (
+    <>
+      {ativo && <span className="absolute -left-4 h-6 w-[3px] rounded-r-full bg-white" />}
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center">{children}</span>
+      <span className="-translate-x-1 whitespace-nowrap pr-3 text-[13.5px] font-semibold opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/trilho:translate-x-0 group-hover/trilho:opacity-100 group-focus-within/trilho:translate-x-0 group-focus-within/trilho:opacity-100 motion-reduce:transition-none">
+        {rotulo}
+      </span>
+    </>
   );
   if (href) {
     return (
-      <a href={href} aria-label={rotulo} className={classe}>
-        {ativo && <span className="absolute -left-[14px] h-6 w-[3px] rounded-r-full bg-white" />}
-        {children}
-        {dica}
+      <a href={href} className={classe}>
+        {conteudo}
       </a>
     );
   }
   return (
-    <button onClick={onClick} aria-label={rotulo} className={classe}>
-      {ativo && <span className="absolute -left-[14px] h-6 w-[3px] rounded-r-full bg-white" />}
-      {children}
-      {dica}
+    <button type="button" onClick={onClick} className={classe}>
+      {conteudo}
     </button>
   );
 }
@@ -554,12 +559,17 @@ export default function Painel({
       {/* ------------------------------------------- trilho preto (desktop) */}
       <nav
         aria-label="Menu"
-        className="fixed inset-y-3 left-3 z-30 hidden w-[80px] flex-col items-center rounded-[26px] bg-tinta py-5 md:flex"
+        className="group/trilho fixed inset-y-3 left-3 z-40 hidden w-[80px] flex-col overflow-hidden rounded-[26px] bg-tinta px-4 py-5 transition-[width,box-shadow] duration-200 ease-out hover:w-[224px] hover:shadow-[0_18px_50px_rgba(11,11,15,0.28)] focus-within:w-[224px] motion-reduce:transition-none md:flex"
       >
-        <span className="mb-8 flex h-12 w-12 items-center justify-center rounded-2xl bg-roxo-200 text-[20px] font-extrabold text-tinta">
-          V
-        </span>
-        <div className="flex flex-col items-center gap-2">
+        <div className="mb-8 flex items-center">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-roxo-200 text-[20px] font-extrabold text-tinta">
+            V
+          </span>
+          <span className="ml-3 whitespace-nowrap text-[15px] font-extrabold tracking-[-0.01em] text-white opacity-0 transition-opacity duration-200 group-hover/trilho:opacity-100 group-focus-within/trilho:opacity-100">
+            Vertion Leads
+          </span>
+        </div>
+        <div className="flex flex-col gap-2">
           <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -592,7 +602,7 @@ export default function Painel({
             <RefreshCw className={`h-5 w-5 ${carregando ? 'animate-spin' : ''}`} strokeWidth={1.8} />
           </ItemTrilho>
         </div>
-        <div className="mt-auto flex flex-col items-center gap-2">
+        <div className="mt-auto flex flex-col gap-2">
           <ItemTrilho rotulo="Meu perfil" href="/perfil">
             <UserRound className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
