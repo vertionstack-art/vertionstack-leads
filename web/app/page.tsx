@@ -5,6 +5,7 @@ import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
 import { buscaLigada } from '@/lib/google-places';
 import { lerFoto } from '@/lib/perfil';
+import { avisoDeVencimento } from '@/lib/pagamento';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +23,16 @@ export default async function Home() {
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) redirect('/login');
   await registrarAcesso(cabecalhos, 'painel', 'ok', sessao.email, 15);
 
-  const [cota, foto] = await Promise.all([cotaDaConta(sessao.contaId, sessao.plano), lerFoto(sessao.contaId, sessao.userId)]);
+  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
+  const foto = await lerFoto(sessao.contaId, sessao.userId);
+  const vencimento = sessao.plano === 'cortesia' ? null : await avisoDeVencimento(sessao.contaId);
 
   return (
     <Painel
       usuario={sessao.nome}
       foto={foto}
       buscaGoogle={buscaLigada()}
+      vencimento={vencimento}
       plano={sessao.plano}
       bloqueada={sessao.bloqueada}
       cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado }}

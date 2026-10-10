@@ -4,6 +4,7 @@ import { AlertTriangle, Check, MapPin, MessageCircle, Phone } from 'lucide-react
 import type { Lead, Status } from '@/lib/db';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
+import SeloProposta from './selo-proposta';
 
 /**
  * O mesmo lead da tabela, no formato que funciona no celular.
@@ -80,6 +81,11 @@ export default function LeadCard({
           <p className="mt-0.5 text-[12.5px] font-medium text-zinc-500">
             {[lead.category, lead.city].filter(Boolean).join(' · ') || '—'}
           </p>
+          {lead.propostaAberturas > 0 && (
+            <div className="mt-1.5">
+              <SeloProposta abertaEm={lead.propostaAbertaEm} aberturas={lead.propostaAberturas} primeiraEm={lead.propostaPrimeiraEm} />
+            </div>
+          )}
         </div>
         {lead.rating && (
           <div className="shrink-0 text-right">

@@ -425,3 +425,37 @@ export async function cancelarAssinaturaJa(contaId: string): Promise<void> {
     if (codigo !== 'resource_missing' && !/canceled/i.test(String((err as Error).message))) throw err;
   }
 }
+
+export interface AvisoVencimento {
+  tipo: 'vence' | 'cancelada' | 'cartao' | 'venceu';
+  plano: 'semanal' | 'basic' | 'pro';
+  /** quando vence (ou venceu), ISO */
+  data: string;
+  /** dias inteiros até vencer; negativo = já venceu */
+  dias: number;
+}
+
+/**
+ * O aviso de vencimento do topo do painel. O Pix e o plano de 7 dias não
+ * renovam sozinhos: sem aviso, a pessoa só descobre quando a busca para.
+ * Também avisa assinatura cancelada perto do fim, cartão recusado e plano que
+ * venceu há pouco (para quem já pagou não ler "seu teste grátis acabou").
+ */
+export async function avisoDeVencimento(contaId: string): Promise<AvisoVencimento | null> {
+  const [c] = await db()`
+    select plano, pago_ate, stripe_assinatura_id, assinatura_cancela_em, pagamento_falhou
+    from contas where id = ${contaId}
+  `;
+  if (!c || !c.pago_ate || !['semanal', 'basic', 'pro', 'pago'].includes(c.plano)) return null;
+  const plano = (c.plano === 'pago' ? 'pro' : c.plano) as AvisoVencimento['plano'];
+  const ate = new Date(c.pago_ate);
+  const dias = Math.ceil((ate.getTime() - Date.now()) / 86_400_000);
+  const base = { plano, data: ate.toISOString(), dias };
+
+  if (dias <= 0) return dias >= -30 ? { tipo: 'venceu', ...base } : null;
+  if (c.pagamento_falhou) return { tipo: 'cartao', ...base };
+  if (c.stripe_assinatura_id) {
+    return c.assinatura_cancela_em && dias <= 7 ? { tipo: 'cancelada', ...base } : null;
+  }
+  return dias <= 3 ? { tipo: 'vence', ...base } : null;
+}

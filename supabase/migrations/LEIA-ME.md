@@ -20,3 +20,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 13. `0012_buscas_feitas.sql`
 14. `0013_plano_semanal.sql`
 15. `0014_central.sql`
+16. `0015_proposta_aberta.sql`

@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { buscarLead } from '@/lib/db';
+import { buscarLead, marcarPropostaAberta } from '@/lib/db';
 import { lerCaminho } from '@/lib/token-proposta';
-import { contaLegada } from '@/lib/conta';
+import { contaLegada, sessaoAtual } from '@/lib/conta';
 import { empresaDaConta } from '@/lib/perfil';
 import { montarProposta, moeda, normalizarMarcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
@@ -108,6 +108,18 @@ export default async function PaginaProposta({
   });
 
   if (!proposta.itens.length) notFound();
+
+  /*
+   * "O cliente abriu a proposta" aparece no card do lead. Não conta o robô que
+   * gera a prévia do link quando ele é colado no WhatsApp (senão toda proposta
+   * pareceria aberta no instante do envio), nem quem é da própria conta.
+   */
+  const navegador = cabecalhos.get('user-agent') || '';
+  const robo = !navegador || /bot|crawler|spider|preview|facebookexternalhit|whatsapp|telegram|slack|discord|twitter|linkedin|skype|headless|curl|wget|python|go-http|okhttp|axios|node-fetch/i.test(navegador);
+  if (!robo) {
+    const quem = await sessaoAtual().catch(() => null);
+    if (quem?.contaId !== lead.contaId) await marcarPropostaAberta(lead.contaId, lead.id).catch(() => {});
+  }
 
   /*
    * O documento prometia domínio e hospedagem inclusos em toda proposta,

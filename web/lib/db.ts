@@ -93,6 +93,10 @@ export interface Lead {
   contatadoEm: string | null;
   /** a simulação de proposta montada para este lead */
   proposta: unknown | null;
+  /** o cliente abriu o link público da proposta: a primeira vez, a última e quantas vezes */
+  propostaPrimeiraEm: string | null;
+  propostaAbertaEm: string | null;
+  propostaAberturas: number;
   /**
    * Caminho público da proposta. Não existe no banco: a rota calcula na
    * hora, porque o token depende de um segredo que só o servidor tem.
@@ -196,6 +200,9 @@ export function normalizarLead(
     coletadoPor: coletadoPor || null,
     responsavel: null,
     proposta: null,
+    propostaPrimeiraEm: null,
+    propostaAbertaEm: null,
+    propostaAberturas: 0,
     createdAt: agora,
     updatedAt: agora,
   };
@@ -239,6 +246,9 @@ export function daLinha(r: any): Lead {
     coletadoPor: r.coletado_por,
     responsavel: r.responsavel,
     proposta: json(r.proposta),
+    propostaPrimeiraEm: r.proposta_primeira_em ? new Date(r.proposta_primeira_em).toISOString() : null,
+    propostaAbertaEm: r.proposta_aberta_em ? new Date(r.proposta_aberta_em).toISOString() : null,
+    propostaAberturas: Number(r.proposta_aberturas) || 0,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -409,6 +419,22 @@ async function acompanharNoFunil(conta: string, id: string, status: Status): Pro
     where conta_id = ${conta} and id = ${id}
       and exists (select 1 from destino)
       and coalesce((select situacao from atual), '') <> ${status}
+  `;
+}
+
+/**
+ * O cliente abriu o link da proposta. Aberturas seguidas contam uma vez a
+ * cada 30 minutos — recarregar a página ou voltar a ela logo depois não é
+ * "abriu de novo". A data da última abertura sempre atualiza.
+ */
+export async function marcarPropostaAberta(conta: string, id: string): Promise<void> {
+  await db()`
+    update leads set
+      proposta_aberturas = proposta_aberturas + case
+        when proposta_aberta_em is null or proposta_aberta_em < now() - interval '30 minutes' then 1 else 0 end,
+      proposta_primeira_em = coalesce(proposta_primeira_em, now()),
+      proposta_aberta_em = now()
+    where conta_id = ${conta} and id = ${id}
   `;
 }
 

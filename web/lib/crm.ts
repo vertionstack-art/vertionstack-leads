@@ -51,11 +51,15 @@ export interface Card {
   notas: string | null;
   responsavel: string | null;
   temperatura: Nivel;
+  /** o cliente abriu o link da proposta */
+  propostaAbertaEm: string | null;
+  propostaAberturas: number;
+  propostaPrimeiraEm: string | null;
   etapaId: string;
   /** desde quando está nesta etapa */
   etapaEm: string;
   ordem: number;
-  /** da proposta salva, em centavos; 0 quando não há proposta */
+  /** da proposta salva, em reais; 0 quando não há proposta */
   entrada: number;
   mensalidade: number;
 }
@@ -156,6 +160,9 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       notas: lead.notes,
       responsavel: lead.responsavel,
       temperatura: temperaturaDoLead(lead).nivel,
+      propostaAbertaEm: lead.propostaAbertaEm,
+      propostaAberturas: lead.propostaAberturas,
+      propostaPrimeiraEm: lead.propostaPrimeiraEm,
       etapaId: r.etapa_id,
       etapaEm: new Date(r.etapa_em || r.updated_at).toISOString(),
       ordem: Number(r.etapa_ordem) || 0,

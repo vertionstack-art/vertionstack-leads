@@ -6,7 +6,9 @@ import {
   Crown, Kanban, KeyRound, MessageCircle, Radar, Wallet, Plus, Puzzle, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
+import type { AvisoVencimento } from '@/lib/pagamento';
 import { numeroWhatsapp } from '@/lib/telefone';
+import SeloProposta from './selo-proposta';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
@@ -257,13 +259,70 @@ function AvisoTeste({ usados, limite, negado }: { usados: number; limite: number
   );
 }
 
+const NOME_PLANO_PAGO: Record<AvisoVencimento['plano'], string> = { semanal: '7 dias', basic: 'Basic', pro: 'Pro' };
+
+/**
+ * O aviso de vencimento do topo: o Pix e o plano de 7 dias não renovam
+ * sozinhos, então avisa antes; e avisa cartão recusado, assinatura cancelada
+ * perto do fim e plano que acabou de vencer.
+ */
+function AvisoDeVencimento({ aviso }: { aviso: AvisoVencimento }) {
+  const nome = NOME_PLANO_PAGO[aviso.plano];
+  const dia = new Date(aviso.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const quando = aviso.dias <= 0 ? '' : aviso.dias === 1 ? 'amanhã' : `em ${aviso.dias} dias`;
+  const urgente = aviso.tipo === 'venceu' || aviso.tipo === 'cartao' || aviso.dias <= 1;
+  const titulo =
+    aviso.tipo === 'venceu'
+      ? `Seu plano ${nome} venceu em ${dia}.`
+      : aviso.tipo === 'cartao'
+        ? 'O cartão foi recusado na renovação.'
+        : aviso.tipo === 'cancelada'
+          ? `Sua assinatura ${nome} termina ${quando} (${dia}).`
+          : `Seu plano ${nome} vence ${quando} (${dia}).`;
+  const texto =
+    aviso.tipo === 'venceu'
+      ? 'Seus leads, o CRM e as propostas continuam aqui. Renove para voltar a buscar leads novos.'
+      : aviso.tipo === 'cartao'
+        ? `Atualize o cartão antes de ${dia} para não perder o plano.`
+        : aviso.tipo === 'cancelada'
+          ? 'Depois disso a busca de leads novos para. Reative quando quiser.'
+          : aviso.plano === 'semanal'
+            ? 'O plano de 7 dias não renova sozinho. Para continuar, pague mais 7 dias ou assine um plano mensal.'
+            : 'O pagamento por Pix não renova sozinho. Para não parar, pague mais um mês ou passe para o cartão.';
+  return (
+    <div
+      role={urgente ? 'alert' : 'status'}
+      className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 text-[13px] leading-relaxed ${
+        urgente ? 'bg-tinta text-white' : 'bg-manteiga text-amber-950 ring-1 ring-inset ring-amber-200'
+      }`}
+    >
+      <span className="max-w-[640px]">
+        <b className="text-[14.5px]">{titulo}</b>
+        <br />
+        {texto}
+      </span>
+      <a
+        href="/planos"
+        className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full px-5 text-[13px] font-bold transition-colors ${
+          urgente ? 'bg-ceu text-tinta hover:bg-white' : 'bg-tinta text-white hover:bg-tinta-70'
+        }`}
+      >
+        {aviso.tipo === 'cartao' ? 'Atualizar cartão' : aviso.tipo === 'cancelada' ? 'Reativar' : 'Renovar'}
+      </a>
+    </div>
+  );
+}
+
 export default function Painel({
   usuario,
   foto,
   plano,
   cota: cotaInicial,
   buscaGoogle = false,
+  vencimento = null,
 }: {
+  /** aviso de plano vencendo ou vencido (lib/pagamento) */
+  vencimento?: AvisoVencimento | null;
   usuario: string;
   foto?: string | null;
   /** a busca pelo Google está ligada: ela substitui a extensão nos atalhos */
@@ -717,7 +776,8 @@ export default function Painel({
 
           {/* ------------------------------------------------- avisos */}
           <div className="mt-6 space-y-3 empty:hidden">
-            {!cota.ilimitado && cota.teste && (
+            {vencimento && <AvisoDeVencimento aviso={vencimento} />}
+            {!cota.ilimitado && cota.teste && vencimento?.tipo !== 'venceu' && (
               <AvisoTeste usados={cota.usados} limite={cota.limite} negado={cota.testeNegado ?? null} />
             )}
             {!cota.ilimitado && !cota.teste && (
@@ -1039,6 +1099,11 @@ export default function Painel({
                                 </span>
                               </div>
                               {lead.category && <div className="mt-0.5 text-[12px] font-medium text-zinc-500">{lead.category}</div>}
+                              {lead.propostaAberturas > 0 && (
+                                <div className="mt-1.5">
+                                  <SeloProposta abertaEm={lead.propostaAbertaEm} aberturas={lead.propostaAberturas} primeiraEm={lead.propostaPrimeiraEm} />
+                                </div>
+                              )}
                               {notaAberta === lead.id ? (
                                 <div className="mt-2">
                                   <textarea

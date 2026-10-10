@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import type { Card, Cor, Etapa, Quadro } from '@/lib/crm';
 import type { Status } from '@/lib/db';
+import SeloProposta from '../selo-proposta';
 
 const FUNDO: Record<Cor, string> = {
   zinco: 'bg-zinc-100',
@@ -31,8 +32,9 @@ const TEMP: Record<Card['temperatura'], { rotulo: string; ponto: string }> = {
   frio: { rotulo: 'Frio', ponto: 'bg-violet-400' },
 };
 
-const reais = (centavos: number) =>
-  (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+/** o valor da proposta já vem em reais (lib/proposta), como no Financeiro */
+const reais = (valor: number) =>
+  valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 function diasDesde(iso: string): string {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -373,6 +375,7 @@ function CardCrm({
         </span>
         {card.entrada > 0 && <span className="tabular-nums text-tinta">{reais(card.entrada)}{card.mensalidade > 0 && ` + ${reais(card.mensalidade)}/mês`}</span>}
         <span suppressHydrationWarning>{diasDesde(card.etapaEm)}</span>
+        <SeloProposta abertaEm={card.propostaAbertaEm} aberturas={card.propostaAberturas} primeiraEm={card.propostaPrimeiraEm} />
       </div>
 
       {card.notas && <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-zinc-500">{card.notas}</p>}
