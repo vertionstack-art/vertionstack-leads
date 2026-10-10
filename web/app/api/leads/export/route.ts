@@ -1,6 +1,7 @@
 import { todosOsLeads } from '@/lib/db';
 import { sessaoAtual } from '@/lib/conta';
 import { filtrosDaUrl } from '../route';
+import { estourou } from '@/lib/limite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,9 @@ export async function GET(req: Request) {
   const sessao = await sessaoAtual();
   if (!sessao || sessao.bloqueada) {
     return new Response('Não autorizado.', { status: 401 });
+  }
+  if (await estourou('export:' + sessao.userId, 30, 60 * 60)) {
+    return new Response('Muitos downloads seguidos. Espere alguns minutos.', { status: 429 });
   }
 
   const leads = await todosOsLeads(sessao.contaId, filtrosDaUrl(new URL(req.url)));

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { paraVerificar, faltamVerificar, marcarVerificacao } from '@/lib/db';
 import { verificarSite } from '@/lib/verificar-site';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { estourou } from '@/lib/limite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,10 @@ export async function POST(req: Request) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
   const conta = s.sessao.contaId;
+  // cada chamada abre vários sites de fora: limite para o servidor não virar robô de ninguém
+  if (await estourou('verificar:' + s.sessao.userId, 60, 60 * 60)) {
+    return NextResponse.json({ ok: false, erro: 'Muitas ações seguidas. Espere um minuto.' }, { status: 429 });
+  }
 
   try {
     const lote = await paraVerificar(conta, POR_VEZ);

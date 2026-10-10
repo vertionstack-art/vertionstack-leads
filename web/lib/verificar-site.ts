@@ -10,6 +10,8 @@
  * Nada disso custa nada: é uma requisição HTTP a partir do servidor.
  */
 
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import { classifyWebsite } from './classify';
 
 export type SiteStatus =
@@ -82,16 +84,62 @@ function textoVisivel(html: string): string {
     .trim();
 }
 
+/**
+ * O endereço do "site" vem de quem cadastrou o lead, então pode apontar para
+ * dentro da rede do servidor (127.0.0.1, 10.x, 169.254.169.254...). Abrir
+ * isso seria SSRF: o servidor buscando o que nunca deveria ficar exposto.
+ * Só passa endereço público, nas portas da web, conferido a cada redirecionamento.
+ */
+function ipInterno(ip: string): boolean {
+  const v4 = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (isIP(v4) === 4) {
+    const [a, b] = v4.split('.').map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19))
+    );
+  }
+  const x = ip.toLowerCase();
+  return x === '::' || x === '::1' || /^f[cd]/.test(x) || /^fe[89ab]/.test(x);
+}
+
+class EnderecoInterno extends Error {
+  name = 'EnderecoInterno';
+}
+
+async function conferirEndereco(u: URL): Promise<void> {
+  if (!/^https?:$/.test(u.protocol) || !['', '80', '443'].includes(u.port) || u.username || u.password) {
+    throw new EnderecoInterno('endereço fora do padrão da web');
+  }
+  const host = u.hostname.replace(/^[|]$/g, '');
+  if (/^localhost$|.local$|.internal$/i.test(host)) throw new EnderecoInterno('endereço interno');
+  const ips = isIP(host) ? [host] : (
+        await lookup(host, { all: true }).catch((e: NodeJS.ErrnoException) => {
+          // mesmo formato do erro do fetch, para "domínio não existe" continuar virando lead
+          throw Object.assign(new Error(e.message), { cause: { code: e.code } });
+        })
+      ).map((r) => r.address);
+  if (ips.some(ipInterno)) throw new EnderecoInterno('endereço interno');
+}
+
 async function buscar(url: string): Promise<Response> {
   const controle = new AbortController();
   const relogio = setTimeout(() => controle.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      redirect: 'follow',
-      signal: controle.signal,
-      headers: CABECALHOS,
-      cache: 'no-store',
-    });
+    let atual = new URL(url);
+    // segue os redirecionamentos na mão para conferir cada destino
+    for (let saltos = 0; saltos <= 5; saltos++) {
+      await conferirEndereco(atual);
+      const r = await fetch(atual, { redirect: 'manual', signal: controle.signal, headers: CABECALHOS, cache: 'no-store' });
+      const proximo = r.status >= 300 && r.status < 400 ? r.headers.get('location') : null;
+      if (!proximo) return r;
+      atual = new URL(proximo, atual);
+    }
+    throw new Error('redirecionamentos demais');
   } finally {
     clearTimeout(relogio);
   }

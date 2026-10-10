@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { atualizarLead, apagarLead, buscarLead, type Status } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { estourou } from '@/lib/limite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -19,6 +20,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
+  if (await estourou('lead:' + s.sessao.userId, 900, 60 * 60)) {
+    return NextResponse.json({ ok: false, erro: 'Muitas ações seguidas. Espere um minuto.' }, { status: 429 });
+  }
   const { contaId, nome: quem } = s.sessao;
 
   const { id } = await ctx.params;
@@ -93,6 +97,9 @@ export async function DELETE(req: Request, ctx: Ctx) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
+  if (await estourou('lead:' + s.sessao.userId, 900, 60 * 60)) {
+    return NextResponse.json({ ok: false, erro: 'Muitas ações seguidas. Espere um minuto.' }, { status: 429 });
+  }
   const { id } = await ctx.params;
   const ok = await apagarLead(s.sessao.contaId, decodeURIComponent(id).slice(0, 300));
   return NextResponse.json({ ok }, { status: ok ? 200 : 404 });
