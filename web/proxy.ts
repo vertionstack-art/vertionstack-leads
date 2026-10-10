@@ -13,7 +13,7 @@ import { createServerClient } from '@supabase/ssr';
 import { caminhoCentral } from '@/lib/caminho-central';
 import { aparelhoLiberado, COOKIE_APARELHO, DIAS_APARELHO, emailEhAdmin, liberacaoValida, tokenDoAparelho } from '@/lib/guarda-central';
 
-const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/'];
+const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade'];
 
 /**
  * O rastro do navegador para a trava do teste grátis (lib/teste): um id

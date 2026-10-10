@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { supabaseServidor } from '@/lib/supabase-server';
 import { registrarAcesso } from '@/lib/acessos';
 import { barrarSePreciso, emailValido, origemDoSite, resposta } from '@/lib/porta';
+import { VERSAO_TERMOS } from '@/lib/legal';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
-  const corpo = (await req.json().catch(() => ({}))) as { nome?: string; email?: string; senha?: string };
+  const corpo = (await req.json().catch(() => ({}))) as { nome?: string; email?: string; senha?: string; aceite?: string };
   const email = emailValido(corpo.email);
   const nome = String(corpo.nome || '').trim().slice(0, 60);
   const senha = String(corpo.senha || '');
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   if (barrado) return barrado;
 
   if (!nome) return resposta('Diga como podemos te chamar.', 400);
+  if (corpo.aceite !== 'sim') return resposta('Para criar a conta, aceite os Termos de uso e a Política de privacidade.', 400);
   if (!email) return resposta('Esse e-mail não parece certo.', 400);
   if (senha.length < 8) return resposta('A senha precisa ter pelo menos 8 caracteres.', 400);
   if (senha.length > 72) return resposta('A senha pode ter no máximo 72 caracteres.', 400);
@@ -26,7 +28,8 @@ export async function POST(req: Request) {
     email,
     password: senha,
     options: {
-      data: { nome },
+      // qual versão dos Termos e da Política a pessoa aceitou, e quando (prova do aceite)
+      data: { nome, termos_versao: VERSAO_TERMOS, termos_aceitos_em: new Date().toISOString() },
       emailRedirectTo: `${origemDoSite(req)}/auth/confirmar`,
     },
   });

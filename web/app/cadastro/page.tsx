@@ -11,13 +11,15 @@ export default function Cadastro() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
+  const [aceite, setAceite] = useState(false);
 
   async function criar(e: React.FormEvent) {
     e.preventDefault();
     if (senha.length < 8) return setErro('A senha precisa ter pelo menos 8 caracteres.');
+    if (!aceite) return setErro('Para criar a conta, aceite os Termos de uso e a Política de privacidade.');
     setEnviando(true);
     setErro(null);
-    const r = await postar('/api/auth/cadastrar', { nome, email, senha });
+    const r = await postar('/api/auth/cadastrar', { nome, email, senha, aceite: aceite ? 'sim' : '' });
     if (!r.ok) {
       setErro(r.erro || 'Não consegui criar a conta.');
       setEnviando(false);
@@ -61,9 +63,18 @@ export default function Cadastro() {
         />
         <p id="senha-dica" className="mt-2 text-[12px] text-zinc-500">Pelo menos 8 caracteres.</p>
 
+        <label className="mt-5 flex cursor-pointer items-start gap-3 text-[13px] leading-relaxed text-zinc-700">
+          <input type="checkbox" checked={aceite} onChange={(e) => setAceite(e.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#0b0b0f]" />
+          <span>
+            Li e aceito os{' '}
+            <a href="/termos" target="_blank" rel="noopener" className="font-semibold text-roxo-700 underline underline-offset-2">Termos de uso</a> e a{' '}
+            <a href="/privacidade" target="_blank" rel="noopener" className="font-semibold text-roxo-700 underline underline-offset-2">Política de privacidade</a>.
+          </span>
+        </label>
+
         {erro && <p role="alert" className="mt-3 text-[13px] font-semibold text-red-700">{erro}</p>}
 
-        <button type="submit" disabled={enviando || !nome || !email || !senha} className={botao}>
+        <button type="submit" disabled={enviando || !nome || !email || !senha || !aceite} className={botao}>
           {enviando ? 'Criando…' : 'Criar conta grátis'}
         </button>
 

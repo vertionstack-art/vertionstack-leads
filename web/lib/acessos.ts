@@ -172,6 +172,8 @@ export async function registrarAcesso(
       insert into acessos (ip, rota, usuario, resultado, cidade, pais, navegador)
       values (${c.ip}, ${rota}, ${usuario}, ${resultado}, ${c.cidade}, ${c.pais}, ${c.navegador})
     `;
+    // de vez em quando apaga o que passou de 90 dias: é o prazo prometido na Política de privacidade
+    if (Math.random() < 0.02) limparAntigos(90).catch(() => {});
   } catch (err) {
     // registro é acessório: nunca pode derrubar a página que ele observa
     console.error('[acessos]', (err as Error).message);

@@ -190,6 +190,11 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
             )}
           </div>
         </section>
+        <p className="mt-10 text-center text-[12px] font-medium text-zinc-500">
+          <a href="/termos" className="hover:text-tinta hover:underline">Termos de uso</a>
+          <span className="mx-2" aria-hidden>·</span>
+          <a href="/privacidade" className="hover:text-tinta hover:underline">Política de privacidade</a>
+        </p>
       </div>
     </div>
   );
