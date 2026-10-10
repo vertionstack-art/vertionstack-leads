@@ -55,7 +55,8 @@ export async function proxy(req: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const caminho = req.nextUrl.pathname;
-  const publica = PUBLICAS.some((p) => caminho === p || caminho.startsWith(p));
+  // o endereço principal sem login é a página de venda (app/page.tsx decide qual das duas mostra)
+  const publica = caminho === '/' || PUBLICAS.some((p) => caminho === p || caminho.startsWith(p));
 
   if (!data.user && !publica) {
     const destino = req.nextUrl.clone();

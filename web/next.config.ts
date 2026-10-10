@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // a página de venda (o endereço principal) é a única que pode aparecer no Google
+        source: '/:path+',
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      },
+      {
         source: '/:path*',
         headers: [
           { key: 'Content-Security-Policy', value: csp },
@@ -38,9 +43,6 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
-          // a ferramenta fica atrás do login: nada dela precisa aparecer no Google, e
-          // assim nenhuma página responde com um cabeçalho diferente das outras
-          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
         ],
       },
     ];

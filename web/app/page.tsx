@@ -1,17 +1,26 @@
+import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
+import Inicio from './inicio';
 import { buscaLigada } from '@/lib/google-places';
 import { lerFoto } from '@/lib/perfil';
 import { avisoDeVencimento } from '@/lib/pagamento';
 
 export const dynamic = 'force-dynamic';
 
+export const metadata: Metadata = {
+  title: 'Vertion Leads: ache comércios sem site e venda o site para eles',
+  description:
+    'Busca comércios no Google da sua cidade e entrega só quem precisa de site, com temperatura, motivo para abordar, WhatsApp, proposta e CRM. Teste grátis com 30 leads, sem cartão.',
+};
+
 export default async function Home() {
   const sessao = await sessaoAtual();
-  if (!sessao) redirect('/login');
+  // quem não está logado vê a página de venda; quem está, o painel
+  if (!sessao) return <Inicio />;
 
   /*
    * Registrar só o login deixava de fora justamente o caso comum: quem já
