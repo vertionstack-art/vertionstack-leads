@@ -25,7 +25,7 @@ export interface Limites {
   buscas: number;
   /** quantos leads a conta pode ter guardados ao mesmo tempo */
   guardados: number;
-  /** pessoas dividindo a mesma conta */
+  /** pessoas na mesma conta: 1 em todo plano à venda (o Lucas não quer equipe, 10/10/2026); só a cortesia junta gente pela central */
   pessoas: number;
   /** computadores por chave da extensão */
   aparelhos: number;
@@ -37,7 +37,7 @@ export const LIMITES: Record<Plano, Limites> = {
   gratis: { semana: 30, buscas: 10, guardados: 200, pessoas: 1, aparelhos: 2, funis: 1 },
   semanal: { semana: 100, buscas: 25, guardados: 1000, pessoas: 1, aparelhos: 1, funis: 2 },
   basic: { semana: 150, buscas: 60, guardados: 3000, pessoas: 1, aparelhos: 2, funis: 5 },
-  pro: { semana: 500, buscas: 120, guardados: 15000, pessoas: 3, aparelhos: 3, funis: 20 },
+  pro: { semana: 500, buscas: 120, guardados: 15000, pessoas: 1, aparelhos: 3, funis: 20 },
   // a conta da própria Vertion: sem teto prático
   cortesia: { semana: 1_000_000, buscas: 1_000_000, guardados: 1_000_000, pessoas: 20, aparelhos: 10, funis: 50 },
 };
@@ -59,7 +59,7 @@ export const PLANOS_A_VENDA: InfoPlano[] = [
   { plano: 'gratis', nome: 'Teste grátis', precoCentavos: 0, periodo: '', resumo: 'Para conhecer a ferramenta, sem cartão.' },
   { plano: 'semanal', nome: '7 dias', precoCentavos: 1490, periodo: '/7 dias', resumo: 'Uma semana inteira de prospecção, sem assinatura.' },
   { plano: 'basic', nome: 'Basic', precoCentavos: 3790, periodo: '/mês', resumo: 'Para o freelancer que prospecta sozinho.' },
-  { plano: 'pro', nome: 'Pro', precoCentavos: 6790, periodo: '/mês', resumo: 'Para quem prospecta pesado ou trabalha em dupla.' },
+  { plano: 'pro', nome: 'Pro', precoCentavos: 6790, periodo: '/mês', resumo: 'Para quem prospecta pesado, todo dia.' },
 ];
 
 export const NOME_DO_PLANO: Record<Plano, string> = {

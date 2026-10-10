@@ -263,7 +263,8 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
         )}
       </section>
 
-      {/* ------------------------------------------------------- equipe */}
+      {/* ---------------- equipe: só aparece na conta que tem mais gente (cortesia) */}
+      {dados.equipe.length > 1 && (
       <section className="rounded-[24px] border border-zinc-200 p-6">
         <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">Quem usa esta conta</h2>
         <ul className="mt-3 flex flex-wrap gap-2">
@@ -274,8 +275,8 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[12.5px] text-zinc-500">O plano Pro permite até 3 pessoas na mesma conta.</p>
       </section>
+      )}
 
       {/* ------------------------------------------------- zona de perigo */}
       <section className="rounded-[24px] bg-zinc-50 p-6">
