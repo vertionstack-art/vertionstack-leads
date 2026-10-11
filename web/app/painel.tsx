@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Bell, Check, ChevronDown, Download, Upload, Flame, LayoutGrid, LogOut, MapPin,
+  AlertTriangle, Bell, Check, ChevronDown, Download, Map as IconeMapa, Smartphone, Upload, Flame, LayoutGrid, LogOut, MapPin,
   Crown, Kanban, MessageCircle, Radar, Wallet, Plus, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
@@ -19,6 +19,7 @@ import type { WebsiteKind } from '@/lib/classify';
 import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
 import Logo from './logo';
 import FichaLead from './ficha-lead';
+import InstalarApp from './instalar-app';
 import PrimeirosPassos from './primeiros-passos';
 import type { Passo } from '@/lib/passos';
 
@@ -419,6 +420,7 @@ export default function Painel({
   const [variantePrompt, setVariantePrompt] = useState<Variante>('abordagem');
   const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
   const [ficha, setFicha] = useState<{ id: string; aba: 'whatsapp' | 'lembrete' | 'historico' } | null>(null);
+  const [instalando, setInstalando] = useState(false);
   const [cadastrando, setCadastrando] = useState(false);
   const [notaAberta, setNotaAberta] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
@@ -572,6 +574,27 @@ export default function Painel({
     if (!r.ok) { setErro('Não consegui salvar a alteração.'); carregar(); }
   }
 
+  /** prévia em 1 clique: gera o link (se ainda não tem) e abre numa aba nova */
+  async function abrirPrevia(lead: Lead) {
+    if (lead.previaUrl) {
+      window.open(lead.previaUrl, '_blank', 'noopener');
+      return;
+    }
+    // a aba abre já, no clique; senão o navegador bloqueia por ser depois de esperar o servidor
+    const aba = window.open('about:blank', '_blank');
+    try {
+      const r = await fetch(`/api/leads/${encodeURIComponent(lead.id)}/previa`, { method: 'POST' });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.erro);
+      if (aba) aba.location.href = j.url;
+      else window.open(j.url, '_blank', 'noopener');
+      carregar();
+    } catch {
+      aba?.close();
+      alert('Não consegui gerar a prévia agora. Tente de novo.');
+    }
+  }
+
   async function apagar(id: string, nome: string) {
     /*
      * Avisa o que some junto. Apagar um lead que já tem proposta montada e
@@ -695,6 +718,9 @@ export default function Painel({
           <ItemTrilho rotulo="Planos" href="/planos">
             <Crown className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
+          <ItemTrilho rotulo="Mapa dos leads" href="/mapa">
+            <IconeMapa className="h-5 w-5" strokeWidth={1.8} />
+          </ItemTrilho>
           <ItemTrilho rotulo="Importar planilha" href="/importar">
             <Upload className="h-5 w-5" strokeWidth={1.8} />
           </ItemTrilho>
@@ -796,9 +822,15 @@ export default function Painel({
                   <a href="/buscar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Radar aria-hidden className="h-4 w-4 text-zinc-500" /> Buscar leads
                   </a>
+                  <a href="/mapa" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                    <IconeMapa aria-hidden className="h-4 w-4 text-zinc-500" /> Mapa dos leads
+                  </a>
                   <a href="/importar" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Upload aria-hidden className="h-4 w-4 text-zinc-500" /> Importar planilha
                   </a>
+                  <button onClick={() => setInstalando(true)} className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-semibold hover:bg-zinc-100">
+                    <Smartphone aria-hidden className="h-4 w-4 text-zinc-500" /> Instalar no celular
+                  </button>
                   <button onClick={sair} className="flex min-h-[40px] w-full items-center gap-2.5 rounded-xl px-3 text-left text-[13px] font-semibold hover:bg-zinc-100">
                     <LogOut aria-hidden className="h-4 w-4 text-zinc-500" /> Sair
                   </button>
@@ -1092,7 +1124,7 @@ export default function Painel({
                   onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
                   onApagar={() => apagar(lead.id, lead.name)}
                   onPromptGringa={() => { setVariantePrompt('gringa'); setPromptDe(lead); }}
-                  onPromptDesign={() => { setVariantePrompt('design'); setPromptDe(lead); }}
+                  onPrevia={() => abrirPrevia(lead)}
                   onPromptSite={() => { setVariantePrompt('site'); setPromptDe(lead); }}
                   onProposta={() => setPropostaDe(lead)}
                   onFicha={(aba) => setFicha({ id: lead.id, aba })}
@@ -1346,9 +1378,15 @@ export default function Painel({
                               </Acao>
                             )}
                             <Acao
-                              onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
-                              titulo="Antes da venda: prompt para desenhar a prévia no Claude Design"
+                              onClick={() => abrirPrevia(lead)}
+                              titulo={lead.previaUrl ? 'Abrir a prévia do site deste comércio' : 'Gera em 1 clique uma prévia do site deste comércio, com link para mandar'}
                               feito={Boolean(lead.previaUrl)}
+                            >
+                              PRÉVIA
+                            </Acao>
+                            <Acao
+                              onClick={() => { setVariantePrompt('design'); setPromptDe(lead); }}
+                              titulo="Prévia personalizada: prompt para desenhar no Claude Design"
                             >
                               DESIGN
                             </Acao>
@@ -1475,6 +1513,8 @@ export default function Painel({
       {cadastrando && (
         <CadastroModal aoFechar={() => setCadastrando(false)} aoSalvar={carregar} />
       )}
+
+      {instalando && <InstalarApp aoFechar={() => setInstalando(false)} />}
 
       {ficha && (
         <FichaLead key={ficha.id + ficha.aba} leadId={ficha.id} abaInicial={ficha.aba} aoFechar={() => setFicha(null)} aoMudar={carregar} />

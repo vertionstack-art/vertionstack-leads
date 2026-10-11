@@ -30,6 +30,9 @@ const CAMPOS = [
   'places.location',
   'places.primaryTypeDisplayName',
   'places.businessStatus',
+  // fotos (faixa Pro) e horário (faixa Enterprise) não mudam o preço: o telefone, o site e a nota já nos põem na Enterprise
+  'places.photos',
+  'places.regularOpeningHours',
   'nextPageToken',
 ].join(',');
 
@@ -45,6 +48,10 @@ export interface ComercioGoogle {
   lat: number | null;
   lng: number | null;
   tipo: string | null;
+  /** quantas fotos o perfil tem no Google (a API devolve até 10) */
+  fotos: number;
+  /** horário de funcionamento por dia, ou null quando o perfil não tem */
+  horario: string | null;
 }
 
 export interface PaginaGoogle {
@@ -125,6 +132,8 @@ export async function buscarPagina(pergunta: string, pagina: string | null): Pro
       lat: p.location?.latitude ?? null,
       lng: p.location?.longitude ?? null,
       tipo: p.primaryTypeDisplayName?.text || null,
+      fotos: Array.isArray(p.photos) ? p.photos.length : 0,
+      horario: Array.isArray(p.regularOpeningHours?.weekdayDescriptions) ? p.regularOpeningHours.weekdayDescriptions.join(' · ').slice(0, 200) : null,
     }))
     .filter((c) => c.nome);
   return { comercios, proxima: d.nextPageToken || null };
@@ -301,6 +310,8 @@ function paginaFalsa(pergunta: string, pagina: string | null): PaginaGoogle {
       lat: -11.73,
       lng: -49.07,
       tipo: base,
+      fotos: k % 4 === 0 ? 0 : 6,
+      horario: k % 6 === 0 ? null : 'segunda-feira: 08:00–18:00',
     };
   });
   return { comercios, proxima: n < 2 ? String(n + 1) : null };

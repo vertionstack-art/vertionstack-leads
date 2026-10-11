@@ -75,7 +75,7 @@ const PASSOS: { verbo: string; titulo: string; texto: string; cena: React.ReactN
     verbo: 'Aborde',
     titulo: 'Mostre a prévia antes do preço',
     texto:
-      'A ferramenta monta o briefing da prévia do site e escreve a mensagem de abordagem em volta dela, usando o motivo daquele comércio. Você revisa, copia e manda.',
+      'Em 1 clique a ferramenta monta uma prévia do site do comércio, com o nome, a nota e o WhatsApp dele, num link pronto. A mensagem de abordagem já vem escrita com o motivo e o link da prévia. Você revisa e manda.',
     cena: (
       <div className="max-w-[420px] rounded-[20px] rounded-bl-md bg-zinc-100 px-4 py-3 text-[13.5px] leading-relaxed">
         <p>
@@ -90,7 +90,7 @@ const PASSOS: { verbo: string; titulo: string; texto: string; cena: React.ReactN
     verbo: 'Proponha',
     titulo: 'Saiba a hora que o cliente abriu a proposta',
     texto:
-      'Preço, prazo e o que entra no site, num link ou PDF com os dados da sua empresa. Quando o cliente abre, o lead ganha um selo verde com quantas vezes ele olhou. E a ferramenta avisa antes da proposta vencer.',
+      'Preço, prazo e o que entra no site, num link ou PDF com os dados da sua empresa. Quando o cliente abre, o lead ganha um selo verde com quantas vezes ele olhou. E ele pode aceitar ali mesmo, online: você recebe um e-mail na hora.',
     cena: (
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tinta text-[15px] font-extrabold text-white" aria-hidden>

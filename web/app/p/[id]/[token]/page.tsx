@@ -8,6 +8,7 @@ import { montarProposta, moeda, normalizarMarcacoes } from '@/lib/proposta';
 import type { Formalizacao, Porte } from '@/lib/catalogo';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import BotaoImprimir from './imprimir';
+import AceiteProposta from './aceite';
 import './proposta.css';
 
 export const dynamic = 'force-dynamic';
@@ -97,6 +98,7 @@ export default async function PaginaProposta({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
+    aceite?: { nome: string; em: string };
   };
 
   const proposta = montarProposta({
@@ -295,6 +297,19 @@ export default async function PaginaProposta({
             </div>
           </dl>
         </section>
+
+        {/* -------------------------------------------- aceite online */}
+        {!fechado && cfg.aceite?.em ? (
+          <section className="aceite aceite--feito">
+            <h2 className="secao-titulo">Proposta aceita</h2>
+            <p>
+              Aceita por <strong>{cfg.aceite.nome}</strong> em{' '}
+              {new Date(cfg.aceite.em).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}.
+            </p>
+          </section>
+        ) : (
+          !fechado && <AceiteProposta segmento={id} token={token} empresa={EMPRESA.nome} />
+        )}
 
         {/* ----------------------------------------------------- rodapé */}
         <footer className="rodape">

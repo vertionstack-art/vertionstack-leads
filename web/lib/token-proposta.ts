@@ -55,3 +55,19 @@ export function lerCaminho(
   }
   return iguais(assinar('proposta:' + bruto), token) ? { legado: true, id: bruto } : null;
 }
+
+// ------------------------------------------------ prévia do site
+
+/** o link público da prévia automática do site (app/s/[id]/[token]) */
+export function caminhoDaPrevia(conta: string, id: string): string {
+  return `/s/${conta}~${encodeURIComponent(id)}/${assinar(`previa:${conta}:${id}`)}`;
+}
+
+export function lerCaminhoDaPrevia(segmento: string, token: string): { conta: string; id: string } | null {
+  const bruto = decodeURIComponent(segmento);
+  const corte = bruto.indexOf('~');
+  const conta = corte > 0 ? bruto.slice(0, corte) : '';
+  if (!/^[0-9a-f-]{36}$/i.test(conta)) return null;
+  const id = bruto.slice(corte + 1);
+  return iguais(assinar(`previa:${conta}:${id}`), token) ? { conta, id } : null;
+}

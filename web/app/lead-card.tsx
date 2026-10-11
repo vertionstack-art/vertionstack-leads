@@ -31,7 +31,7 @@ export default function LeadCard({
   onStatus,
   onPrompt,
   onPromptGringa,
-  onPromptDesign,
+  onPrevia,
   onPromptSite,
   onProposta,
   onFicha,
@@ -52,7 +52,7 @@ export default function LeadCard({
   onStatus: (s: Status) => void;
   onPrompt: () => void;
   onPromptGringa: () => void;
-  onPromptDesign: () => void;
+  onPrevia: () => void;
   onPromptSite: () => void;
   onProposta: () => void;
   onFicha: (aba: 'whatsapp' | 'lembrete' | 'historico') => void;
@@ -203,13 +203,13 @@ export default function LeadCard({
           COPY
         </button>
         <button
-          onClick={onPromptDesign}
+          onClick={onPrevia}
           className={`flex ${TOQUE} items-center justify-center gap-1 rounded-full text-[12.5px] font-bold ${
             lead.previaUrl ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta'
           }`}
         >
           {lead.previaUrl && <Check aria-hidden className="h-3.5 w-3.5" />}
-          DESIGN
+          PRÉVIA
         </button>
         <button
           onClick={onProposta}

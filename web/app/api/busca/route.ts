@@ -9,6 +9,8 @@ import {
 import { estourou } from '@/lib/limite';
 import { LIMITES } from '@/lib/planos';
 import { usarBuscaBonus } from '@/lib/indicacao';
+import { verificarSite } from '@/lib/verificar-site';
+import { ehRede } from '@/lib/enriquecer';
 import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
 export const runtime = 'nodejs';
@@ -139,7 +141,9 @@ export async function POST(req: Request) {
   // conta a chamada já, antes de qualquer coisa que possa falhar: o Google cobrou
   await contarChamada(contaId, resultado.comercios.length, 0);
 
-  const cidade = local.split(',').slice(-1)[0].trim() || local;
+  // "Centro, Gurupi, TO" vira "Gurupi, TO": cidade com a UF, sem o bairro
+  const partes = local.split(',').map((p) => p.trim()).filter(Boolean);
+  const cidade = (partes.length >= 2 && /^[A-Za-z]{2}$/.test(partes[partes.length - 1]) ? partes.slice(-2).join(', ') : partes[partes.length - 1]) || local;
   const todos = resultado.comercios
     .map((g) =>
       normalizarLead(
@@ -157,6 +161,8 @@ export async function POST(req: Request) {
           mapsUrl: g.mapsUrl,
           lat: g.lat,
           lng: g.lng,
+          fotos: g.fotos,
+          hours: g.horario,
         },
         quem,
         'google',
@@ -166,6 +172,32 @@ export async function POST(req: Request) {
   const leads = todos.filter((l) => l.isLead);
 
   try {
+    /*
+     * Site próprio cadastrado não quer dizer site no ar. Antes, esses
+     * comércios eram descartados sem ninguém abrir o site — e o lead mais
+     * quente de todos é justamente o de site quebrado (lib/temperatura).
+     * Agora a busca confere na hora os que ainda não estão na conta, com
+     * prazo curto: o que não responder a tempo fica de fora, como antes.
+     */
+    const comSite = todos.filter((l) => !l.isLead);
+    const comSiteNovos = new Set(await idsNovos(contaId, comSite.map((l) => l.id)));
+    const conferencias = await Promise.all(
+      comSite
+        .filter((l) => comSiteNovos.has(l.id) && !ehRede(l.name))
+        .map((l) =>
+          Promise.race([
+            verificarSite(l.website).then((v) => ({ l, v })),
+            new Promise<{ l: typeof l; v: null }>((ok) => setTimeout(() => ok({ l, v: null }), 9000)),
+          ]).catch(() => ({ l, v: null })),
+        ),
+    );
+    let sitesQuebrados = 0;
+    for (const { l, v } of conferencias) {
+      if (!v || !v.viraLead) continue;
+      sitesQuebrados++;
+      leads.unshift({ ...l, isLead: true, siteStatus: v.status, siteDetalhe: v.detalhe, siteVerificadoEm: new Date().toISOString() });
+    }
+
     const novosIds = new Set(await idsNovos(contaId, leads.map((l) => l.id)));
     const existentes = leads.filter((l) => !novosIds.has(l.id));
 
@@ -194,6 +226,7 @@ export async function POST(req: Request) {
       ok: true,
       comercios: resultado.comercios.length,
       comSite: todos.length - leads.length,
+      sitesQuebrados,
       retomada,
       buscas: { usadas: usadas + 1, limite: limiteBuscas },
       jaTinha: existentes.length,

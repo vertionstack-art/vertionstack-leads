@@ -141,6 +141,24 @@ function pesoInstagram(lead: Lead): { pontos: number; motivo: string | null } {
   };
 }
 
+/**
+ * Peso 6 — perfil do Google largado. Vale até 5.
+ *
+ * Só conta para quem veio da busca do Google (fotosGoogle preenchido): sem
+ * foto nenhuma, quem acha o comércio no Maps não vê nem a fachada; sem
+ * horário, não sabe se está aberto. É argumento concreto para a conversa e
+ * sinal de que ninguém cuida da presença digital dele.
+ */
+function pesoPerfil(lead: Lead): { pontos: number; motivo: string | null } {
+  if (lead.fotosGoogle === null || lead.fotosGoogle === undefined) return { pontos: 0, motivo: null };
+  const semFoto = lead.fotosGoogle === 0;
+  const semHorario = !lead.hours;
+  if (semFoto && semHorario) return { pontos: 5, motivo: 'O perfil no Google não tem foto nem horário de funcionamento: ninguém cuida da presença digital dele.' };
+  if (semFoto) return { pontos: 4, motivo: 'O perfil no Google não tem nenhuma foto: quem procura não vê nem a fachada.' };
+  if (semHorario) return { pontos: 3, motivo: 'O perfil no Google está sem horário de funcionamento.' };
+  return { pontos: 0, motivo: null };
+}
+
 /** Peso 5 — ramos onde o que eu vendo resolve dor conhecida. Vale até 8. */
 function pesoRamo(lead: Lead): { pontos: number; motivo: string | null } {
   const ramo = ramoDaCategoria(lead.category);
@@ -177,16 +195,17 @@ export function temperaturaDoLead(lead: Lead): Temperatura {
   const reputacao = pesoReputacao(lead.rating, lead.reviews);
   const insta = pesoInstagram(lead);
   const ramo = pesoRamo(lead);
+  const perfil = pesoPerfil(lead);
   const contato = lead.phone ? 5 : 0;
 
-  for (const m of [presenca.motivo, movimento.motivo, reputacao.motivo, insta.motivo, ramo.motivo]) {
+  for (const m of [presenca.motivo, movimento.motivo, reputacao.motivo, insta.motivo, perfil.motivo, ramo.motivo]) {
     if (m) motivos.push(m);
   }
   for (const f of [movimento.freio, reputacao.freio]) {
     if (f) freios.push(f);
   }
 
-  let pontos = presenca.pontos + movimento.pontos + reputacao.pontos + insta.pontos + ramo.pontos + contato;
+  let pontos = Math.min(100, presenca.pontos + movimento.pontos + reputacao.pontos + insta.pontos + perfil.pontos + ramo.pontos + contato);
 
   /*
    * Sem telefone o lead não é frio, é inalcançável: por melhor que seja o

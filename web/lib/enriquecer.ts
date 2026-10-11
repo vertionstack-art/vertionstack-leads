@@ -21,6 +21,37 @@ import { emailNoTexto } from './email-lead';
 
 export type MotivoDescarte = 'empresa_grande' | 'site_proprio' | 'sem_contato' | 'sem_whatsapp';
 
+/**
+ * Franquias e redes: a loja da esquina com a marca de uma rede não decide
+ * site nenhum — a matriz já tem. Comparado pelo nome sem acento, palavra
+ * inteira. Entra na mesma conta de "empresa grande" na tela da busca.
+ */
+const REDES = [
+  'boticario', 'cacau show', 'kopenhagen', 'brasil cacau', 'chocolates brasil cacau', 'natura', 'eudora', 'quem disse berenice', 'jequiti', 'avon',
+  'mcdonalds', 'mc donalds', 'burger king', 'subway', 'habibs', 'bobs', 'giraffas', 'spoleto', 'china in box', 'dominos', 'pizza hut', 'kfc',
+  'starbucks', 'outback', 'madero', 'coco bambu', 'chiquinho sorvetes', 'sodie doces', 'amor aos pedacos', 'casa do pao de queijo', 'jeronimo',
+  'hering', 'renner', 'riachuelo', 'c&a', 'marisa', 'pernambucanas', 'havaianas', 'arezzo', 'schutz', 'melissa', 'lupo', 'puket', 'chilli beans',
+  'vivara', 'pandora', 'imaginarium', 'centauro', 'decathlon', 'netshoes', 'polishop', 'mundo verde', 'ri happy', 'pbkids', 'tok&stok', 'tok stok', 'camicado',
+  'casas bahia', 'magazine luiza', 'magalu', 'americanas', 'ponto frio', 'fast shop', 'kalunga', 'leroy merlin', 'telhanorte', 'obramax',
+  'drogasil', 'droga raia', 'pague menos', 'drogaria sao paulo', 'panvel', 'ultrafarma', 'drogarias pacheco', 'extrafarma', 'nissei', 'farmacias associadas',
+  'smart fit', 'smartfit', 'bluefit', 'selfit', 'bodytech', 'bio ritmo', 'just fit', 'pratique fitness',
+  'otica diniz', 'oticas diniz', 'oticas carol', 'otica carol', 'chilli beans', 'oticas wanny',
+  'carrefour', 'atacadao', 'assai', 'pao de acucar', 'walmart', 'sams club', 'fort atacadista', 'makro', 'mateus supermercados', 'big bompreco',
+  'banco do brasil', 'caixa economica', 'bradesco', 'itau', 'santander', 'sicoob', 'sicredi', 'banrisul', 'nubank', 'correios', 'lotericas', 'casa loterica',
+  'shell', 'ipiranga', 'petrobras', 'posto br', 'ale combustiveis',
+  'wizard', 'fisk', 'ccaa', 'kumon', 'yazigi', 'cna', 'uniasselvi', 'anhanguera', 'estacio', 'unopar', 'unip', 'cruzeiro do sul',
+  'sorridents', 'odontocompany', 'oral sin', 'dr consulta', 'hapvida', 'unimed', 'sabin', 'fleury', 'hermes pardini', 'dasa', 'a+ medicina',
+  'espacolaser', 'espaco laser', 'depyl action', 'sobrancelhas design', 'jacques janine', 'emporio body store', 'la vie en rose',
+  'localiza', 'unidas', 'movida', 'hertz', 
+].map((r) => r.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
+
+const PADRAO_REDES = new RegExp('(^|[^a-z0-9])(' + REDES.map((r) => r.replace(/[.*+?^${}()|[\]\\&]/g, (c) => (c === '&' ? '&' : '\\' + c))).join('|') + ')($|[^a-z0-9])');
+
+export function ehRede(nome: string): boolean {
+  const n = nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[’']/g, '');
+  return PADRAO_REDES.test(n);
+}
+
 export interface Avaliacao {
   descarte: MotivoDescarte | null;
   /** WhatsApp achado num link da própria empresa */
@@ -124,7 +155,7 @@ async function temSiteEscondido(nome: string): Promise<boolean> {
 export async function avaliarLead(lead: Lead, soComWhatsapp: boolean): Promise<Avaliacao> {
   const fora = (descarte: MotivoDescarte): Avaliacao => ({ descarte, whatsappLink: null, instagram: null, email: null });
 
-  if (EMPRESA_GRANDE.test(lead.name.trim())) return fora('empresa_grande');
+  if (EMPRESA_GRANDE.test(lead.name.trim()) || ehRede(lead.name)) return fora('empresa_grande');
 
   const [link, escondido] = await Promise.all([
     lead.website ? seguirLink(lead.website) : Promise.resolve({ whatsapp: null, instagram: null, email: null }),

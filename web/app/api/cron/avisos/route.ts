@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { rodarAvisosDoDia } from '@/lib/avisos';
+import { rodarAvisosDoDia, rodarResumoSemanal } from '@/lib/avisos';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,5 +16,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   const r = await rodarAvisosDoDia();
-  return NextResponse.json({ ok: true, ...r });
+  // segunda-feira: o resumo da semana de cada conta
+  const resumos = await rodarResumoSemanal();
+  return NextResponse.json({ ok: true, ...r, resumos });
 }

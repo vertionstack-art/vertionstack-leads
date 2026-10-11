@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Bell, BellOff, Check, Eye, FileText, Flag, History, Mail, MessageCircle, MoveRight, PencilLine, Phone, Save, Sparkles, Trash2, X,
+  Bell, BellOff, CalendarPlus, Check, Eye, FileText, Flag, History, Mail, MessageCircle, MoveRight, PencilLine, Phone, Save, Sparkles, Trash2, X,
 } from 'lucide-react';
+import { baixarIcs, linkGoogleAgenda, type EventoAgenda } from '@/lib/agenda';
 import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
 
 /**
@@ -68,6 +69,7 @@ const ICONE: Record<string, typeof Bell> = {
   proposta_fechada: Check,
   proposta_aberta: Eye,
   previa: Sparkles,
+  previa_aberta: Eye,
   etapa: MoveRight,
   lembrete: Bell,
   lembrete_feito: BellOff,
@@ -162,6 +164,15 @@ export default function FichaLead({
   }
 
   const dadosMsg = (d: Dados) => ({ ...d.lead, nome: d.lead.name });
+
+  const eventoDoLembrete = (d: Dados): EventoAgenda => ({
+    titulo: `Vertion Leads: ${d.lead.lembreteTexto || 'voltar a falar com'} ${d.lead.name}`.replace(/\s+/g, ' '),
+    inicio: new Date(d.lead.lembreteEm as string),
+    detalhes: [d.lead.name, [d.lead.category, d.lead.city].filter(Boolean).join(' · '), d.lead.phone ? `Telefone: ${d.lead.phone}` : '']
+      .filter(Boolean)
+      .join('\n'),
+    link: typeof window !== 'undefined' ? `${window.location.origin}/crm#para-hoje` : undefined,
+  });
 
   function escolherModelo(id: string) {
     if (!dados) return;
@@ -449,6 +460,24 @@ export default function FichaLead({
                   >
                     <Check aria-hidden className="h-3.5 w-3.5" /> Feito
                   </button>
+                  <div className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-200 pt-3">
+                    <span className="text-[12.5px] font-semibold text-zinc-600">Levar para a agenda:</span>
+                    <a
+                      href={linkGoogleAgenda(eventoDoLembrete(dados))}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-[34px] items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-bold ring-1 ring-inset ring-zinc-300 hover:ring-tinta"
+                    >
+                      <CalendarPlus aria-hidden className="h-3.5 w-3.5" /> Google Agenda
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => baixarIcs(eventoDoLembrete(dados), `Lembrete ${dados.lead.name}`)}
+                      className="inline-flex min-h-[34px] items-center gap-1.5 rounded-full bg-white px-3 text-[12px] font-bold ring-1 ring-inset ring-zinc-300 hover:ring-tinta"
+                    >
+                      <CalendarPlus aria-hidden className="h-3.5 w-3.5" /> iPhone / Outlook
+                    </button>
+                  </div>
                 </div>
               )}
               <p className="text-[13px] font-bold">{dados.lead.lembreteEm ? 'Mudar para' : 'Lembrar de voltar a este lead'}</p>
@@ -507,7 +536,7 @@ export default function FichaLead({
                   <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
                     <span
                       className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                        e.tipo === 'proposta_aberta' || e.tipo === 'proposta_fechada' ? 'bg-menta text-emerald-950' : 'bg-zinc-100 text-tinta'
+                        e.tipo === 'proposta_aberta' || e.tipo === 'proposta_fechada' || e.tipo === 'previa_aberta' ? 'bg-menta text-emerald-950' : 'bg-zinc-100 text-tinta'
                       }`}
                     >
                       <Icone aria-hidden className="h-4 w-4" />

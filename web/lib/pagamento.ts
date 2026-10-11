@@ -93,6 +93,8 @@ export async function abrirPagamento(opts: {
   if (opts.forma === 'cartao' && opts.plano !== 'semanal') {
     const s = await stripe().checkout.sessions.create({
       mode: 'subscription',
+      // campo de cupom na tela da Stripe (cupons criados no painel da Stripe)
+      allow_promotion_codes: true,
       customer,
       locale: 'pt-BR',
       allowed_payment_method_types: ['card'],
@@ -109,6 +111,7 @@ export async function abrirPagamento(opts: {
   const nome = PLANOS_A_VENDA.find((p) => p.plano === opts.plano)!.nome;
   const s = await stripe().checkout.sessions.create({
     mode: 'payment',
+    allow_promotion_codes: true,
     customer,
     locale: 'pt-BR',
     allowed_payment_method_types: [opts.forma === 'pix' ? 'pix' : 'card'],

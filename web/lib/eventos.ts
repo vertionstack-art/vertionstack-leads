@@ -20,6 +20,7 @@ export type TipoEvento =
   | 'proposta_fechada'
   | 'proposta_aberta'
   | 'previa'
+  | 'previa_aberta'
   | 'etapa'
   | 'lembrete'
   | 'lembrete_feito';
