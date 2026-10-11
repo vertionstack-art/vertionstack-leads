@@ -36,6 +36,7 @@ interface Descartes {
   site_proprio: number;
   sem_contato: number;
   sem_whatsapp: number;
+  fora_do_perfil: number;
 }
 
 const ROTULO_DESCARTE: Record<keyof Descartes, string> = {
@@ -43,6 +44,7 @@ const ROTULO_DESCARTE: Record<keyof Descartes, string> = {
   empresa_grande: 'empresa grande',
   site_proprio: 'têm site fora do Maps',
   sem_contato: 'sem nenhum contato',
+  fora_do_perfil: 'não combinam com o que você vende',
 };
 
 const PREFS = 'vl-busca';
@@ -81,12 +83,30 @@ export default function BuscaGoogle({
   const max = cota.ilimitado ? 500 : Math.min(200, cota.restantes ?? 0);
   const [quero, setQuero] = useState(Math.min(30, max) || 1);
   const [soComWhatsapp, setSoComWhatsapp] = useState(true);
-  const [descartes, setDescartes] = useState<Descartes>({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 });
+  const [descartes, setDescartes] = useState<Descartes>({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 });
   const [rodando, setRodando] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [aviso, setAviso] = useState<{ texto: string; fim?: boolean } | null>(null);
   const [terminou, setTerminou] = useState(false);
   const parar = useRef(false);
+
+  // os públicos escolhidos em "O que você vende?" entram como nichos marcados
+  useEffect(() => {
+    const somar = (e: Event) => {
+      const novos = (e as CustomEvent<string[]>).detail || [];
+      setExtras((ex) => {
+        const todos = [...ex, ...novos.filter((n) => !NICHOS_PADRAO.includes(n) && !ex.includes(n))];
+        setNichos((atual) => {
+          const s = new Set([...atual, ...novos]);
+          guardar(s, todos);
+          return s;
+        });
+        return todos;
+      });
+    };
+    window.addEventListener('vl:nichos', somar);
+    return () => window.removeEventListener('vl:nichos', somar);
+  });
 
   useEffect(() => {
     const p = lerPrefs();
@@ -130,7 +150,7 @@ export default function BuscaGoogle({
     setTerminou(false);
     setAviso(null);
     setLinhas([]);
-    setDescartes({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 });
+    setDescartes({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 });
     let faltam = quero;
 
     fora: for (const nicho of nichos) {
@@ -166,7 +186,7 @@ export default function BuscaGoogle({
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
           const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0, nota: r.retomada ? 'continuou' : undefined };
-          if (r.descartados) setDescartes((d) => ({ empresa_grande: d.empresa_grande + (r.descartados.empresa_grande || 0), site_proprio: d.site_proprio + (r.descartados.site_proprio || 0), sem_contato: d.sem_contato + (r.descartados.sem_contato || 0), sem_whatsapp: d.sem_whatsapp + (r.descartados.sem_whatsapp || 0) }));
+          if (r.descartados) setDescartes((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v + ((r.descartados as Record<string, number>)[k] || 0)])) as unknown as Descartes);
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
           pagina = r.proxima;

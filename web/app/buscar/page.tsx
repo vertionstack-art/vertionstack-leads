@@ -4,6 +4,9 @@ import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
 import { buscaLigada, buscasDaConta } from '@/lib/google-places';
 import { LIMITES } from '@/lib/planos';
 import BuscaGoogle from './busca';
+import EscolhaOferta from './oferta';
+import { db } from '@/lib/sql';
+import type { Oferta } from '@/lib/ofertas';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +17,11 @@ export default async function PaginaBuscar() {
     cotaDaConta(sessao.contaId, sessao.plano),
     buscasDaConta(sessao.contaId, sessao.plano, sessao.pagoAte),
   ]);
+  const [c] = await db()`
+    select oferta, oferta_texto, oferta_publico, empresa_nome,
+      (oferta = 'sites' and cardinality(oferta_publico) = 0 and oferta_texto is null) as nova
+    from contas where id = ${sessao.contaId}
+  `;
   const periodo = sessao.plano === 'gratis' ? 'do teste' : sessao.plano === 'semanal' ? 'destes 7 dias' : 'do mês';
 
   return (
@@ -23,7 +31,7 @@ export default async function PaginaBuscar() {
           <div>
             <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Buscar leads</h1>
             <p className="mt-1.5 text-[13px] font-medium text-zinc-500">
-              Direto do Google, sem extensão. Só os comércios sem site próprio entram no painel.
+              Direto do Google. Só entram os comércios que combinam com o que você vende.
             </p>
           </div>
           <Link
@@ -33,6 +41,15 @@ export default async function PaginaBuscar() {
             Voltar ao painel
           </Link>
         </header>
+        <EscolhaOferta
+          inicial={{
+            oferta: ((c?.oferta as string) || 'sites') as Oferta,
+            texto: (c?.oferta_texto as string) || '',
+            publico: (c?.oferta_publico as string[]) || [],
+            negocio: (c?.empresa_nome as string) || '',
+            nova: Boolean(c?.nova),
+          }}
+        />
         <BuscaGoogle
           ligada={buscaLigada()}
           cotaInicial={cotaParaJson(cota)}

@@ -11,6 +11,8 @@ import { LIMITES } from '@/lib/planos';
 import { usarBuscaBonus } from '@/lib/indicacao';
 import { verificarSite } from '@/lib/verificar-site';
 import { ehRede } from '@/lib/enriquecer';
+import { db } from '@/lib/sql';
+import { OFERTAS, servePara, type Oferta } from '@/lib/ofertas';
 import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
 
 export const runtime = 'nodejs';
@@ -50,6 +52,9 @@ export async function POST(req: Request) {
   const quero = Math.max(1, Math.min(200, Math.floor(Number(c.quero) || 20)));
   // padrão ligado: lead sem WhatsApp quase nunca vira conversa
   const soComWhatsapp = c.soComWhatsapp !== false;
+  // o que a conta vende muda o que é lead (lib/ofertas); vem do banco, não do navegador
+  const [cfgOferta] = await db()`select oferta from contas where id = ${contaId}`;
+  const oferta: Oferta = OFERTAS.some((o) => o.id === cfgOferta?.oferta) ? (cfgOferta.oferta as Oferta) : 'sites';
   if (nicho.length < 2 || local.length < 2) return erro('Diga o nicho e a cidade.', 400);
 
   // nada de gastar com o Google se a pessoa não pode guardar lead nenhum
@@ -82,7 +87,8 @@ export async function POST(req: Request) {
    * página onde parou, em vez de recomeçar pelos mesmos resultados.
    */
   const pergunta = `${nicho} em ${local}`;
-  const chave = chaveDaPergunta(pergunta);
+  // a memória é por oferta: a mesma pergunta rende leads diferentes para quem vende outra coisa
+  const chave = chaveDaPergunta(oferta === 'sites' ? pergunta : `${pergunta} #${oferta}`);
   let token = pagina;
   let retomada = false;
   if (!pagina) {
@@ -90,7 +96,7 @@ export async function POST(req: Request) {
     if (memoria?.esgotada) {
       return NextResponse.json({
         ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
-        descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 },
+        descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 },
         cota: cotaParaJson(cota), fim: false,
       });
     }
@@ -163,13 +169,15 @@ export async function POST(req: Request) {
           lng: g.lng,
           fotos: g.fotos,
           hours: g.horario,
+          oferta,
         },
         quem,
         'google',
       ),
     )
     .filter((l): l is NonNullable<typeof l> => l !== null);
-  const leads = todos.filter((l) => l.isLead);
+  // quem vende site só quer os sem site; nas outras ofertas todos entram na conferência
+  const leads = oferta === 'sites' ? todos.filter((l) => l.isLead) : [...todos];
 
   try {
     /*
@@ -179,7 +187,7 @@ export async function POST(req: Request) {
      * Agora a busca confere na hora os que ainda não estão na conta, com
      * prazo curto: o que não responder a tempo fica de fora, como antes.
      */
-    const comSite = todos.filter((l) => !l.isLead);
+    const comSite = oferta === 'sites' ? todos.filter((l) => !l.isLead) : [];
     const comSiteNovos = new Set(await idsNovos(contaId, comSite.map((l) => l.id)));
     const conferencias = await Promise.all(
       comSite
@@ -202,16 +210,21 @@ export async function POST(req: Request) {
     const existentes = leads.filter((l) => !novosIds.has(l.id));
 
     // o filtro de precisão roda só nos que ainda não estão no painel (lib/enriquecer)
-    const descartados: Record<MotivoDescarte, number> = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0 };
+    const descartados: Record<MotivoDescarte, number> = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 };
     const candidatos = leads.filter((l) => novosIds.has(l.id));
-    const avaliacoes = await Promise.all(candidatos.map((l) => avaliarLead(l, soComWhatsapp)));
+    const avaliacoes = await Promise.all(candidatos.map((l) => avaliarLead(l, soComWhatsapp, oferta)));
     const aprovados = candidatos.flatMap((l, i) => {
       const a = avaliacoes[i];
       if (a.descarte) {
         descartados[a.descarte]++;
         return [];
       }
-      return [aplicarAvaliacao(l, a)];
+      const pronto = aplicarAvaliacao(l, a);
+      if (!servePara(oferta, pronto)) {
+        descartados.fora_do_perfil++;
+        return [];
+      }
+      return [{ ...pronto, isLead: true }];
     });
 
     const limite = cota.ilimitado ? quero : Math.min(quero, cota.restantes);

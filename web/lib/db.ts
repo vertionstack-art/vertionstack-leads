@@ -42,6 +42,10 @@ export interface Lead {
   hours: string | null;
   /** fotos no perfil do Google; null quando o lead não veio da busca do Google */
   fotosGoogle: number | null;
+  /** para qual oferta ("o que você vende", lib/ofertas) o lead foi achado */
+  oferta: string;
+  /** o site não tem pixel/tag de anúncio; null quando não foi conferido */
+  semAnuncio: boolean | null;
   status: Status;
   notes: string | null;
   /** resultado da verificação do site; null enquanto ninguém verificou */
@@ -184,6 +188,8 @@ export function normalizarLead(
     lng: num(cru.lng),
     hours: texto(cru.hours, 200),
     fotosGoogle: typeof cru.fotos === 'number' ? cru.fotos : null,
+    oferta: typeof cru.oferta === 'string' ? cru.oferta : 'sites',
+    semAnuncio: null,
     status: 'novo',
     // anotação só vem do cadastro manual e da planilha; numa coleta repetida o update não mexe nela
     notes: texto(cru.notes, 2000),
@@ -234,6 +240,8 @@ export function daLinha(r: any): Lead {
     lng: r.lng === null ? null : Number(r.lng),
     hours: r.hours,
     fotosGoogle: r.fotos_google === null || r.fotos_google === undefined ? null : Number(r.fotos_google),
+    oferta: r.oferta || 'sites',
+    semAnuncio: r.sem_anuncio ?? null,
     status: r.status,
     notes: r.notes,
     siteStatus: r.site_status,
@@ -315,14 +323,14 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         website_kind, website_label, is_lead, rating, reviews, maps_url,
         lat, lng, hours, status, coletado_por, instagram, origem, notes,
         whatsapp, whatsapp_fonte, telefone_tipo, email, fotos_google,
-        site_status, site_detalhe, site_verificado_em, updated_at
+        site_status, site_detalhe, site_verificado_em, oferta, sem_anuncio, updated_at
       ) values (
         ${conta}, ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
         'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes},
         ${l.whatsapp}, ${l.whatsappFonte}, ${l.telefoneTipo}, ${l.email}, ${l.fotosGoogle},
-        ${l.siteStatus}, ${l.siteDetalhe}, ${l.siteVerificadoEm}, now()
+        ${l.siteStatus}, ${l.siteDetalhe}, ${l.siteVerificadoEm}, ${l.oferta}, ${l.semAnuncio}, now()
       )
       on conflict (conta_id, id) do update set
         name          = excluded.name,
@@ -352,6 +360,7 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         -- o e-mail que a pessoa corrigiu à mão não é trocado por um achado depois
         email          = coalesce(leads.email, excluded.email),
         fotos_google   = coalesce(excluded.fotos_google, leads.fotos_google),
+        sem_anuncio    = coalesce(excluded.sem_anuncio, leads.sem_anuncio),
         site_status        = coalesce(excluded.site_status, leads.site_status),
         site_detalhe       = coalesce(excluded.site_detalhe, leads.site_detalhe),
         site_verificado_em = coalesce(excluded.site_verificado_em, leads.site_verificado_em),

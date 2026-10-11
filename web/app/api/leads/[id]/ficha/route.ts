@@ -22,7 +22,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   const lead = await buscarLead(contaId, idLead);
   if (!lead) return NextResponse.json({ ok: false, erro: 'Lead não encontrado.' }, { status: 404 });
   const eventos = await historicoDoLead(contaId, idLead);
-  const [c] = await db()`select empresa_nome from contas where id = ${contaId}`;
+  const [c] = await db()`select empresa_nome, oferta, oferta_texto from contas where id = ${contaId}`;
   const modelos = await listarModelos(contaId);
 
   // o mesmo critério do painel: número confirmado no link, ou o telefone se for celular
@@ -34,6 +34,11 @@ export async function GET(_req: Request, ctx: Ctx) {
     eventos,
     numero,
     modelos,
-    remetente: { nome, empresa: (c?.empresa_nome as string) || null },
+    remetente: {
+      nome,
+      empresa: (c?.empresa_nome as string) || null,
+      oferta: (c?.oferta as string) || 'sites',
+      ofertaTexto: (c?.oferta_texto as string) || null,
+    },
   });
 }

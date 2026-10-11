@@ -19,13 +19,28 @@ export interface DadosMensagem {
   reviews: number | null;
   instagram: string | null;
   previaUrl: string | null;
+  /** para qual oferta o lead foi achado (lib/ofertas); ausente = sites */
+  oferta?: string;
+  fotosGoogle?: number | null;
+  semAnuncio?: boolean | null;
 }
 
 export interface Remetente {
   /** primeiro nome de quem manda */
   nome: string;
   empresa: string | null;
+  /** o que a pessoa vende (lib/ofertas) e, em "outro", a frase dela */
+  oferta?: string;
+  ofertaTexto?: string | null;
 }
+
+const TRABALHO: Record<string, string> = {
+  sites: 'trabalho com criação de sites',
+  social: 'cuido de redes sociais de comércios aqui da região',
+  trafego: 'trabalho com tráfego pago e anúncios',
+  design: 'trabalho com design e identidade visual',
+  empresas: 'atendo empresas aqui da região',
+};
 
 const MARKETPLACES: [RegExp, string][] = [
   [/ifood/i, 'iFood'],
@@ -56,8 +71,14 @@ function reputacao(d: DadosMensagem): string | null {
 
 export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
   const eu = primeiroNome(r.nome || '') || 'eu';
-  // sem "da"/"do": não dá para saber o gênero do nome da empresa
-  const apresentacao = r.empresa ? `Aqui é ${eu}, do time ${r.empresa}.` : `Aqui é ${eu}, trabalho com criação de sites.`;
+  const oferta = d.oferta && d.oferta !== 'sites' ? d.oferta : r.oferta && r.oferta !== 'sites' && !d.oferta ? r.oferta : 'sites';
+  const trabalho = oferta === 'outro' ? (r.ofertaTexto ? `trabalho com ${r.ofertaTexto.replace(/^(eu )?(vendo|faço|trabalho com)\s+/i, '').replace(/[.!]+$/, '')}` : '') : TRABALHO[oferta] || TRABALHO.sites;
+  const apresentacao = r.empresa
+    ? `Aqui é ${eu}, do time ${r.empresa}.`
+    : trabalho
+      ? `Aqui é ${eu}, ${trabalho}.`
+      : `Aqui é ${eu}.`;
+  if (oferta !== 'sites') return mensagemDaOferta(oferta, d, apresentacao, trabalho);
   const rep = reputacao(d);
   const ramo = (d.category || 'o serviço de vocês').toLowerCase();
   const onde = d.city ? ` em ${d.city}` : '';
@@ -96,6 +117,43 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
     ? `Fiz uma prévia de como o site de vocês poderia ficar: ${d.previaUrl}\nO que você acha?`
     : 'Montei uma ideia rápida de como o site de vocês poderia ficar. Posso te mostrar?';
 
+  return `Oi, tudo bem? ${apresentacao}\n\n${gancho}\n\n${fecho}`;
+}
+
+/** a primeira mensagem para quem não vende site: o gancho é a dor daquela oferta */
+function mensagemDaOferta(oferta: string, d: DadosMensagem, apresentacao: string, trabalho: string): string {
+  const rep = reputacao(d);
+  const ramo = (d.category || 'o seu ramo').toLowerCase();
+  const onde = d.city ? ` em ${d.city}` : '';
+  let gancho: string;
+  let fecho: string;
+  switch (oferta) {
+    case 'social':
+      gancho = rep
+        ? `Vi a ${d.nome} no Google, com ${rep}, e não achei um Instagram de vocês. Muita gente procura no Instagram antes de ir.`
+        : `Procurei a ${d.nome} no Instagram e não encontrei um perfil de vocês. Hoje muita gente escolhe onde ir pelo Instagram.`;
+      fecho = 'Posso te mandar uma ideia de como seria o perfil de vocês, com os primeiros posts?';
+      break;
+    case 'trafego':
+      gancho = d.semAnuncio
+        ? `Entrei no site da ${d.nome} e vi que ele não tem como medir quem chega por anúncio. Dá para trazer mais cliente${onde} gastando pouco, e saber exatamente o que deu retorno.`
+        : `A ${d.nome} já tem movimento${rep ? ` (${rep})` : ''}. Com anúncio no Google e no Instagram dá para trazer ainda mais gente que procura ${ramo}${onde}.`;
+      fecho = 'Posso te mostrar quanto custaria uma primeira campanha?';
+      break;
+    case 'design':
+      gancho = (d.fotosGoogle ?? 0) < 3
+        ? `Vi o perfil da ${d.nome} no Google e ele está quase sem foto. É a primeira coisa que o cliente vê antes de decidir.`
+        : `Vi a ${d.nome} no Google e achei que a marca de vocês merece uma identidade à altura do trabalho${rep ? ` (${rep}!)` : ''}.`;
+      fecho = 'Posso te mandar umas ideias de logo e de identidade para vocês?';
+      break;
+    case 'empresas':
+      gancho = `Vi a ${d.nome} no Google${rep ? `, com ${rep}` : ''}, e imagino que a rotina de vocês seja corrida.`;
+      fecho = `Posso te explicar em 2 minutos como ajudo empresas de ${ramo}${onde}?`;
+      break;
+    default:
+      gancho = `Vi a ${d.nome} no Google${rep ? `, com ${rep}` : ''}, e acho que posso ajudar vocês.`;
+      fecho = trabalho ? 'Posso te contar em 2 minutos como funciona?' : 'Posso te mostrar o que eu faço?';
+  }
   return `Oi, tudo bem? ${apresentacao}\n\n${gancho}\n\n${fecho}`;
 }
 

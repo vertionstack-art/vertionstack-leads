@@ -159,6 +159,38 @@ function pesoPerfil(lead: Lead): { pontos: number; motivo: string | null } {
   return { pontos: 0, motivo: null };
 }
 
+/**
+ * Peso 1 para quem não vende site (lib/ofertas): a dor que importa é outra.
+ * Vale até 35, como a presença dos sites, para as escalas baterem.
+ */
+function pesoDaOferta(lead: Lead): { pontos: number; motivo: string | null } {
+  const avaliacoes = lead.reviews ?? 0;
+  switch (lead.oferta) {
+    case 'social':
+      if (!lead.instagram) {
+        return avaliacoes >= 50
+          ? { pontos: 35, motivo: `Não achamos Instagram, mesmo com ${avaliacoes} avaliações: tem clientela e ninguém mostrando o trabalho.` }
+          : { pontos: 28, motivo: 'Não achamos Instagram dele no Google, no site nem no Linktree.' };
+      }
+      return { pontos: 8, motivo: null };
+    case 'trafego':
+      if (lead.websiteKind === 'site' && lead.semAnuncio) return { pontos: 35, motivo: 'O site não tem pixel do Meta nem tag do Google: não anuncia, ou anuncia sem medir resultado.' };
+      if (lead.websiteKind !== 'site') return { pontos: 22, motivo: 'Tem movimento e nenhum site: dá para começar com anúncio direto para o WhatsApp.' };
+      return { pontos: 6, motivo: null };
+    case 'design':
+      if ((lead.fotosGoogle ?? 0) === 0) return { pontos: 32, motivo: 'O perfil no Google não tem nenhuma foto: a primeira impressão hoje é nenhuma.' };
+      if ((lead.fotosGoogle ?? 0) < 3) return { pontos: 26, motivo: `Só ${lead.fotosGoogle} foto(s) no perfil do Google.` };
+      if (['none', 'social', 'weak'].includes(lead.websiteKind)) return { pontos: 24, motivo: 'Sem site próprio: a marca não tem onde aparecer do jeito certo.' };
+      return { pontos: 8, motivo: null };
+    case 'empresas':
+      return avaliacoes >= 100
+        ? { pontos: 32, motivo: `${avaliacoes} avaliações: empresa com movimento para precisar de apoio profissional.` }
+        : { pontos: 22, motivo: 'Empresa ativa, com clientela formada.' };
+    default:
+      return { pontos: 18, motivo: null };
+  }
+}
+
 /** Peso 5 — ramos onde o que eu vendo resolve dor conhecida. Vale até 8. */
 function pesoRamo(lead: Lead): { pontos: number; motivo: string | null } {
   const ramo = ramoDaCategoria(lead.category);
@@ -190,10 +222,11 @@ export function temperaturaDoLead(lead: Lead): Temperatura {
   const motivos: string[] = [];
   const freios: string[] = [];
 
-  const presenca = pesoPresenca(lead);
+  const vendeSite = !lead.oferta || lead.oferta === 'sites';
+  const presenca = vendeSite ? pesoPresenca(lead) : pesoDaOferta(lead);
   const movimento = pesoMovimento(lead.reviews);
   const reputacao = pesoReputacao(lead.rating, lead.reviews);
-  const insta = pesoInstagram(lead);
+  const insta = vendeSite ? pesoInstagram(lead) : { pontos: 0, motivo: null };
   const ramo = pesoRamo(lead);
   const perfil = pesoPerfil(lead);
   const contato = lead.phone ? 5 : 0;
@@ -231,7 +264,7 @@ export function temperaturaDoLead(lead: Lead): Temperatura {
    * exatamente o caso de uma barbearia com 410 avaliações que apareceu
    * como fria só porque ninguém tinha conferido o site dela ainda.
    */
-  if (presenca.pontos === 0) {
+  if (vendeSite && presenca.pontos === 0) {
     if (lead.siteVerificadoEm) {
       pontos = Math.round(pontos * 0.55);
       freios.push('Site próprio conferido e no ar. Só aborde com uma observação concreta sobre o que falta nele.');
