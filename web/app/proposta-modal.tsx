@@ -50,6 +50,8 @@ export default function PropostaModal({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
+    entradaManual?: number | null;
+    mensalidadeManual?: number | null;
     fechado?: boolean;
   } | null;
 
@@ -65,6 +67,9 @@ export default function PropostaModal({
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
   const [fechado, setFechado] = useState<boolean>(Boolean(salvo?.fechado));
+  // null = usa o preço que o sistema calcula
+  const [entradaManual, setEntradaManual] = useState<number | null>(salvo?.entradaManual ?? null);
+  const [mensalidadeManual, setMensalidadeManual] = useState<number | null>(salvo?.mensalidadeManual ?? null);
   const [copiado, setCopiado] = useState(false);
   const [copiadoLink, setCopiadoLink] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -115,8 +120,8 @@ export default function PropostaModal({
   }, [aoFechar]);
 
   const proposta = useMemo(
-    () => montarProposta({ marcacoes, porte, formalizacao, desconto, ignorarTeto }),
-    [marcacoes, porte, formalizacao, desconto, ignorarTeto],
+    () => montarProposta({ marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual }),
+    [marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual],
   );
 
   /*
@@ -164,7 +169,7 @@ export default function PropostaModal({
 
   async function salvar() {
     setGuardando(true);
-    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, fechado });
+    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual, fechado });
     setSalvouAlgumaVez(true);
     setGuardando(false);
   }
@@ -415,14 +420,29 @@ export default function PropostaModal({
                     Valor da proposta
                   </h4>
 
-                  <div className="mt-1.5 text-[28px] font-semibold tabular-nums text-tinta">
-                    {proposta.entrada > 0 ? moeda(proposta.entrada) : '—'}
-                  </div>
-                  {proposta.mensalidade > 0 && (
-                    <div className="text-[13px] text-zinc-600">
-                      + <b className="tabular-nums">{moeda(proposta.mensalidade)}</b> por mês
+                  <PrecoEditavel
+                    valor={proposta.entrada}
+                    sugerido={proposta.entradaSugerida}
+                    manual={entradaManual !== null}
+                    aoMudar={setEntradaManual}
+                    rotulo="Valor da proposta"
+                    className="mt-1.5 text-[28px] font-semibold text-tinta"
+                  />
+                  {(proposta.mensalidade > 0 || proposta.mensalidadeSugerida > 0 || mensalidadeManual !== null) && (
+                    <div className="flex flex-wrap items-baseline gap-1 text-[13px] text-zinc-600">
+                      +
+                      <PrecoEditavel
+                        valor={proposta.mensalidade}
+                        sugerido={proposta.mensalidadeSugerida}
+                        manual={mensalidadeManual !== null}
+                        aoMudar={setMensalidadeManual}
+                        rotulo="Valor por mês"
+                        className="font-bold"
+                      />
+                      por mês
                     </div>
                   )}
+                  <p className="mt-1 text-[11px] text-zinc-400">Clique no valor para digitar outro.</p>
                   {proposta.anualidade > 0 && (
                     <div className="mt-1 text-[11.5px] leading-snug text-zinc-500">
                       Sem mensalidade: <b className="tabular-nums">{moeda(proposta.anualidade)}</b> por ano a partir do
@@ -576,5 +596,96 @@ export default function PropostaModal({
         </div>
       </div>
     </div>
+  );
+}
+
+/** "1.250,50", "R$ 900" ou "900.5" viram número; vazio ou lixo vira null */
+function lerReais(texto: string): number | null {
+  let t = texto.replace(/[R$\s]/g, '');
+  if (!t) return null;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * O preço calculado é uma sugestão. Um clique transforma o número num
+ * campo; o que for digitado vale para o link, o PDF e o Financeiro.
+ */
+function PrecoEditavel({
+  valor,
+  sugerido,
+  manual,
+  aoMudar,
+  rotulo,
+  className,
+}: {
+  valor: number;
+  sugerido: number;
+  manual: boolean;
+  aoMudar: (v: number | null) => void;
+  rotulo: string;
+  className?: string;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState('');
+
+  function abrir() {
+    setTexto(valor > 0 ? valor.toFixed(2).replace('.', ',') : '');
+    setEditando(true);
+  }
+
+  function confirmar() {
+    setEditando(false);
+    const n = lerReais(texto);
+    // digitar o mesmo número que o sistema sugere é o mesmo que não mexer
+    aoMudar(n === null || n === sugerido ? null : n);
+  }
+
+  if (editando) {
+    return (
+      <input
+        autoFocus
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={confirmar}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') confirmar();
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            setEditando(false);
+          }
+        }}
+        inputMode="decimal"
+        aria-label={rotulo}
+        placeholder={sugerido > 0 ? sugerido.toFixed(2).replace('.', ',') : '0,00'}
+        className={`w-40 rounded-xl border border-roxo-400 bg-white px-2 tabular-nums outline-none ring-2 ring-roxo-100 ${className || ''}`}
+      />
+    );
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-baseline gap-x-2">
+      <button
+        type="button"
+        onClick={abrir}
+        title="Clique para digitar outro valor"
+        className={`rounded-lg tabular-nums underline decoration-dotted decoration-zinc-300 underline-offset-4 transition hover:bg-roxo-50 hover:decoration-roxo-400 ${className || ''}`}
+      >
+        {valor > 0 ? moeda(valor) : '—'}
+      </button>
+      {manual && (
+        <span className="text-[11px] font-normal text-zinc-500">
+          sugerido {moeda(sugerido)} ·{' '}
+          <button
+            type="button"
+            onClick={() => aoMudar(null)}
+            className="font-medium text-roxo-700 underline underline-offset-2 hover:text-roxo-900"
+          >
+            voltar ao sugerido
+          </button>
+        </span>
+      )}
+    </span>
   );
 }
