@@ -149,9 +149,10 @@ export const CATALOGO: Servico[] = [
   },
   {
     id: 'site_institucional',
-    nome: 'Site institucional (até 5 páginas)',
+    nome: 'Site institucional',
     familia: 'presenca',
-    beneficio: 'Início, serviços, sobre, contato. O cartão de visita que fica no Google.',
+    beneficio:
+      'Quantas páginas o negócio precisar: início, serviços, sobre, contato e o que mais fizer sentido. O cartão de visita que fica no Google.',
     preco: 590,
     custo: 0,
     sugerido: 'intermediario',
@@ -160,7 +161,7 @@ export const CATALOGO: Servico[] = [
     id: 'site_catalogo',
     nome: 'Site com catálogo ou cardápio',
     familia: 'presenca',
-    beneficio: 'Produtos e preços que você mesmo atualiza, sem depender de ninguém.',
+    beneficio: 'Produtos e preços sempre em dia: você pede a mudança e a gente atualiza para você.',
     preco: 890,
     custo: 0,
     sugerido: 'avancado',

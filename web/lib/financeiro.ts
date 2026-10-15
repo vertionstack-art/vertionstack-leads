@@ -50,6 +50,8 @@ export interface CfgProposta {
   formalizacao?: Formalizacao;
   desconto?: number;
   ignorarTeto?: boolean;
+  entradaManual?: number | null;
+  mensalidadeManual?: number | null;
   fechado?: boolean;
   fechadoEm?: string;
 }
@@ -63,6 +65,8 @@ export function valores(cfg: CfgProposta | null): { entrada: number; mensalidade
       formalizacao: cfg.formalizacao || 'desconhecido',
       desconto: cfg.desconto,
       ignorarTeto: cfg.ignorarTeto,
+      entradaManual: cfg.entradaManual,
+      mensalidadeManual: cfg.mensalidadeManual,
     });
     return { entrada: p.entrada, mensalidade: p.mensalidade };
   } catch {

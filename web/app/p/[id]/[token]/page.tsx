@@ -43,9 +43,6 @@ async function leadDoLink(segmento: string, token: string) {
 }
 
 
-/** a proposta vale por 7 dias — prazo curto ajuda a decisão a acontecer */
-const DIAS_DE_VALIDADE = 7;
-
 function dataLonga(d: Date) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
@@ -98,6 +95,8 @@ export default async function PaginaProposta({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
+    entradaManual?: number | null;
+    mensalidadeManual?: number | null;
     aceite?: { nome: string; em: string };
   };
 
@@ -107,6 +106,8 @@ export default async function PaginaProposta({
     formalizacao: cfg.formalizacao || 'desconhecido',
     desconto: cfg.desconto,
     ignorarTeto: cfg.ignorarTeto,
+    entradaManual: cfg.entradaManual,
+    mensalidadeManual: cfg.mensalidadeManual,
   });
 
   if (!proposta.itens.length) notFound();
@@ -134,12 +135,11 @@ export default async function PaginaProposta({
   /*
    * Dois documentos saem daqui. Com ?fechado=1, e o resumo do que o cliente
    * contratou: nao ha mais nada a vender, entao entra o detalhe do que ele
-   * recebe e o que acontece depois, e sai o prazo de validade.
+   * recebe e o que acontece depois. Nenhum dos dois traz prazo de validade.
    */
   const fechado = pediuFechado === '1';
 
   const hoje = new Date();
-  const validade = new Date(hoje.getTime() + DIAS_DE_VALIDADE * 86400000);
   const abertura = aberturaPara(lead.websiteKind, lead.siteStatus);
 
   return (
@@ -156,7 +156,7 @@ export default async function PaginaProposta({
           <div className="topo-meta">
             <div>{dataLonga(hoje)}</div>
             <div className="fraco">
-              {fechado ? `para ${lead.name}` : `válida até ${dataLonga(validade)}`}
+              para {lead.name}
             </div>
           </div>
         </header>

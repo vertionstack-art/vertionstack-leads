@@ -32,6 +32,13 @@ export interface ConfigProposta {
   ignorarTeto?: boolean;
   /** o cliente fechou: muda o documento de proposta para confirmação */
   fechado?: boolean;
+  /**
+   * Valor digitado à mão. O sistema sugere um preço, mas quem conversa
+   * com o cliente às vezes já combinou outro — aí vale o combinado, sem
+   * piso, teto ou arredondamento por cima.
+   */
+  entradaManual?: number | null;
+  mensalidadeManual?: number | null;
 }
 
 export interface ItemDaProposta {
@@ -54,6 +61,9 @@ export interface Proposta {
   custoMensal: number;
   /** quanto sobra da entrada depois dos custos */
   margemEntrada: number;
+  /** o que o sistema calcularia, antes de qualquer valor digitado à mão */
+  entradaSugerida: number;
+  mensalidadeSugerida: number;
   /**
    * Valor cobrado uma vez por ano, a partir do segundo ano, quando o
    * cliente não assina mensalidade. Zero quando há mensalidade — aí a
@@ -100,6 +110,11 @@ export function tetoDoPorte(porte: Porte): number {
 
 export function moeda(v: number): string {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/** só vale número de verdade e não negativo; o resto é "use o sugerido" */
+function valorManual(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.round(v * 100) / 100 : null;
 }
 
 /**
@@ -178,6 +193,21 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
   entrada = entrada > 0 ? arredondar(entrada) : 0;
   mensalidade = arredondarMensal(mensalidade);
 
+  const entradaSugerida = entrada;
+  const mensalidadeSugerida = mensalidade;
+  const entradaManual = valorManual(cfg.entradaManual);
+  const mensalidadeManual = valorManual(cfg.mensalidadeManual);
+
+  if (entradaManual !== null) {
+    // o valor combinado manda; os avisos de piso e teto eram sobre o sugerido
+    avisos.length = 0;
+    entrada = entradaManual;
+    if (entrada > 0 && entrada < PISO_ABSOLUTO) {
+      avisos.push(`Valor digitado abaixo do piso de ${moeda(PISO_ABSOLUTO)}. Confira se compensa.`);
+    }
+  }
+  if (mensalidadeManual !== null) mensalidade = mensalidadeManual;
+
   const margemEntrada = entrada - custoUnico;
   if (entrada > 0 && margemEntrada < 200) {
     avisos.push('Sobra pouco depois dos custos. Confira se compensa.');
@@ -188,7 +218,7 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
    * não dói; "você está deixando R$ 420 na mesa" dói — e é o número que
    * faz a pessoa pensar duas vezes antes de fechar por fechar.
    */
-  if (cfg.desconto && cfg.desconto >= 25 && entrada > 0) {
+  if (entradaManual === null && cfg.desconto && cfg.desconto >= 25 && entrada > 0) {
     const cheio = arredondar(entrada / (1 - cfg.desconto / 100));
     avisos.push(
       `Desconto de ${cfg.desconto}%: são ${moeda(cheio - entrada)} a menos do que a proposta cheia. ` +
@@ -209,6 +239,8 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
     custoUnico,
     custoMensal,
     margemEntrada,
+    entradaSugerida,
+    mensalidadeSugerida,
     anualidade: mensalidade > 0 ? 0 : ANUAL_SEM_MENSALIDADE,
     avisos,
   };
