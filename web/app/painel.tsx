@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Bell, Check, ChevronDown, Download, Map as IconeMapa, Smartphone, Upload, Flame, LayoutGrid, LogOut, MapPin,
   Crown, Kanban, MessageCircle, Radar, Wallet, Plus, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  Sparkles,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import type { AvisoVencimento } from '@/lib/pagamento';
@@ -416,6 +417,11 @@ export default function Painel({
   const [progressoVerif, setProgressoVerif] = useState<{ feitos: number; faltam: number; achados: number } | null>(null);
   const [faltamVerif, setFaltamVerif] = useState(0);
 
+  // "Aprimorar leads quentes": CNPJ pela Casa dos Dados, dados pela Receita
+  const [aprimorando, setAprimorando] = useState(false);
+  const [faltamAprimorar, setFaltamAprimorar] = useState(0);
+  const [progressoApri, setProgressoApri] = useState<{ feitos: number; faltam: number; achados: number; aviso?: string } | null>(null);
+
   const [promptDe, setPromptDe] = useState<Lead | null>(null);
   const [variantePrompt, setVariantePrompt] = useState<Variante>('abordagem');
   const [propostaDe, setPropostaDe] = useState<Lead | null>(null);
@@ -482,6 +488,46 @@ export default function Painel({
   }, []);
 
   useEffect(() => { contarPendentes(); }, [contarPendentes]);
+
+  const contarAprimorar = useCallback(async () => {
+    try {
+      const r = await fetch('/api/leads/aprimorar', { cache: 'no-store' });
+      const d = await r.json();
+      if (d.ok) setFaltamAprimorar(d.configurado ? d.faltam : 0);
+    } catch { /* o botão apenas não aparece */ }
+  }, []);
+
+  useEffect(() => { contarAprimorar(); }, [contarAprimorar]);
+
+  /** mesmo esquema do "Conferir sites": rodadas curtas até a fila acabar */
+  async function aprimorarQuentes() {
+    setAprimorando(true);
+    setProgressoApri({ feitos: 0, faltam: faltamAprimorar, achados: 0 });
+
+    let feitos = 0;
+    let achados = 0;
+
+    try {
+      for (let rodada = 0; rodada < 100; rodada++) {
+        const r = await fetch('/api/leads/aprimorar', { method: 'POST' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.erro || 'Falha ao aprimorar.');
+
+        feitos += d.feitos;
+        achados += d.achados || 0;
+        setProgressoApri({ feitos, faltam: d.faltam, achados, aviso: d.aviso });
+        setFaltamAprimorar(d.faltam);
+
+        if (d.semCota || !d.feitos || !d.faltam) break;
+      }
+      await carregar();
+    } catch (e) {
+      setErro(String((e as Error).message));
+    } finally {
+      setAprimorando(false);
+      contarAprimorar();
+    }
+  }
 
   /**
    * Chama a rota de verificação em rodadas até esvaziar a fila.
@@ -673,6 +719,19 @@ export default function Painel({
         >
           <ShieldCheck aria-hidden className="h-4 w-4" />
           {verificando ? 'Conferindo…' : `Conferir ${faltamVerif} sites`}
+        </button>
+      )}
+      {(faltamAprimorar > 0 || aprimorando) && (
+        <button
+          onClick={aprimorarQuentes}
+          disabled={aprimorando || verificando}
+          title="Acha o CNPJ dos leads quentes e confere na Receita: se a empresa está ativa, há quanto tempo existe, o porte e quem é o dono"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-white px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-ceu disabled:opacity-60"
+        >
+          <Sparkles aria-hidden className="h-4 w-4" />
+          {aprimorando
+            ? 'Aprimorando…'
+            : `Aprimorar ${faltamAprimorar} ${faltamAprimorar === 1 ? 'quente' : 'quentes'}`}
         </button>
       )}
       <a
@@ -889,6 +948,29 @@ export default function Painel({
             )}
             {erro && (
               <div role="alert" className="rounded-2xl bg-rosa px-5 py-3.5 text-[13px] font-medium text-red-950">{erro}</div>
+            )}
+            {progressoApri && (
+              <div role="status" className="rounded-2xl bg-ceu px-5 py-3.5 text-[13px] leading-relaxed text-tinta">
+                {aprimorando ? (
+                  <>
+                    Aprimorando os quentes: <b>{progressoApri.feitos}</b> consultados
+                    {progressoApri.faltam > 0 && `, ${progressoApri.faltam} na fila`}.
+                  </>
+                ) : (
+                  <>
+                    Consultei <b>{progressoApri.feitos}</b> {progressoApri.feitos === 1 ? 'lead' : 'leads'} e achei o CNPJ de{' '}
+                    <b>{progressoApri.achados}</b>. A temperatura deles já leva em conta o que a Receita diz — tempo de
+                    mercado, porte, situação e o nome de quem decide aparecem nos motivos.{' '}
+                    {progressoApri.aviso}
+                    <button
+                      onClick={() => setProgressoApri(null)}
+                      className="ml-1 font-bold underline underline-offset-2"
+                    >
+                      fechar
+                    </button>
+                  </>
+                )}
+              </div>
             )}
             {progressoVerif && (
               <div role="status" className="rounded-2xl bg-menta px-5 py-3.5 text-[13px] leading-relaxed text-emerald-950">
