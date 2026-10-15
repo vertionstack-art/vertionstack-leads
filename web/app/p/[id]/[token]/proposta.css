@@ -328,14 +328,23 @@
 /* ----------------------------------------------- versão em papel */
 
 @media print {
+  /*
+   * Margem zero na página tira o cabeçalho e o rodapé que o navegador
+   * imprime sozinho (endereço da página, data, título). Sem isso o link
+   * da ferramenta saía no pé de toda folha do PDF. O respiro passa para
+   * a própria folha.
+   */
   @page {
     size: A4;
-    margin: 14mm 13mm;
+    margin: 0;
   }
 
   .folha {
     background: #fff;
-    padding: 0;
+    padding: 14mm 13mm;
+    /* repete o respiro no topo e no pé de cada folha, não só da primeira e da última */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 
   .doc {

@@ -48,6 +48,8 @@ export async function POST(req: Request) {
     formalizacao: (cfg.formalizacao as Formalizacao) || 'desconhecido',
     desconto: cfg.desconto as number | undefined,
     ignorarTeto: cfg.ignorarTeto as boolean | undefined,
+    entradaManual: cfg.entradaManual as number | null | undefined,
+    mensalidadeManual: cfg.mensalidadeManual as number | null | undefined,
   });
   const em = new Date().toISOString();
   const nova = {
