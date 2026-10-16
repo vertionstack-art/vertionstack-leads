@@ -8,7 +8,7 @@ import {
 import type { Lead, Status } from '@/lib/db';
 import type { AvisoVencimento } from '@/lib/pagamento';
 import { numeroWhatsapp } from '@/lib/telefone';
-import SeloProposta from './selo-proposta';
+import SeloProposta, { aceiteDa } from './selo-proposta';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
@@ -1180,9 +1180,9 @@ export default function Painel({
                                 </span>
                               </div>
                               {lead.category && <div className="mt-0.5 text-[12px] font-medium text-zinc-500">{lead.category}</div>}
-                              {lead.propostaAberturas > 0 && (
+                              {(lead.propostaAberturas > 0 || aceiteDa(lead.proposta)) && (
                                 <div className="mt-1.5">
-                                  <SeloProposta abertaEm={lead.propostaAbertaEm} aberturas={lead.propostaAberturas} primeiraEm={lead.propostaPrimeiraEm} />
+                                  <SeloProposta abertaEm={lead.propostaAbertaEm} aberturas={lead.propostaAberturas} primeiraEm={lead.propostaPrimeiraEm} aceite={aceiteDa(lead.proposta)} />
                                 </div>
                               )}
                               {lead.lembreteEm && (

@@ -73,6 +73,9 @@ export async function PATCH(req: Request, ctx: Ctx) {
     const nova = { ...(proposta as Record<string, unknown>) };
     const atual = await buscarLead(contaId, idLead);
     const antes = (atual?.proposta || {}) as Record<string, unknown>;
+    // o aceite só nasce no link do cliente (api/p/aceite): o painel nunca escreve nem apaga
+    delete nova.aceite;
+    if (antes.aceite) nova.aceite = antes.aceite;
     if (nova.fechado) {
       nova.fechadoEm = typeof antes.fechadoEm === 'string' && antes.fechado ? antes.fechadoEm : new Date().toISOString();
       if (!status && atual?.status !== 'fechado') status = 'fechado';

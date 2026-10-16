@@ -16,6 +16,7 @@ import { daLinha, type Status } from './db';
 import { numeroWhatsapp } from './telefone';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { valores, type CfgProposta } from './financeiro';
+import { aceiteDa, type Aceite } from '@/app/selo-proposta';
 
 export type Cor = 'zinco' | 'ceu' | 'lavanda' | 'manteiga' | 'rosa' | 'menta';
 export const CORES: Cor[] = ['zinco', 'ceu', 'lavanda', 'manteiga', 'rosa', 'menta'];
@@ -56,6 +57,8 @@ export interface Card {
   propostaAbertaEm: string | null;
   propostaAberturas: number;
   propostaPrimeiraEm: string | null;
+  /** o cliente aceitou a proposta pelo link */
+  aceite: Aceite | null;
   /** lembrete marcado na ficha do lead */
   lembreteEm: string | null;
   lembreteTexto: string | null;
@@ -167,6 +170,7 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       propostaAbertaEm: lead.propostaAbertaEm,
       propostaAberturas: lead.propostaAberturas,
       propostaPrimeiraEm: lead.propostaPrimeiraEm,
+      aceite: aceiteDa(lead.proposta),
       lembreteEm: lead.lembreteEm,
       lembreteTexto: lead.lembreteTexto,
       etapaId: r.etapa_id,

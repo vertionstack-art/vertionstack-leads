@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowUpRight, Check, X } from 'lucide-react';
 import type { Lead } from '@/lib/db';
+import { CircleCheck } from 'lucide-react';
 import { formatarCnpj, type DadosCnpj } from '@/lib/cnpj';
 import {
   CATALOGO,
@@ -53,7 +54,9 @@ export default function PropostaModal({
     entradaManual?: number | null;
     mensalidadeManual?: number | null;
     fechado?: boolean;
+    aceite?: { nome?: string; em?: string; entrada?: number; mensalidade?: number };
   } | null;
+  const aceite = salvo?.aceite?.em ? salvo.aceite : null;
 
   const [porte, setPorte] = useState<Porte>(salvo?.porte || 'micro');
   const [formalizacao, setFormalizacao] = useState<Formalizacao>(salvo?.formalizacao || 'desconhecido');
@@ -206,6 +209,23 @@ export default function PropostaModal({
             <X aria-hidden className="h-4 w-4" />
           </button>
         </div>
+
+        {aceite && (
+          <div className="flex items-start gap-3 border-b border-emerald-200 bg-emerald-50 px-6 py-3 text-[13px] text-emerald-950">
+            <CircleCheck aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <p className="leading-snug">
+              <b>O cliente aceitou esta proposta online.</b> Aceita por <b>{aceite.nome}</b> em{' '}
+              {new Date(aceite.em!).toLocaleString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {typeof aceite.entrada === 'number' && (
+                <>
+                  , no valor de <b>{moeda(aceite.entrada)}</b> de entrada
+                  {aceite.mensalidade ? <> + <b>{moeda(aceite.mensalidade)}</b>/mês</> : null}
+                </>
+              )}
+              . Se mudar algo agora, o cliente não aceitou a mudança.
+            </p>
+          </div>
+        )}
 
         <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[1fr_380px]">
           {/* ------------------------------------------------ escolhas */}

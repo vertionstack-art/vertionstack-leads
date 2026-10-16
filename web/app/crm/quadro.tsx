@@ -491,7 +491,7 @@ function CardCrm({
             {horaOuDia(card.lembreteEm)}
           </button>
         )}
-        <SeloProposta abertaEm={card.propostaAbertaEm} aberturas={card.propostaAberturas} primeiraEm={card.propostaPrimeiraEm} />
+        <SeloProposta abertaEm={card.propostaAbertaEm} aberturas={card.propostaAberturas} primeiraEm={card.propostaPrimeiraEm} aceite={card.aceite} />
       </div>
 
       {card.notas && <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-zinc-500">{card.notas}</p>}
