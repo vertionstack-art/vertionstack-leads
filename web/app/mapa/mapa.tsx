@@ -144,7 +144,7 @@ export default function MapaDosLeads() {
         </label>
       </div>
 
-      <div className="relative mt-4 min-h-[420px] flex-1 overflow-hidden rounded-[24px] ring-1 ring-zinc-200">
+      <div className="relative mt-4 h-[calc(100vh-250px)] min-h-[420px] overflow-hidden rounded-[24px] ring-1 ring-zinc-200">
         <div ref={caixa} className="absolute inset-0 z-0" aria-label="Mapa dos leads" />
         {pontos && !visiveis.length && (
           <div className="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center p-6">

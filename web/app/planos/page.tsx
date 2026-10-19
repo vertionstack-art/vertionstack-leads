@@ -1,10 +1,12 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { cotaDaConta, sessaoAtual } from '@/lib/conta';
 import { LIMITES, NOME_DO_PLANO, PLANOS_A_VENDA, reais } from '@/lib/planos';
 import { pagamentoLigado, pixLigado, situacaoDaCobranca } from '@/lib/pagamento';
 import { BotaoGerenciar, BotoesAssinar } from './botoes';
+import Casca from '@/app/casca';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
+import { Crown } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,13 +25,13 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
   const contato = process.env.EMPRESA_EMAIL || 'vertionstack@gmail.com';
 
   return (
-    <div className="min-h-screen px-3 py-3">
-      <div className="mx-auto min-h-[calc(100vh-24px)] max-w-[1100px] rounded-[var(--radius-folha)] bg-white px-5 pb-12 pt-7 md:px-9">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Planos</h1>
-            <p className="mt-1.5 text-[13px] font-medium text-zinc-500">
-              Você está no <b className="text-tinta">{NOME_DO_PLANO[sessao.plano]}</b>
+    <Casca
+      tela="planos"
+      conversas={podeUsarConversa(sessao.email)}
+      cor="manteiga"
+      icone={<Crown aria-hidden className="h-6 w-6" strokeWidth={2} />}
+      titulo={<>Planos</>}
+      subtitulo={<>Você está no <b className="text-tinta">{NOME_DO_PLANO[sessao.plano]}</b>
               {!cota.ilimitado && cota.teste && (
                 <>
                   {' '}· {cota.testeNegado ? 'teste já usado em outra conta' : `${numero(cota.usados)} de ${numero(cota.limite)} leads do teste usados`}
@@ -40,16 +42,8 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
                   {' '}· {numero(cota.usados)} de {numero(cota.limite)} leads novos nesta semana · {numero(cota.guardados)} de{' '}
                   {numero(cota.tetoGuardados)} guardados
                 </>
-              )}
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex min-h-[40px] items-center rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400"
-          >
-            Voltar ao painel
-          </Link>
-        </header>
+              )}</>}
+    >
 
         {pago === '1' && (
           <p role="status" className="mt-7 rounded-2xl bg-menta px-5 py-3.5 text-[13.5px] font-semibold text-emerald-950">
@@ -201,7 +195,6 @@ export default async function PaginaPlanos({ searchParams }: { searchParams: Pro
           <span className="mx-2" aria-hidden>·</span>
           <a href="/privacidade" className="hover:text-tinta hover:underline">Política de privacidade</a>
         </p>
-      </div>
-    </div>
+    </Casca>
   );
 }

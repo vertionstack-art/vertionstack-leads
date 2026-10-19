@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, Bell, Check, ChevronDown, Download, Map as IconeMapa, Smartphone, Upload, Flame, LayoutGrid, LogOut, MapPin,
-  Crown, Kanban, MessageCircle, Radar, Wallet, Plus, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  AlertTriangle, Bell, Check, ChevronDown, Download, Map as IconeMapa, Smartphone, Upload, Flame, LogOut, MapPin,
+  Crown, Kanban, MessageCircle, MessagesSquare, Radar, Wallet, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import type { AvisoVencimento } from '@/lib/pagamento';
@@ -17,7 +17,7 @@ import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
 import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
-import Logo from './logo';
+import MenuLateral from './menu-lateral';
 import FichaLead from './ficha-lead';
 import InstalarApp from './instalar-app';
 import PrimeirosPassos from './primeiros-passos';
@@ -114,37 +114,6 @@ function Selo({ children, classe, ponto }: { children: React.ReactNode; classe: 
  * cima (ou o foco do teclado dentro dele) o trilho alarga e o nome aparece ao
  * lado. O nome está sempre no HTML, então leitor de tela lê mesmo fechado.
  */
-function ItemTrilho({
-  rotulo, ativo, onClick, href, children,
-}: {
-  rotulo: string; ativo?: boolean; onClick?: () => void; href?: string; children: React.ReactNode;
-}) {
-  const classe = `relative flex h-12 w-full shrink-0 items-center rounded-2xl transition-colors duration-200 ${
-    ativo ? 'bg-white/12 text-white' : 'text-white/55 hover:bg-white/8 hover:text-white'
-  }`;
-  const conteudo = (
-    <>
-      {ativo && <span className="absolute -left-4 h-6 w-[3px] rounded-r-full bg-white" />}
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center">{children}</span>
-      <span className="-translate-x-1 whitespace-nowrap pr-3 text-[13.5px] font-semibold opacity-0 transition-[opacity,transform] duration-200 ease-out group-hover/trilho:translate-x-0 group-hover/trilho:opacity-100 group-focus-within/trilho:translate-x-0 group-focus-within/trilho:opacity-100 motion-reduce:transition-none">
-        {rotulo}
-      </span>
-    </>
-  );
-  if (href) {
-    return (
-      <a href={href} className={classe}>
-        {conteudo}
-      </a>
-    );
-  }
-  return (
-    <button type="button" onClick={onClick} className={classe}>
-      {conteudo}
-    </button>
-  );
-}
-
 /** select com cara de pílula, igual aos filtros "24h ▾" da referência */
 function Pilula({
   value, onChange, children, titulo, largura,
@@ -370,7 +339,10 @@ export default function Painel({
   passos = null,
   lembretesHoje = 0,
   planoEscolhido = null,
+  conversas = false,
 }: {
+  /** a conversa guiada do WhatsApp aparece no menu (por enquanto só a conta da Vertion) */
+  conversas?: boolean;
   /** o plano clicado na página de venda, enquanto a conta ainda está no teste */
   planoEscolhido?: 'semanal' | 'basic' | 'pro' | null;
   /** guia de primeiros passos; null quando já foi feito ou escondido */
@@ -638,6 +610,15 @@ export default function Painel({
     setComTelefone(false); setSiteQuebrado(false); setDePessoa(''); setNiveis([]); setPagina(0);
   }
 
+  useEffect(() => {
+    const u = new URL(location.href);
+    if (u.searchParams.get('cadastrar') === '1') {
+      setCadastrando(true);
+      u.searchParams.delete('cadastrar');
+      history.replaceState(null, '', u.pathname + u.search);
+    }
+  }, []);
+
   async function sair() {
     await fetch('/api/auth', { method: 'DELETE' });
     location.href = '/login';
@@ -688,86 +669,20 @@ export default function Painel({
 
   return (
     <div className="min-h-screen md:pl-[104px]">
-      {/* ------------------------------------------- trilho preto (desktop) */}
-      <nav
-        aria-label="Menu"
-        className="group/trilho fixed inset-y-3 left-3 z-40 hidden w-[80px] flex-col overflow-hidden rounded-[26px] bg-tinta px-4 py-5 transition-[width,box-shadow] duration-200 ease-out hover:w-[224px] hover:shadow-[0_18px_50px_rgba(11,11,15,0.28)] focus-within:w-[224px] motion-reduce:transition-none md:flex"
-      >
-        <div className="mb-8 flex items-center">
-          <Logo tamanho={48} emQuadro />
-          <span className="ml-3 whitespace-nowrap text-[15px] font-extrabold tracking-[-0.01em] text-white opacity-0 transition-opacity duration-200 group-hover/trilho:opacity-100 group-focus-within/trilho:opacity-100">
-            Vertion Leads
-          </span>
-        </div>
-        <div className="flex flex-col gap-2">
-          <ItemTrilho rotulo="Painel" ativo onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <LayoutGrid className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Buscar leads" href="/buscar">
-            <Radar className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="CRM" href="/crm">
-            <Kanban className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Financeiro" href="/financeiro">
-            <Wallet className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Cadastrar comércio" onClick={() => setCadastrando(true)}>
-            <Plus className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Planos" href="/planos">
-            <Crown className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Mapa dos leads" href="/mapa">
-            <IconeMapa className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Importar planilha" href="/importar">
-            <Upload className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Baixar CSV" href={'/api/leads/export?' + query}>
-            <Download className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo={carregando ? 'Atualizando…' : 'Atualizar'} onClick={carregar}>
-            <RefreshCw className={`h-5 w-5 ${carregando ? 'animate-spin' : ''}`} strokeWidth={1.8} />
-          </ItemTrilho>
-        </div>
-        <div className="mt-auto flex flex-col gap-2">
-          <ItemTrilho rotulo="Meu perfil" href="/perfil">
-            <UserRound className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-          <ItemTrilho rotulo="Sair" onClick={sair}>
-            <LogOut className="h-5 w-5" strokeWidth={1.8} />
-          </ItemTrilho>
-        </div>
-      </nav>
-
-      {/* ------------------------------------------- doca preta (celular) */}
-      <nav
-        aria-label="Menu"
-        className="fixed inset-x-3 bottom-3 z-30 flex items-center justify-around rounded-[22px] bg-tinta px-2 py-1.5 shadow-[0_10px_30px_rgba(11,11,15,0.25)] md:hidden"
-      >
-        {[
-          { rotulo: 'Painel', Icone: LayoutGrid, acao: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-          { rotulo: 'Buscar', Icone: Radar, acao: () => (location.href = '/buscar') },
-        ].map(({ rotulo, Icone, acao }) => (
-          <button key={rotulo} onClick={acao} className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
-            <Icone className="h-5 w-5" strokeWidth={1.8} />
-            {rotulo}
-          </button>
-        ))}
-        <a href="/crm" className="flex min-h-[52px] min-w-[64px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
-          <Kanban className="h-5 w-5" strokeWidth={1.8} />
-          CRM
-        </a>
-        <a href="/financeiro" className="flex min-h-[52px] min-w-[60px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
-          <Wallet className="h-5 w-5" strokeWidth={1.8} />
-          Financeiro
-        </a>
-        <a href="/perfil" className="flex min-h-[52px] min-w-[60px] flex-col items-center justify-center gap-0.5 text-[10.5px] font-semibold text-white/70 active:text-white">
-          <UserRound className="h-5 w-5" strokeWidth={1.8} />
-          Perfil
-        </a>
-      </nav>
+      <MenuLateral
+        ativo="painel"
+        conversas={conversas}
+        aoCadastrar={() => setCadastrando(true)}
+        aoPainel={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        extras={[
+          { rotulo: 'Baixar CSV', href: '/api/leads/export?' + query, icone: <Download className="h-5 w-5" strokeWidth={1.8} /> },
+          {
+            rotulo: carregando ? 'Atualizando…' : 'Atualizar',
+            onClick: carregar,
+            icone: <RefreshCw className={`h-5 w-5 ${carregando ? 'animate-spin' : ''}`} strokeWidth={1.8} />,
+          },
+        ]}
+      />
 
       {/* ------------------------------------------------- folha branca */}
       <div className="px-3 pb-28 pt-3 md:py-3 md:pl-0 md:pr-3">
@@ -810,6 +725,11 @@ export default function Painel({
                   <a href="/perfil" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <UserRound aria-hidden className="h-4 w-4 text-zinc-500" /> Meu perfil
                   </a>
+                  {conversas && (
+                    <a href="/conversas" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
+                      <MessagesSquare aria-hidden className="h-4 w-4 text-zinc-500" /> Conversas
+                    </a>
+                  )}
                   <a href="/crm" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Kanban aria-hidden className="h-4 w-4 text-zinc-500" /> CRM
                   </a>
@@ -848,10 +768,10 @@ export default function Painel({
             {lembretesHoje > 0 && (
               <a
                 href="/crm#para-hoje"
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-5 py-3.5 text-[13.5px] font-semibold ring-2 ring-inset ring-tinta transition-colors hover:bg-zinc-50"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] bg-rosa px-4 py-3 text-[13.5px] font-bold transition-[box-shadow] hover:shadow-[0_8px_22px_rgba(11,11,15,0.08)]"
               >
-                <span className="flex items-center gap-2">
-                  <Bell aria-hidden className="h-4 w-4" />
+                <span className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-tinta text-white"><Bell aria-hidden className="h-4 w-4" /></span>
                   {lembretesHoje === 1 ? 'Você tem 1 lembrete para hoje.' : `Você tem ${lembretesHoje} lembretes para hoje.`}
                 </span>
                 <span className="font-bold underline underline-offset-2">Ver no CRM</span>

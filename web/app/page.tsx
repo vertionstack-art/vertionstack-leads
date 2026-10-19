@@ -9,6 +9,7 @@ import { lerFoto } from '@/lib/perfil';
 import { avisoDeVencimento } from '@/lib/pagamento';
 import { primeirosPassos } from '@/lib/passos';
 import { quantosLembretesHoje } from '@/lib/eventos';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,7 @@ export default async function Home() {
 
   return (
     <Painel
+      conversas={podeUsarConversa(sessao.email)}
       usuario={sessao.nome}
       foto={foto}
       vencimento={vencimento}

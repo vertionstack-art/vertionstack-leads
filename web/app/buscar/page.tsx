@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
 import { buscaLigada, buscasDaConta } from '@/lib/google-places';
@@ -7,6 +6,9 @@ import BuscaGoogle from './busca';
 import EscolhaOferta from './oferta';
 import { db } from '@/lib/sql';
 import type { Oferta } from '@/lib/ofertas';
+import Casca from '@/app/casca';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
+import { Radar } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,22 +27,14 @@ export default async function PaginaBuscar() {
   const periodo = sessao.plano === 'gratis' ? 'do teste' : sessao.plano === 'semanal' ? 'destes 7 dias' : 'do mês';
 
   return (
-    <div className="min-h-screen px-3 py-3">
-      <div className="mx-auto min-h-[calc(100vh-24px)] max-w-[1080px] rounded-[var(--radius-folha)] bg-white px-5 pb-12 pt-7 md:px-9">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Buscar leads</h1>
-            <p className="mt-1.5 text-[13px] font-medium text-zinc-500">
-              Direto do Google. Só entram os comércios que combinam com o que você vende.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex min-h-[40px] items-center rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400"
-          >
-            Voltar ao painel
-          </Link>
-        </header>
+    <Casca
+      tela="buscar"
+      conversas={podeUsarConversa(sessao.email)}
+      cor="ceu"
+      icone={<Radar aria-hidden className="h-6 w-6" strokeWidth={2} />}
+      titulo={<>Buscar leads</>}
+      subtitulo={<>Direto do Google. Só entram os comércios que combinam com o que você vende.</>}
+    >
         <EscolhaOferta
           inicial={{
             oferta: ((c?.oferta as string) || 'sites') as Oferta,
@@ -55,7 +49,6 @@ export default async function PaginaBuscar() {
           cotaInicial={cotaParaJson(cota)}
           buscasIniciais={{ usadas, limite: LIMITES[sessao.plano].buscas, periodo, ilimitado: sessao.plano === 'cortesia' }}
         />
-      </div>
-    </div>
+    </Casca>
   );
 }

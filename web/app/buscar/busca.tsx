@@ -199,7 +199,7 @@ export default function BuscaGoogle({
 
   if (!ligada) {
     return (
-      <div className="mt-9 rounded-[24px] bg-zinc-100 p-7">
+      <div className="mt-9 rounded-[24px] bg-manteiga p-7">
         <h2 className="text-[19px] font-extrabold">A busca está fora do ar agora</h2>
         <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-zinc-700">
           Não consegui falar com o Google neste momento. Seus leads, o CRM e as propostas continuam funcionando normalmente.
@@ -220,7 +220,7 @@ export default function BuscaGoogle({
         }}
       >
         <fieldset disabled={rodando}>
-          <legend className="text-[15px] font-extrabold">1. O que procurar</legend>
+          <legend className="flex items-center gap-2.5 text-[16px] font-extrabold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ceu text-[13px] font-extrabold">1</span>O que procurar</legend>
           <div className="mt-3 flex flex-wrap gap-2">
             {[...NICHOS_PADRAO, ...extras].map((n) => {
               const on = nichos.has(n);
@@ -283,7 +283,7 @@ export default function BuscaGoogle({
         </fieldset>
 
         <fieldset disabled={rodando} className="grid gap-4 md:grid-cols-2">
-          <legend className="mb-3 text-[15px] font-extrabold">2. Onde</legend>
+          <legend className="mb-3 flex items-center gap-2.5 text-[16px] font-extrabold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-manteiga text-[13px] font-extrabold">2</span>Onde</legend>
           <label className="block">
             <span className="text-[12.5px] font-bold">Cidade</span>
             <input
@@ -316,7 +316,7 @@ export default function BuscaGoogle({
         </fieldset>
 
         <fieldset disabled={rodando}>
-          <legend className="text-[15px] font-extrabold">3. Quantos leads</legend>
+          <legend className="flex items-center gap-2.5 text-[16px] font-extrabold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-menta text-[13px] font-extrabold">3</span>Quantos leads</legend>
           <div className="mt-3 flex items-center gap-3">
             <input
               type="number"
@@ -399,8 +399,8 @@ export default function BuscaGoogle({
       </form>
 
       {/* -------------------------------------------------- progresso */}
-      <section aria-live="polite" className="flex flex-col rounded-[24px] bg-zinc-50 p-6">
-        <h2 className="text-[15px] font-extrabold">Resultado</h2>
+      <section aria-live="polite" className="flex flex-col rounded-[24px] bg-lavanda p-6">
+        <h2 className="text-[16px] font-extrabold">Resultado</h2>
         <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             { rotulo: 'Leads novos', valor: totais.novos, fundo: 'bg-menta' },

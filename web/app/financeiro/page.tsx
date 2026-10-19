@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { sessaoAtual } from '@/lib/conta';
 import { financeiroDaConta } from '@/lib/financeiro';
+import Casca from '@/app/casca';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
+import { Wallet } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,12 +13,12 @@ const brl = (v: number, centavos = false) =>
 const num = (n: number) => n.toLocaleString('pt-BR');
 const data = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
-function Indicador({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe: string }) {
+function Indicador({ titulo, valor, detalhe, fundo }: { titulo: string; valor: string; detalhe: string; fundo: string }) {
   return (
-    <div className="rounded-[24px] bg-zinc-50 p-5">
-      <p className="text-[12.5px] font-bold text-zinc-500">{titulo}</p>
-      <p className="mt-2 text-[28px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{valor}</p>
-      <p className="mt-2 text-[12px] font-medium text-zinc-500">{detalhe}</p>
+    <div className={`rounded-[24px] ${fundo} p-5`}>
+      <p className="text-[12.5px] font-bold text-tinta/70">{titulo}</p>
+      <p className="mt-2 text-[30px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{valor}</p>
+      <p className="mt-2 text-[12px] font-semibold text-tinta/60">{detalhe}</p>
     </div>
   );
 }
@@ -38,20 +41,14 @@ export default async function PaginaFinanceiro() {
   const progressoMeta = f.meta ? Math.min(1, t.receitaMes / f.meta) : 0;
 
   return (
-    <div className="min-h-screen px-3 py-3">
-      <div className="mx-auto min-h-[calc(100vh-24px)] max-w-[1180px] rounded-[var(--radius-folha)] bg-white px-5 pb-12 pt-7 md:px-9">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-extrabold leading-none tracking-[-0.03em] md:text-[32px]">Financeiro</h1>
-            <p className="mt-1.5 text-[13px] font-medium text-zinc-500">Os clientes que você fechou e quanto eles renderam</p>
-          </div>
-          <Link
-            href="/"
-            className="inline-flex min-h-[40px] items-center rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400"
-          >
-            Voltar ao painel
-          </Link>
-        </header>
+    <Casca
+      tela="financeiro"
+      conversas={podeUsarConversa(sessao.email)}
+      cor="menta"
+      icone={<Wallet aria-hidden className="h-6 w-6" strokeWidth={2} />}
+      titulo={<>Financeiro</>}
+      subtitulo={<>Os clientes que você fechou e quanto eles renderam</>}
+    >
 
         {/* ------------------------------------------- o mês, em destaque */}
         <section className="mt-8 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
@@ -81,13 +78,14 @@ export default async function PaginaFinanceiro() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Indicador titulo="Clientes fechados" valor={num(t.clientes)} detalhe="desde o começo" />
-            <Indicador titulo="Mensalidade contratada" valor={brl(t.recorrencia)} detalhe="entra todo mês" />
-            <Indicador titulo="Ticket médio" valor={t.ticketMedio ? brl(t.ticketMedio) : '—'} detalhe="entrada por cliente" />
+            <Indicador titulo="Clientes fechados" valor={num(t.clientes)} detalhe="desde o começo" fundo="bg-menta" />
+            <Indicador titulo="Mensalidade contratada" valor={brl(t.recorrencia)} detalhe="entra todo mês" fundo="bg-lavanda" />
+            <Indicador titulo="Ticket médio" valor={t.ticketMedio ? brl(t.ticketMedio) : '—'} detalhe="entrada por cliente" fundo="bg-manteiga" />
             <Indicador
               titulo="Conversão"
               valor={t.conversao === null ? '—' : `${Math.round(t.conversao * 100)}%`}
               detalhe="dos leads que você abordou"
+              fundo="bg-rosa"
             />
           </div>
         </section>
@@ -104,7 +102,7 @@ export default async function PaginaFinanceiro() {
                     {m.receita ? brl(m.receita).replace(/\s/g, ' ') : ''}
                   </span>
                   <div
-                    className="mx-auto w-full max-w-[56px] rounded-t-[4px] bg-tinta transition-opacity group-hover:opacity-80"
+                    className="mx-auto w-full max-w-[56px] rounded-t-[6px] bg-roxo-600 transition-opacity group-hover:opacity-80"
                     style={{ height: `${Math.max(m.receita ? 4 : 0, (m.receita / maiorMes) * 140)}px` }}
                   />
                   <span className="pointer-events-none absolute -top-2 left-1/2 z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg bg-tinta px-2.5 py-1.5 text-[12px] font-semibold text-white opacity-0 shadow-[0_6px_16px_rgba(11,11,15,0.2)] transition-opacity group-hover:opacity-100">
@@ -240,7 +238,6 @@ export default async function PaginaFinanceiro() {
             </div>
           )}
         </section>
-      </div>
-    </div>
+    </Casca>
   );
 }

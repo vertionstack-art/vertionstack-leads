@@ -72,3 +72,43 @@ export async function marcarPasso(conta: string, lead: string, passo: string, fe
     await db()`delete from conversa_passos where conta_id = ${conta} and lead_id = ${lead} and passo = ${passo}`;
   }
 }
+
+// ------------------------------------------------------ lista de conversas
+
+export interface ResumoConversa {
+  leadId: string;
+  mensagens: number;
+  ultimaEm: string | null;
+  ultimoAutor: 'eu' | 'cliente' | null;
+  ultimoTexto: string | null;
+  passos: number;
+}
+
+/** por lead: quantas falas, a última (de quem e o quê) e quantos passos do roteiro já foram */
+export async function resumoDasConversas(conta: string): Promise<Map<string, ResumoConversa>> {
+  const msgs = await db()`
+    select lead_id, count(*)::int as n, max(criado_em) as ultima,
+      (array_agg(autor order by criado_em desc, id desc))[1] as autor,
+      (array_agg(texto order by criado_em desc, id desc))[1] as texto
+    from conversa_mensagens where conta_id = ${conta}
+    group by lead_id
+  `;
+  const passos = await db()`select lead_id, count(*)::int as n from conversa_passos where conta_id = ${conta} group by lead_id`;
+  const mapa = new Map<string, ResumoConversa>();
+  for (const m of msgs) {
+    mapa.set(m.lead_id as string, {
+      leadId: m.lead_id as string,
+      mensagens: m.n as number,
+      ultimaEm: m.ultima ? new Date(m.ultima).toISOString() : null,
+      ultimoAutor: (m.autor as 'eu' | 'cliente') || null,
+      ultimoTexto: ((m.texto as string) || '').slice(0, 160) || null,
+      passos: 0,
+    });
+  }
+  for (const p of passos) {
+    const atual = mapa.get(p.lead_id as string);
+    if (atual) atual.passos = p.n as number;
+    else mapa.set(p.lead_id as string, { leadId: p.lead_id as string, mensagens: 0, ultimaEm: null, ultimoAutor: null, ultimoTexto: null, passos: p.n as number });
+  }
+  return mapa;
+}

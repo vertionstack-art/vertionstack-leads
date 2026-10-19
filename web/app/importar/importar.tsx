@@ -193,7 +193,7 @@ export default function Importar({ vagas }: { vagas: number | null }) {
           onClick={() => input.current?.click()}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); escolher(e.dataTransfer.files?.[0]); }}
-          className="mt-4 flex w-full flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-zinc-300 px-6 py-10 text-center transition-colors hover:border-tinta hover:bg-zinc-50"
+          className="mt-4 flex w-full flex-col items-center justify-center gap-2 rounded-[20px] border-2 border-dashed border-roxo-300 bg-roxo-50 px-6 py-10 text-center transition-colors hover:border-tinta hover:bg-lavanda"
         >
           {arquivo ? <FileSpreadsheet aria-hidden className="h-7 w-7" /> : <Upload aria-hidden className="h-7 w-7" />}
           <span className="text-[14px] font-extrabold">{arquivo || 'Clique para escolher ou arraste o arquivo aqui'}</span>

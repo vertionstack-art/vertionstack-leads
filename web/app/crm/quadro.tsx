@@ -231,14 +231,14 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
 
       {/* ----------------------------------------------- para hoje */}
       {lembretes.length > 0 && (
-        <section id="para-hoje" aria-labelledby="t-hoje" className="mt-5 scroll-mt-4 rounded-[22px] bg-white p-4 ring-2 ring-inset ring-tinta md:p-5">
-          <h2 id="t-hoje" className="flex items-center gap-2 text-[15px] font-extrabold">
-            <Bell aria-hidden className="h-4 w-4" />
-            Para hoje <span className="font-bold text-tinta/50 tabular-nums">{lembretes.length}</span>
+        <section id="para-hoje" aria-labelledby="t-hoje" className="mt-6 scroll-mt-4 rounded-[24px] bg-rosa p-4 md:p-5">
+          <h2 id="t-hoje" className="flex items-center gap-2.5 text-[16px] font-extrabold">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-tinta text-white"><Bell aria-hidden className="h-4 w-4" /></span>
+            Para hoje <span className="rounded-full bg-white px-2 py-0.5 text-[12px] font-extrabold tabular-nums">{lembretes.length}</span>
           </h2>
-          <ul className="mt-3 divide-y divide-zinc-200">
+          <ul className="mt-3 space-y-2">
             {lembretes.map((l) => (
-              <li key={l.leadId} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+              <li key={l.leadId} className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[16px] bg-white px-3.5 py-2.5">
                 <span className={`w-[92px] shrink-0 text-[12.5px] font-bold tabular-nums ${l.atrasado ? 'text-red-700' : 'text-zinc-600'}`} suppressHydrationWarning>
                   {l.atrasado ? 'atrasado · ' : ''}{horaOuDia(l.em)}
                 </span>
@@ -250,7 +250,7 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
                   <button
                     type="button"
                     onClick={() => setFicha({ id: l.leadId, aba: 'whatsapp' })}
-                    className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-zinc-100 px-3 text-[12px] font-bold hover:bg-zinc-200"
+                    className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-menta px-3 text-[12px] font-bold text-emerald-950 hover:bg-emerald-200"
                   >
                     <MessageCircle aria-hidden className="h-3.5 w-3.5" /> WhatsApp
                   </button>
@@ -271,14 +271,14 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
       {/* --------------------------------------------------- resumo */}
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          { rotulo: 'Cards no funil', valor: String(q.cards.length) },
-          { rotulo: 'Em andamento', valor: String(emAberto.length) },
-          { rotulo: 'Em negociação', valor: reais(emAberto.reduce((s, c) => s + c.entrada, 0)) },
-          { rotulo: 'Ganhos neste funil', valor: reais(ganhos.reduce((s, c) => s + c.entrada, 0)) },
+          { rotulo: 'Cards no funil', valor: String(q.cards.length), fundo: 'bg-ceu' },
+          { rotulo: 'Em andamento', valor: String(emAberto.length), fundo: 'bg-lavanda' },
+          { rotulo: 'Em negociação', valor: reais(emAberto.reduce((s, c) => s + c.entrada, 0)), fundo: 'bg-manteiga' },
+          { rotulo: 'Ganhos neste funil', valor: reais(ganhos.reduce((s, c) => s + c.entrada, 0)), fundo: 'bg-menta' },
         ].map((k) => (
-          <div key={k.rotulo} className="rounded-[20px] bg-zinc-50 px-4 py-3.5">
-            <p className="text-[11.5px] font-bold uppercase tracking-[0.06em] text-zinc-500">{k.rotulo}</p>
-            <p className="mt-1 text-[22px] font-extrabold tracking-[-0.02em] tabular-nums">{k.valor}</p>
+          <div key={k.rotulo} className={`rounded-[22px] ${k.fundo} px-5 py-4`}>
+            <p className="text-[12.5px] font-bold text-tinta/70">{k.rotulo}</p>
+            <p className="mt-1.5 text-[28px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{k.valor}</p>
           </div>
         ))}
       </div>

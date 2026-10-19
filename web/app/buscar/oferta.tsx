@@ -71,20 +71,20 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
   if (!aberto) {
     const Icone = ICONE[oferta];
     return (
-      <section className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-zinc-50 px-5 py-4 ring-1 ring-inset ring-zinc-200">
+      <section className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-[24px] bg-ceu px-5 py-4">
         <p className="flex min-w-0 items-center gap-3 text-[14px]">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-tinta text-white">
             <Icone aria-hidden className="h-5 w-5" />
           </span>
           <span className="min-w-0">
             <span className="block font-extrabold">Você vende: {oferta === 'outro' && texto ? texto : info.titulo}</span>
-            <span className="block text-[12.5px] text-zinc-600">{info.criterio}</span>
+            <span className="block text-[12.5px] text-tinta/70">{info.criterio}</span>
           </span>
         </p>
         <button
           type="button"
           onClick={() => setAberto(true)}
-          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-4 text-[13px] font-bold ring-1 ring-inset ring-zinc-300 hover:ring-tinta"
+          className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-white px-4 text-[13px] font-bold hover:bg-tinta hover:text-white"
         >
           <Pencil aria-hidden className="h-3.5 w-3.5" /> Trocar
         </button>
@@ -110,7 +110,7 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
               aria-pressed={sel}
               onClick={() => escolher(o.id)}
               className={`flex items-start gap-3 rounded-[20px] p-4 text-left transition-colors ${
-                sel ? 'bg-white ring-2 ring-tinta' : 'bg-zinc-50 ring-1 ring-inset ring-zinc-200 hover:ring-zinc-400'
+                sel ? 'bg-lavanda ring-2 ring-tinta' : 'bg-white ring-1 ring-inset ring-zinc-200 hover:bg-zinc-50 hover:ring-zinc-400'
               }`}
             >
               <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${sel ? 'bg-tinta text-white' : 'bg-white text-tinta ring-1 ring-inset ring-zinc-200'}`}>
@@ -125,7 +125,7 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
         })}
       </div>
 
-      <p className="mt-4 rounded-2xl bg-zinc-100 px-4 py-3 text-[13px] leading-relaxed">
+      <p className="mt-4 rounded-2xl bg-ceu px-4 py-3 text-[13px] leading-relaxed">
         <b>Quem entra como lead:</b> {info.criterio}
       </p>
 
