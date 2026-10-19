@@ -78,9 +78,10 @@ const memBloqueios = memoriaRef.__vlBloqueios || (memoriaRef.__vlBloqueios = new
  */
 export function ipDaRequisicao(req: Request | Headers): string {
   const h = req instanceof Headers ? req : req.headers;
-  const encadeado = h.get('x-forwarded-for') || '';
-  const primeiro = encadeado.split(',')[0]?.trim();
-  return primeiro || h.get('x-real-ip') || h.get('x-vercel-forwarded-for') || 'desconhecido';
+  // a Vercel escreve estes dois e o cliente não consegue forjar; o x-forwarded-for fica por último
+  const daVercel = (h.get('x-vercel-forwarded-for') || h.get('x-real-ip') || '').split(',')[0]?.trim();
+  const encadeado = (h.get('x-forwarded-for') || '').split(',')[0]?.trim();
+  return daVercel || encadeado || 'desconhecido';
 }
 
 export function contextoDaRequisicao(req: Request | Headers) {

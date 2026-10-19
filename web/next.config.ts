@@ -1,7 +1,6 @@
 import type { NextConfig } from 'next';
 
 const dev = process.env.NODE_ENV !== 'production';
-const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 
 /*
  * Regras de segurança que o navegador aplica em todas as páginas.
@@ -18,7 +17,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https:",
-  `connect-src 'self'${supabase ? ' ' + supabase : ''}${dev ? ' ws:' : ''}`,
+  // o navegador só fala com o próprio site: login e dados passam pelo servidor
+  `connect-src 'self'${dev ? ' ws:' : ''}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

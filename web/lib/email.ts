@@ -103,7 +103,10 @@ export async function enviarEmail(para: string, assunto: string, m: Mensagem): P
 // ------------------------------------------- "não quero receber"
 
 function segredo(): string {
-  return process.env.EMAIL_SECRET || process.env.PROPOSTA_SECRET || process.env.INGEST_TOKEN || process.env.SUPABASE_DB_URL || 'vertion-leads';
+  const s = process.env.EMAIL_SECRET || process.env.PROPOSTA_SECRET || process.env.INGEST_TOKEN || process.env.SUPABASE_DB_URL;
+  // sem segredo configurado, o link de "não quero receber" falha em vez de ficar fácil de forjar
+  if (!s) throw new Error('EMAIL_SECRET não configurado');
+  return s;
 }
 
 export function assinaturaSair(conta: string): string {

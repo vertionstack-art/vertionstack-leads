@@ -13,6 +13,7 @@ import { alertarCentral } from '@/lib/alerta-central';
 import { createServerClient } from '@supabase/ssr';
 import { caminhoCentral } from '@/lib/caminho-central';
 import { aparelhoLiberado, COOKIE_APARELHO, DIAS_APARELHO, emailEhAdmin, liberacaoValida, tokenDoAparelho } from '@/lib/guarda-central';
+import { COOKIE_DA_SESSAO } from '@/lib/cookie-sessao';
 
 const PUBLICAS = ['/login', '/cadastro', '/esqueci', '/auth/', '/p/', '/termos', '/privacidade', '/opengraph-image', '/manifest.webmanifest', '/s/'];
 
@@ -67,12 +68,15 @@ async function proxyDaSessao(req: NextRequest, event: NextFetchEvent) {
   if (!url || !chave) return comRastro(req, novoRastro, resposta);
 
   const supabase = createServerClient(url, chave, {
+    cookieOptions: COOKIE_DA_SESSAO,
     cookies: {
       getAll: () => req.cookies.getAll(),
       setAll: (lista) => {
         for (const { name, value } of lista) req.cookies.set(name, value);
         resposta = NextResponse.next({ request: req });
-        for (const { name, value, options } of lista) resposta.cookies.set(name, value, options);
+        for (const { name, value, options } of lista) {
+          resposta.cookies.set(name, value, { ...options, ...COOKIE_DA_SESSAO, maxAge: options?.maxAge ?? COOKIE_DA_SESSAO.maxAge });
+        }
       },
     },
   });

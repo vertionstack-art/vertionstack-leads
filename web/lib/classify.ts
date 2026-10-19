@@ -71,8 +71,11 @@ function matches(host: string, url: string, list: string[]): boolean {
 }
 
 export function classifyWebsite(url?: string | null): Veredito {
-  const clean = (url || '').trim();
-  if (!clean) return { kind: 'none', label: 'Sem site', isLead: true, host: '', url: null };
+  const bruto = (url || '').trim().replace(/[\u0000-\u001f\u007f\s]+/g, '');
+  // só http(s) ou um domínio puro ("barbearia.com.br") vira link; "javascript:..." e afins não
+  const temEsquema = /^[a-z][a-z0-9+.-]*:/i.test(bruto);
+  if (!bruto || (temEsquema && !/^https?:\/\//i.test(bruto))) return { kind: 'none', label: 'Sem site', isLead: true, host: '', url: null };
+  const clean = temEsquema ? bruto : 'https://' + bruto.replace(/^\/+/, '');
 
   const host = hostOf(clean);
   if (!host) return { kind: 'none', label: 'Sem site', isLead: true, host: '', url: null };

@@ -16,12 +16,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 function segredo(): string {
-  return (
-    process.env.PROPOSTA_SECRET ||
-    process.env.INGEST_TOKEN ||
-    process.env.USUARIOS ||
-    'vertion-leads-sem-segredo'
-  );
+  const s = process.env.PROPOSTA_SECRET || process.env.INGEST_TOKEN || process.env.USUARIOS;
+  // sem segredo configurado, nenhum link abre: melhor que aceitar link assinado com uma senha que está no código
+  if (!s) throw new Error('PROPOSTA_SECRET não configurado');
+  return s;
 }
 
 function assinar(texto: string): string {

@@ -3,6 +3,8 @@ import { supabaseServidor } from '@/lib/supabase-server';
 import { registrarAcesso } from '@/lib/acessos';
 import { barrarSePreciso, emailValido, origemDoSite, resposta } from '@/lib/porta';
 import { VERSAO_TERMOS } from '@/lib/legal';
+import { randomBytes } from 'node:crypto';
+import { db } from '@/lib/sql';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,14 @@ export async function POST(req: Request) {
   if (senha.length < 8) return resposta('A senha precisa ter pelo menos 8 caracteres.', 400);
   if (senha.length > 72) return resposta('A senha pode ter no máximo 72 caracteres.', 400);
 
+  /*
+   * Passe de uso único: o Supabase só cria conta por e-mail quando ele existe
+   * (gancho "Before User Created", migração 0021). Sem isso, a chave pública
+   * criaria conta direto no Supabase, pulando tudo o que esta rota confere.
+   */
+  const porta = randomBytes(24).toString('base64url');
+  await db()`insert into cadastros_liberados (passe, email) values (${porta}, ${email})`;
+
   const supabase = await supabaseServidor();
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -34,6 +44,7 @@ export async function POST(req: Request) {
     options: {
       // qual versão dos Termos e da Política a pessoa aceitou, e quando (prova do aceite)
       data: {
+        porta,
         nome,
         termos_versao: VERSAO_TERMOS,
         termos_aceitos_em: new Date().toISOString(),

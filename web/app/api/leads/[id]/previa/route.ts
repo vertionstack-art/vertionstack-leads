@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { atualizarLead, buscarLead } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { estourou } from '@/lib/limite';
 import { caminhoDaPrevia } from '@/lib/token-proposta';
 
 export const runtime = 'nodejs';
@@ -17,6 +18,9 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
+  if (await estourou('previa:' + s.sessao.contaId, 60, 60)) {
+    return NextResponse.json({ ok: false, erro: 'Muitas tentativas em pouco tempo. Espere um minuto.' }, { status: 429 });
+  }
   const { contaId, nome } = s.sessao;
   const { id } = await ctx.params;
   const idLead = decodeURIComponent(id).slice(0, 300);

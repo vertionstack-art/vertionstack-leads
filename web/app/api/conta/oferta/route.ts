@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
+import { estourou } from '@/lib/limite';
 import { db } from '@/lib/sql';
 import { OFERTAS, PUBLICOS } from '@/lib/ofertas';
 
@@ -11,6 +12,9 @@ export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
+  if (await estourou('oferta:' + s.sessao.contaId, 30, 60)) {
+    return NextResponse.json({ ok: false, erro: 'Muitas tentativas em pouco tempo. Espere um minuto.' }, { status: 429 });
+  }
   const corpo = (await req.json().catch(() => ({}))) as { oferta?: string; texto?: string; publico?: unknown; negocio?: string };
   const oferta = OFERTAS.find((o) => o.id === corpo.oferta)?.id;
   if (!oferta) return NextResponse.json({ ok: false, erro: 'Escolha o que você vende.' }, { status: 400 });

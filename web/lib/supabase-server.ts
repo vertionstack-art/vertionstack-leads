@@ -7,6 +7,7 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { COOKIE_DA_SESSAO } from './cookie-sessao';
 
 export const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 export const CHAVE_PUBLICA = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -14,11 +15,12 @@ export const CHAVE_PUBLICA = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 export async function supabaseServidor() {
   const jar = await cookies();
   return createServerClient(URL_SUPABASE, CHAVE_PUBLICA, {
+    cookieOptions: COOKIE_DA_SESSAO,
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (lista) => {
         try {
-          for (const { name, value, options } of lista) jar.set(name, value, options);
+          for (const { name, value, options } of lista) jar.set(name, value, { ...options, ...COOKIE_DA_SESSAO, maxAge: options?.maxAge ?? COOKIE_DA_SESSAO.maxAge });
         } catch {
           // chamado de dentro de um server component, que não grava cookie;
           // o proxy renova a sessão na próxima requisição
