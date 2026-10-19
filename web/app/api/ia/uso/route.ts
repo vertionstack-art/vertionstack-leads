@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
 import { mudarLimites, usoDaIa } from '@/lib/ia';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  if (!s.sessao.admin) return NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 });
+  if (!podeUsarConversa(s.sessao.email)) return NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 });
   return NextResponse.json({ ok: true, uso: await usoDaIa(s.sessao.contaId) });
 }
 
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  if (!s.sessao.admin) return NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 });
+  if (!podeUsarConversa(s.sessao.email)) return NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 });
   if (await estourou('ia-limite:' + s.sessao.userId, 20, 60)) {
     return NextResponse.json({ ok: false, erro: 'Muitas tentativas. Espere um minuto.' }, { status: 429 });
   }

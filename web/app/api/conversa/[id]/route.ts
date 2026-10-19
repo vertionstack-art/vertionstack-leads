@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { buscarLead } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { apagarMensagem, marcarPasso, mensagensDaConversa, passosFeitos, registrarMensagem } from '@/lib/conversa';
 
 export const runtime = 'nodejs';
@@ -10,14 +11,14 @@ export const dynamic = 'force-dynamic';
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * A conversa guiada de um lead. Por enquanto só o administrador usa: quem
- * não é admin recebe 404, como se a rota não existisse.
+ * A conversa guiada de um lead. Por enquanto só a conta da Vertion usa
+ * (podeUsarConversa): para as outras, 404, como se a rota não existisse.
  */
 async function entrar(req: Request | null, ctx: Ctx) {
   if (req && !origemConfere(req)) return { erro: recusarOrigem() };
   const s = await exigirSessao();
   if (s.erro) return { erro: s.erro };
-  if (!s.sessao.admin) return { erro: NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 }) };
+  if (!podeUsarConversa(s.sessao.email)) return { erro: NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 }) };
   if (req && (await estourou('conversa:' + s.sessao.userId, 120, 60))) {
     return { erro: NextResponse.json({ ok: false, erro: 'Muitas ações seguidas. Espere um minuto.' }, { status: 429 }) };
   }

@@ -2,16 +2,21 @@
 
 import { useMemo, useState } from 'react';
 import {
-  Bot, Check, ChevronDown, Circle, CircleCheck, Copy, Gauge, MessageCircle, Send, Sparkles, Trash2, X,
+  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { aplicarModelo, linkComTexto, mensagemPronta, type DadosMensagem, type Remetente } from '@/lib/mensagem';
 import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao, type Fase } from '@/lib/roteiro';
 import type { MensagemConversa } from '@/lib/conversa';
-import type { Sugestao, UsoIa } from '@/lib/ia';
+import type { UsoIa } from '@/lib/ia';
+import { lerRespostaColada, type Sugestao } from '@/lib/sugestao';
 
 /**
  * A tela da conversa guiada. Três colunas no computador (roteiro, conversa,
  * objeções e medidor da IA) e três abas no celular.
+ *
+ * A IA tem dois modos. Com a chave do Claude na Vercel, a sugestão vem
+ * direto. Sem ela, a tela monta o pedido, a pessoa cola no chat do claude.ai
+ * (o plano dela) e cola a resposta de volta.
  *
  * Nada sai daqui sozinho: "Abrir no WhatsApp" abre o WhatsApp da pessoa com o
  * texto preenchido, e quem aperta enviar é ela. A resposta do cliente é
@@ -74,7 +79,10 @@ export default function ConversaGuiada({
   const [passoDoTexto, setPassoDoTexto] = useState<string | null>(null);
   const [resposta, setResposta] = useState('');
   const [pedido, setPedido] = useState('');
-  const [sugestao, setSugestao] = useState<{ s: Sugestao; custo: number } | null>(null);
+  const [sugestao, setSugestao] = useState<{ s: Sugestao; custo: number | null } | null>(null);
+  // modo "seu plano do Claude": o pedido montado, se a cópia deu certo, e a resposta colada de volta
+  const [pedidoPlano, setPedidoPlano] = useState<{ texto: string; copiado: boolean } | null>(null);
+  const [respostaClaude, setRespostaClaude] = useState('');
   const [pensando, setPensando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -162,7 +170,40 @@ export default function ConversaGuiada({
       }
       setOcupado(false);
     }
-    if (pedirSugestao) await sugerir();
+    if (pedirSugestao) await (uso.ligada ? sugerir() : montarPedido());
+  }
+
+  /** modo "seu plano": monta o pedido e copia para colar no claude.ai */
+  async function montarPedido() {
+    setPensando(true);
+    setErro(null);
+    setSugestao(null);
+    setRespostaClaude('');
+    try {
+      const j = await chamar(`${base}/pedido`, { method: 'POST', body: JSON.stringify({ pedido }) });
+      let copiado = false;
+      try {
+        await navigator.clipboard.writeText(j.texto);
+        copiado = true;
+      } catch {
+        // sem permissão de copiar: o pedido aparece num campo para copiar à mão
+      }
+      setPedidoPlano({ texto: j.texto, copiado });
+      setPedido('');
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setPensando(false);
+    }
+  }
+
+  function lerResposta() {
+    const s = lerRespostaColada(respostaClaude);
+    if (!s.mensagem) return setErro('Cole a resposta do Claude primeiro.');
+    setSugestao({ s, custo: null });
+    setPedidoPlano(null);
+    setRespostaClaude('');
+    if (s.passo) setAbertas((a) => new Set(a).add(faseDoPasso(s.passo)?.id || ''));
   }
 
   async function sugerir() {
@@ -366,13 +407,16 @@ export default function ConversaGuiada({
               />
               <button
                 type="button"
-                disabled={pensando || ocupado || !uso.ligada}
+                disabled={pensando || ocupado}
                 onClick={() => registrarResposta(true)}
-                title={uso.ligada ? '' : 'A IA ainda não está ligada'}
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-roxo-600 px-4 text-[12.5px] font-bold text-white hover:bg-roxo-700 disabled:bg-zinc-300"
               >
                 <Sparkles aria-hidden className="h-4 w-4" />
-                {pensando ? 'Pensando…' : resposta.trim() ? 'Registrar e sugerir resposta' : 'Sugerir próxima mensagem'}
+                {pensando
+                  ? uso.ligada ? 'Pensando…' : 'Montando…'
+                  : uso.ligada
+                    ? resposta.trim() ? 'Registrar e sugerir resposta' : 'Sugerir próxima mensagem'
+                    : resposta.trim() ? 'Registrar e montar pedido para o Claude' : 'Montar pedido para o Claude'}
               </button>
               <button
                 type="button"
@@ -385,8 +429,70 @@ export default function ConversaGuiada({
             </div>
           </div>
 
+          {/* modo "seu plano": colar no claude.ai e trazer a resposta de volta */}
+          {pedidoPlano && (
+            <div className="mt-4 rounded-[24px] bg-lavanda p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[14px] font-extrabold">
+                  {pedidoPlano.copiado ? 'Pedido copiado. Agora é no Claude:' : 'Copie o pedido abaixo e leve ao Claude:'}
+                </p>
+                <button type="button" onClick={() => setPedidoPlano(null)} className="rounded-full p-1 hover:bg-white/60" title="Fechar">
+                  <X aria-hidden className="h-4 w-4" />
+                  <span className="sr-only">Fechar</span>
+                </button>
+              </div>
+              {!pedidoPlano.copiado && (
+                <textarea
+                  readOnly
+                  value={pedidoPlano.texto}
+                  onFocus={(e) => e.currentTarget.select()}
+                  rows={4}
+                  aria-label="Pedido para o Claude"
+                  className="mt-2 w-full rounded-2xl border border-zinc-300 bg-white px-3 py-2 font-mono text-[11.5px] leading-snug"
+                />
+              )}
+              <ol className="mt-2 space-y-1.5 text-[13px] leading-snug">
+                <li>
+                  <b>1.</b>{' '}
+                  <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold underline underline-offset-2">
+                    Abra uma conversa nova no Claude <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
+                  </a>
+                </li>
+                <li><b>2.</b> Cole o pedido (Ctrl+V) e envie.</li>
+                <li><b>3.</b> Copie a resposta inteira do Claude e cole aqui:</li>
+              </ol>
+              <textarea
+                value={respostaClaude}
+                onChange={(e) => setRespostaClaude(e.target.value.slice(0, 8000))}
+                rows={4}
+                placeholder="Cole aqui a resposta do Claude"
+                aria-label="Resposta do Claude"
+                className="mt-2 w-full resize-y rounded-2xl border border-zinc-300 bg-white px-3.5 py-2.5 text-[13px] leading-relaxed outline-none focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={!respostaClaude.trim()}
+                  onClick={lerResposta}
+                  className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white hover:bg-tinta-70 disabled:bg-zinc-300"
+                >
+                  <ClipboardPaste aria-hidden className="h-4 w-4" /> Ler resposta
+                </button>
+                {pedidoPlano.copiado && (
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(pedidoPlano.texto); setAviso('Pedido copiado de novo.'); }}
+                    className="min-h-[40px] rounded-full px-3 text-[12.5px] font-bold text-zinc-700 hover:text-tinta"
+                  >
+                    Copiar o pedido de novo
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* sugestão da IA */}
-          {pensando && (
+          {pensando && uso.ligada && (
             <p className="mt-4 flex items-center gap-2 rounded-[20px] bg-lavanda px-4 py-3 text-[13px] font-semibold">
               <Bot aria-hidden className="h-4 w-4 animate-pulse" /> O Claude está lendo a conversa…
             </p>
@@ -394,13 +500,15 @@ export default function ConversaGuiada({
           {sugestao && (
             <div className="mt-4 rounded-[24px] bg-lavanda p-4">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-bold"><Bot aria-hidden className="h-3.5 w-3.5" /> Sugestão da IA</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-bold"><Bot aria-hidden className="h-3.5 w-3.5" /> Sugestão do Claude</span>
                 <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11.5px] font-bold">{SITUACAO[sugestao.s.situacao]}</span>
                 {sugestao.s.passo && <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11.5px] font-bold">Passo: {passoPorId(sugestao.s.passo)?.titulo}</span>}
                 {sugestao.s.objecao && <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11.5px] font-bold">Objeção: {OBJECOES.find((o) => o.id === sugestao.s.objecao)?.frase}</span>}
-                <span className="ml-auto text-[11px] font-semibold tabular-nums text-zinc-600">custou {dolar(sugestao.custo)} ≈ {reais(sugestao.custo * uso.dolar)}</span>
+                <span className="ml-auto text-[11px] font-semibold tabular-nums text-zinc-600">
+                  {sugestao.custo === null ? 'pelo seu plano do Claude' : `custou ${dolar(sugestao.custo)} ≈ ${reais(sugestao.custo * uso.dolar)}`}
+                </span>
               </div>
-              <p className="mt-2.5 text-[12.5px] leading-snug text-zinc-700"><b>Leitura:</b> {sugestao.s.leitura}</p>
+              {sugestao.s.leitura && <p className="mt-2.5 text-[12.5px] leading-snug text-zinc-700"><b>Leitura:</b> {sugestao.s.leitura}</p>}
               {[sugestao.s.mensagem, sugestao.s.alternativa].filter(Boolean).map((t, i) => (
                 <div key={i} className="mt-2.5 rounded-[16px] bg-white p-3">
                   <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500">{i === 0 ? 'Mensagem sugerida' : 'Outra opção'}</p>
@@ -573,15 +681,26 @@ function MedidorIa({ uso, aoMudar }: { uso: UsoIa; aoMudar: (u: UsoIa) => void }
     <section aria-labelledby="t-medidor" className="rounded-[24px] bg-zinc-50 p-4 ring-1 ring-inset ring-zinc-200">
       <div className="flex items-center justify-between gap-2">
         <h2 id="t-medidor" className="flex items-center gap-1.5 text-[14px] font-extrabold"><Gauge aria-hidden className="h-4 w-4" /> Uso da IA</h2>
-        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${uso.ligada ? 'bg-menta text-emerald-950' : 'bg-zinc-200 text-zinc-700'}`}>
-          {uso.ligada ? 'Ligada' : 'Desligada'}
+        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${uso.ligada ? 'bg-menta text-emerald-950' : 'bg-lavanda text-tinta'}`}>
+          {uso.ligada ? 'Automática' : 'Seu plano'}
         </span>
       </div>
       {!uso.ligada && (
-        <p className="mt-2 text-[12px] leading-snug text-zinc-600">
-          Falta a chave do Claude (ANTHROPIC_API_KEY) na Vercel. O roteiro e as objeções funcionam sem ela.
-        </p>
+        <div className="mt-2 space-y-2 text-[12px] leading-snug text-zinc-600">
+          <p>
+            A IA usa o seu plano do Claude: a ferramenta monta o pedido, você cola no Claude e traz a resposta de volta. Não tem custo além do plano.
+          </p>
+          <p>
+            O limite de sessão e o semanal são os do seu plano e aparecem no próprio Claude, em{' '}
+            <a href="https://claude.ai/settings/usage" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 font-bold text-tinta underline underline-offset-2">
+              Configurações › Uso <ArrowUpRight aria-hidden className="h-3 w-3" />
+            </a>
+            . A Anthropic não deixa outro site ler esse limite.
+          </p>
+        </div>
       )}
+      {uso.ligada && (
+      <>
       <div className="mt-3 space-y-3">
         <Barra rotulo="Hoje" gasto={uso.hojeUsd} limite={uso.limiteDiaUsd} pedidos={uso.pedidosHoje} dolarReais={uso.dolar} />
         <Barra rotulo="Este mês" gasto={uso.mesUsd} limite={uso.limiteMesUsd} pedidos={uso.pedidosMes} dolarReais={uso.dolar} />
@@ -590,7 +709,9 @@ function MedidorIa({ uso, aoMudar }: { uso: UsoIa; aoMudar: (u: UsoIa) => void }
         Gasto real, contado a cada pedido ao {uso.modelo}. Em reais pela cotação de R$ {uso.dolar.toFixed(2).replace('.', ',')} (aproximada).
         Chegou no limite, a IA para até virar o dia ou o mês.
       </p>
-      {editando ? (
+      </>
+      )}
+      {!uso.ligada ? null : editando ? (
         <div className="mt-3 space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <label className="text-[11.5px] font-bold">

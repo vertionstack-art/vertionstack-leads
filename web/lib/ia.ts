@@ -8,11 +8,19 @@
  * mês: estourou o limite, a IA para de responder até virar o dia (ou o mês).
  * A API do Claude é paga por uso, separada da assinatura do claude.ai; não
  * existe API para ler o saldo de créditos, por isso o medidor é nosso.
+ *
+ * Sem a chave, a tela usa o outro modo: pedidoParaColar() monta o mesmo
+ * pedido em texto, a pessoa cola no chat do claude.ai (o plano dela) e cola
+ * a resposta de volta (lerRespostaColada). O plano do claude.ai não pode ser
+ * ligado a um sistema; esse vai e volta é o jeito permitido de usá-lo.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import { db } from './sql';
 import { roteiroEmTexto, OBJECOES, TODOS_OS_PASSOS } from './roteiro';
+import { SITUACOES, type Sugestao } from './sugestao';
+
+export type { Sugestao } from './sugestao';
 
 export const MODELO_IA = 'claude-opus-5-5';
 
@@ -108,17 +116,7 @@ export interface ContextoConversa {
   pedido: string;
 }
 
-export interface Sugestao {
-  leitura: string;
-  situacao: 'atendente' | 'decisor' | 'interessado' | 'objecao' | 'sem_resposta' | 'recusou' | 'fechou' | 'outro';
-  passo: string;
-  objecao: string;
-  mensagem: string;
-  alternativa: string;
-  proximo: string;
-}
 
-const SITUACOES = ['atendente', 'decisor', 'interessado', 'objecao', 'sem_resposta', 'recusou', 'fechou', 'outro'] as const;
 
 const ESQUEMA = {
   type: 'object',
@@ -186,6 +184,23 @@ function montarPedido(c: ContextoConversa): string {
     'Escreva a próxima mensagem do vendedor.',
   ];
   return linhas.filter((x) => x !== null).join('\n');
+}
+
+/** o pedido inteiro em texto, para colar no chat do claude.ai */
+export function pedidoParaColar(c: ContextoConversa): string {
+  const campos = Object.entries(ESQUEMA.properties)
+    .map(([k, v]) => `  "${k}": ${'enum' in v ? (v.enum as readonly string[]).map((x) => `"${x}"`).join(' | ') : `"${v.description}"`}`)
+    .join(',\n');
+  return `${INSTRUCOES}
+
+---
+
+${montarPedido(c)}
+
+Responda SOMENTE com um bloco JSON neste formato, sem nenhum texto antes ou depois:
+{
+${campos}
+}`;
 }
 
 export type ResultadoIa =

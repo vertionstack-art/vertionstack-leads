@@ -5,7 +5,7 @@ import { sessaoAtual } from '@/lib/conta';
 import { buscarLead } from '@/lib/db';
 import { numeroWhatsapp } from '@/lib/telefone';
 import { mensagensDaConversa, passosFeitos } from '@/lib/conversa';
-import { dadosDoLead } from '@/lib/conversa-contexto';
+import { dadosDoLead, podeUsarConversa } from '@/lib/conversa-contexto';
 import { usoDaIa } from '@/lib/ia';
 import ConversaGuiada from './conversa';
 
@@ -14,12 +14,12 @@ export const dynamic = 'force-dynamic';
 /**
  * Conversa guiada do WhatsApp com um lead: o roteiro do primeiro "oi" até a
  * venda, as respostas prontas para objeções, o registro da conversa e a IA
- * que sugere a próxima mensagem. Por enquanto só o administrador vê.
+ * que sugere a próxima mensagem. Por enquanto só a conta da Vertion vê.
  */
 export default async function PaginaConversa({ params }: { params: Promise<{ id: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  if (!sessao.admin) notFound();
+  if (!podeUsarConversa(sessao.email)) notFound();
 
   const { id } = await params;
   const idLead = decodeURIComponent(id).slice(0, 300);

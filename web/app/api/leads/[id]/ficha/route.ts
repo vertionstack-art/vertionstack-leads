@@ -5,6 +5,7 @@ import { historicoDoLead } from '@/lib/eventos';
 import { db } from '@/lib/sql';
 import { numeroWhatsapp } from '@/lib/telefone';
 import { listarModelos } from '@/lib/modelos';
+import { podeUsarConversa } from '@/lib/conversa-contexto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome, admin } = s.sessao;
+  const { contaId, nome, email } = s.sessao;
   const { id } = await ctx.params;
   const idLead = decodeURIComponent(id).slice(0, 300);
 
@@ -34,8 +35,8 @@ export async function GET(_req: Request, ctx: Ctx) {
     eventos,
     numero,
     modelos,
-    // a conversa guiada (app/conversa) por enquanto é só do administrador
-    conversaGuiada: admin,
+    // a conversa guiada (app/conversa) por enquanto é só da conta da Vertion
+    conversaGuiada: podeUsarConversa(email),
     remetente: {
       nome,
       empresa: (c?.empresa_nome as string) || null,
