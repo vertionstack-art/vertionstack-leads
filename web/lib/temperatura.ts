@@ -19,6 +19,7 @@
 
 import type { Lead } from './db';
 import { ramoDaCategoria } from './catalogo';
+import type { DadosCnpj } from './cnpj';
 
 export type Nivel = 'quente' | 'morno' | 'frio';
 
@@ -218,6 +219,43 @@ const ROTULOS: Record<Nivel, string> = {
   frio: 'Frio',
 };
 
+/**
+ * Peso 7 — o que a Receita diz da empresa, quando o CNPJ é conhecido
+ * (digitado na proposta ou achado pelo "Aprimorar"). Vale até 9.
+ *
+ * É o que o Google não mostra: uma barbearia com 300 avaliações pode estar
+ * com o CNPJ baixado, e uma com 40 pode ter quinze anos de porta aberta.
+ * Empresa fora de atividade não é tratada aqui: ela derruba o lead inteiro.
+ */
+function pesoEmpresa(lead: Lead): { pontos: number; motivos: string[]; freio: string | null } {
+  const c = (lead.cnpj || null) as Partial<DadosCnpj> | null;
+  if (!c || !c.cnpj) return { pontos: 0, motivos: [], freio: null };
+
+  const motivos: string[] = [];
+  let pontos = 0;
+  let freio: string | null = null;
+
+  const anos = c.anosDeMercado ?? null;
+  if (anos !== null && anos >= 10) {
+    pontos += 6;
+    motivos.push(`${anos} anos de CNPJ aberto: negócio com lastro, que não some no mês que vem.`);
+  } else if (anos !== null && anos >= 3) {
+    pontos += 3;
+    motivos.push(`${anos} anos de mercado: já passou da fase de teste.`);
+  } else if (anos !== null && anos < 1) {
+    freio = 'CNPJ aberto há menos de um ano: pode ainda não ter caixa para investir.';
+  }
+
+  if (c.porteSugerido === 'pequena' || c.porteSugerido === 'media') {
+    pontos += 3;
+    motivos.push('Pela Receita não é micro: comporta uma proposta mais completa.');
+  }
+
+  if (c.socios?.length) motivos.push(`Quem decide: ${c.socios[0]}. Chame pelo nome.`);
+
+  return { pontos, motivos, freio };
+}
+
 export function temperaturaDoLead(lead: Lead): Temperatura {
   const motivos: string[] = [];
   const freios: string[] = [];
@@ -272,6 +310,21 @@ export function temperaturaDoLead(lead: Lead): Temperatura {
       pontos = Math.round(pontos * 0.85);
       freios.push('Tem site cadastrado, mas ninguém conferiu ainda — rode o "Conferir sites" antes de descartar.');
     }
+  }
+
+  const empresa = pesoEmpresa(lead);
+  pontos += empresa.pontos;
+  motivos.push(...empresa.motivos);
+  if (empresa.freio) freios.push(empresa.freio);
+
+  /*
+   * CNPJ baixado, inapto ou suspenso: o comércio pode até aparecer no Maps,
+   * mas não assina contrato nem emite nota. Vira frio, com o motivo dito.
+   */
+  const receita = (lead.cnpj || null) as Partial<DadosCnpj> | null;
+  if (receita?.irregular) {
+    pontos = Math.min(pontos, 20);
+    freios.unshift(`Situação na Receita: ${receita.situacao || 'irregular'}. Empresa fora de atividade não contrata.`);
   }
 
   pontos = Math.max(0, Math.min(100, pontos));

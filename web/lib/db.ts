@@ -103,6 +103,13 @@ export interface Lead {
   lembreteEm: string | null;
   lembreteTexto: string | null;
   /**
+   * Quando o "Aprimorar" procurou o CNPJ na Casa dos Dados e o que deu.
+   * Cada lead é tentado uma vez: a pesquisa custa crédito, e repetir a mesma
+   * busca dá o mesmo resultado.
+   */
+  aprimoradoEm: string | null;
+  aprimorado: 'achado' | 'nao_achado' | 'ambiguo' | null;
+  /**
    * Caminho público da proposta. Não existe no banco: a rota calcula na
    * hora, porque o token depende de um segredo que só o servidor tem.
    */
@@ -209,6 +216,8 @@ export function normalizarLead(
     coletadoPor: coletadoPor || null,
     responsavel: null,
     proposta: null,
+    aprimoradoEm: null,
+    aprimorado: null,
     propostaPrimeiraEm: null,
     propostaAbertaEm: null,
     propostaAberturas: 0,
@@ -265,6 +274,8 @@ export function daLinha(r: any): Lead {
     propostaAberturas: Number(r.proposta_aberturas) || 0,
     lembreteEm: r.lembrete_em ? new Date(r.lembrete_em).toISOString() : null,
     lembreteTexto: r.lembrete_texto ?? null,
+    aprimoradoEm: r.aprimorado_em ? new Date(r.aprimorado_em).toISOString() : null,
+    aprimorado: r.aprimorado ?? null,
     createdAt: new Date(r.created_at).toISOString(),
     updatedAt: new Date(r.updated_at).toISOString(),
   };
@@ -521,6 +532,38 @@ export async function marcarVerificacao(
       site_verificado_em = now(),
       is_lead            = case when ${v.viraLead} then true else is_lead end,
       updated_at         = now()
+    where conta_id = ${conta} and id = ${id}
+  `;
+}
+
+/**
+ * Leads que o "Aprimorar" ainda pode tentar: sem CNPJ e nunca tentados.
+ * A temperatura é calculada em código, não no banco — quem filtra os quentes
+ * é a rota. Os mais avaliados vêm primeiro, que são os que mais valem.
+ */
+export async function paraAprimorar(conta: string): Promise<Lead[]> {
+  const linhas = await db()`
+    select * from leads
+    where conta_id = ${conta} and cnpj is null and aprimorado_em is null
+      and is_lead and status <> 'descartado'
+    order by reviews desc nulls last, created_at desc
+    limit 2000
+  `;
+  return linhas.map(daLinha);
+}
+
+export async function marcarAprimorado(
+  conta: string,
+  id: string,
+  resultado: 'achado' | 'nao_achado' | 'ambiguo',
+  cnpj: unknown | null,
+): Promise<void> {
+  await db()`
+    update leads set
+      aprimorado_em = now(),
+      aprimorado    = ${resultado},
+      cnpj          = case when ${cnpj !== null} then ${cnpj === null ? null : JSON.stringify(cnpj)}::jsonb else cnpj end,
+      updated_at    = now()
     where conta_id = ${conta} and id = ${id}
   `;
 }

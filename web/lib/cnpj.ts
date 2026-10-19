@@ -38,6 +38,10 @@ export interface DadosCnpj {
   porteSugerido: Porte;
   formalizacaoSugerida: Formalizacao;
   fonte: 'brasilapi' | 'receitaws';
+  /** nomes do quadro societário — quem decide, para abordar pelo nome */
+  socios?: string[];
+  /** como o CNPJ chegou ao lead: digitado na proposta ou achado no "Aprimorar" */
+  achadoPor?: 'telefone' | 'nome';
 }
 
 /** aceita "12.345.678/0001-95" ou só os dígitos */
@@ -108,6 +112,22 @@ function classificar(porteReceita: string | null, capital: number | null, mei: b
   return { porte, formalizacao };
 }
 
+/** "MARIA DA SILVA" vira "Maria da Silva"; no máximo três, que é o que cabe na tela */
+function nomesDosSocios(nomes: (string | undefined)[] | undefined): string[] {
+  const minusculas = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+  return (nomes || [])
+    .filter((n): n is string => Boolean(n && n.trim()))
+    .slice(0, 3)
+    .map((n) =>
+      n
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .map((p, i) => (i > 0 && minusculas.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+        .join(' '),
+    );
+}
+
 /*
  * A BrasilAPI devolve 403 para requisição sem User-Agent — por isso
  * funciona no curl e falhava silenciosamente vindo do servidor, caindo
@@ -145,6 +165,7 @@ async function pelaBrasilApi(c: string): Promise<DadosCnpj | null> {
     porteSugerido: porte,
     formalizacaoSugerida: formalizacao,
     fonte: 'brasilapi',
+    socios: nomesDosSocios((d.qsa as { nome_socio?: string }[] | undefined)?.map((x) => x.nome_socio)),
   };
 }
 
@@ -187,6 +208,7 @@ async function pelaReceitaWs(c: string): Promise<DadosCnpj | null> {
     fonte: 'receitaws',
     porteSugerido: porte,
     formalizacaoSugerida: formalizacao,
+    socios: nomesDosSocios((d.qsa as { nome?: string }[] | undefined)?.map((x) => x.nome)),
   };
 }
 
