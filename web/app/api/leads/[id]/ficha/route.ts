@@ -15,7 +15,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome } = s.sessao;
+  const { contaId, nome, admin } = s.sessao;
   const { id } = await ctx.params;
   const idLead = decodeURIComponent(id).slice(0, 300);
 
@@ -34,6 +34,8 @@ export async function GET(_req: Request, ctx: Ctx) {
     eventos,
     numero,
     modelos,
+    // a conversa guiada (app/conversa) por enquanto é só do administrador
+    conversaGuiada: admin,
     remetente: {
       nome,
       empresa: (c?.empresa_nome as string) || null,

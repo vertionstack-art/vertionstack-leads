@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Bell, BellOff, CalendarPlus, Check, Eye, FileText, Flag, History, Mail, MessageCircle, MoveRight, PencilLine, Phone, Save, Sparkles, Trash2, X,
+  Bell, BellOff, CalendarPlus, Check, Eye, FileText, Flag, History, Mail, MessageCircle, MoveRight, PencilLine, Phone, Route, Save, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { baixarIcs, linkGoogleAgenda, type EventoAgenda } from '@/lib/agenda';
 import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
@@ -58,6 +58,7 @@ interface Dados {
   numero: string | null;
   modelos: Modelo[];
   remetente: Remetente;
+  conversaGuiada?: boolean;
 }
 
 const ICONE: Record<string, typeof Bell> = {
@@ -341,6 +342,19 @@ export default function FichaLead({
 
           {dados && aba === 'whatsapp' && (
             <div>
+              {dados.conversaGuiada && (
+                <a
+                  href={`/conversa/${encodeURIComponent(dados.lead.id)}`}
+                  className="mb-4 flex items-center gap-3 rounded-[20px] bg-lavanda px-4 py-3 transition-colors hover:bg-roxo-100"
+                >
+                  <Route aria-hidden className="h-5 w-5 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13.5px] font-extrabold">Conversa guiada</span>
+                    <span className="block text-[12px] leading-snug text-zinc-700">Roteiro do primeiro oi até a venda, respostas para objeções e a IA sugerindo a próxima mensagem.</span>
+                  </span>
+                  <MoveRight aria-hidden className="h-4 w-4 shrink-0" />
+                </a>
+              )}
               {dados.numero ? (
                 <>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
