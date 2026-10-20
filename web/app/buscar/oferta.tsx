@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { Briefcase, Check, Globe, Megaphone, Palette, Pencil, Share2, Sparkles } from 'lucide-react';
-import { OFERTAS, PUBLICOS, infoOferta, type Oferta } from '@/lib/ofertas';
+import { OFERTAS, infoOferta, type Oferta } from '@/lib/ofertas';
 
 /**
  * "O que você vende?": o primeiro passo da busca. A escolha fica na conta
  * (lib/ofertas) e muda quais comércios entram como lead, a temperatura e a
- * primeira mensagem. Os públicos marcados viram nichos na busca (o
- * formulário de baixo escuta o evento "vl:nichos").
+ * primeira mensagem. Os tipos de comércio ficam só em "O que procurar", logo
+ * abaixo (antes havia aqui um "para quem você vende" que repetia a mesma escolha).
  */
 
 const ICONE: Record<Oferta, typeof Globe> = {
@@ -33,7 +33,6 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
   const [aberto, setAberto] = useState(inicial.nova);
   const [oferta, setOferta] = useState<Oferta>(inicial.oferta);
   const [texto, setTexto] = useState(inicial.texto);
-  const [publico, setPublico] = useState<Set<string>>(new Set(inicial.publico));
   const [negocio, setNegocio] = useState(inicial.negocio);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -42,8 +41,6 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
   function escolher(o: Oferta) {
     setOferta(o);
     setErro(null);
-    // público sugerido para quem ainda não marcou nenhum
-    if (!publico.size) setPublico(new Set(infoOferta(o).publico));
   }
 
   async function salvar() {
@@ -54,12 +51,10 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
       const r = await fetch('/api/conta/oferta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oferta, texto, publico: [...publico], negocio }),
+        body: JSON.stringify({ oferta, texto, publico: inicial.publico.length ? inicial.publico : infoOferta(oferta).publico, negocio }),
       });
       const j = await r.json();
       if (!j.ok) throw new Error(j.erro);
-      const nichos = PUBLICOS.filter((p) => publico.has(p.id)).flatMap((p) => p.nichos);
-      if (nichos.length) window.dispatchEvent(new CustomEvent('vl:nichos', { detail: nichos }));
       setAberto(false);
     } catch (e) {
       setErro(e instanceof Error && e.message ? e.message : 'Não consegui salvar. Tente de novo.');
@@ -140,30 +135,6 @@ export default function EscolhaOferta({ inicial }: { inicial: OfertaInicial }) {
           />
         </label>
       )}
-
-      <fieldset className="mt-5">
-        <legend className="text-[13px] font-bold">Para quem você vende? Toque nos que servem</legend>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {PUBLICOS.map((p) => {
-            const on = publico.has(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setPublico((s) => { const x = new Set(s); if (x.has(p.id)) x.delete(p.id); else x.add(p.id); return x; })}
-                className={`inline-flex min-h-[38px] items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold transition-colors ${
-                  on ? 'bg-tinta text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                }`}
-              >
-                {on && <Check aria-hidden className="h-3.5 w-3.5" strokeWidth={3} />}
-                {p.rotulo}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-[12px] text-zinc-500">Os tipos de comércio de cada público já entram marcados na busca.</p>
-      </fieldset>
 
       <label className="mt-5 block max-w-md">
         <span className="text-[13px] font-bold">Nome do seu negócio <span className="font-medium text-zinc-500">· vai na mensagem do WhatsApp</span></span>

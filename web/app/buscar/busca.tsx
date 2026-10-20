@@ -90,24 +90,6 @@ export default function BuscaGoogle({
   const [terminou, setTerminou] = useState(false);
   const parar = useRef(false);
 
-  // os públicos escolhidos em "O que você vende?" entram como nichos marcados
-  useEffect(() => {
-    const somar = (e: Event) => {
-      const novos = (e as CustomEvent<string[]>).detail || [];
-      setExtras((ex) => {
-        const todos = [...ex, ...novos.filter((n) => !NICHOS_PADRAO.includes(n) && !ex.includes(n))];
-        setNichos((atual) => {
-          const s = new Set([...atual, ...novos]);
-          guardar(s, todos);
-          return s;
-        });
-        return todos;
-      });
-    };
-    window.addEventListener('vl:nichos', somar);
-    return () => window.removeEventListener('vl:nichos', somar);
-  });
-
   useEffect(() => {
     const p = lerPrefs();
     setNichos(new Set(p.nichos));
