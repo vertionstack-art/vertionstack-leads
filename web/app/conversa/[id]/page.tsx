@@ -8,6 +8,7 @@ import { mensagensDaConversa, passosFeitos } from '@/lib/conversa';
 import { dadosDoLead, podeUsarConversa } from '@/lib/conversa-contexto';
 import { usoDaIa } from '@/lib/ia';
 import { estadoDoWhatsapp } from '@/lib/evolution';
+import { estadoDoRobo } from '@/lib/robo';
 import ConversaGuiada from './conversa';
 import Casca from '@/app/casca';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
@@ -70,6 +71,7 @@ export default async function PaginaConversa({ params }: { params: Promise<{ id:
           usoInicial={uso}
           statusLead={lead.status}
           whatsappLigado={zap === 'open'}
+          roboInicial={await estadoDoRobo(sessao.contaId, idLead)}
         />
     </Casca>
   );

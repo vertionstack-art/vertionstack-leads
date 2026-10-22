@@ -2,9 +2,11 @@
  * O WhatsApp da Vertion ligado à ferramenta pela Evolution API (v2), que roda
  * num servidor próprio sempre ligado (a Vercel não segura uma conexão aberta).
  *
- * Regra combinada com o dono: toda mensagem sai pelo clique dele. Nada aqui
- * envia sozinho, em fila ou em horário marcado. As respostas dos leads chegam
- * pelo webhook (app/api/whatsapp/webhook) e entram na conversa guiada.
+ * Regra combinada com o dono: a primeira mensagem para um lead sai sempre
+ * pelo clique dele. Nada aqui envia em fila, em massa ou em horário marcado.
+ * Depois que o lead responde, o robô de vendas (lib/robo) pode continuar a
+ * conversa, se estiver ligado. As respostas dos leads chegam pelo webhook
+ * (app/api/whatsapp/webhook) e entram na conversa guiada.
  *
  * Variáveis na Vercel (só servidor):
  *   EVOLUTION_URL               endereço do servidor da Evolution (https://...)
@@ -132,12 +134,17 @@ export function segredoDoWebhookConfere(recebido: string | null): boolean {
 
 // -------------------------------------------------------------- envio
 
-/** envia um texto; chamado só a partir do clique da pessoa (api/conversa/[id]/enviar) */
-export async function enviarTexto(numero: string, texto: string): Promise<{ id: string | null }> {
+/**
+ * envia um texto: pelo clique da pessoa (api/conversa/[id]/enviar) ou pelo
+ * robô de vendas, que só responde a quem respondeu (lib/robo). `digitando`
+ * mostra "digitando..." por esse tempo (ms) antes de a mensagem chegar.
+ */
+export async function enviarTexto(numero: string, texto: string, digitando = 0): Promise<{ id: string | null }> {
   const j = await chamar<{ key?: { id?: string } }>('POST', `/message/sendText/${instancia()}`, {
     number: numero.replace(/\D/g, ''),
     text: texto,
     linkPreview: true,
+    ...(digitando > 0 ? { delay: Math.round(digitando) } : {}),
   });
   return { id: j?.key?.id || null };
 }

@@ -12,13 +12,15 @@ export interface MensagemConversa {
   texto: string;
   passo: string | null;
   em: string;
+  /** escrita pelo robô de vendas (lib/robo) */
+  robo: boolean;
 }
 
 export const MAX_MENSAGENS = 300;
 
 export async function mensagensDaConversa(conta: string, lead: string): Promise<MensagemConversa[]> {
   const r = await db()`
-    select id, autor, texto, passo, criado_em from conversa_mensagens
+    select id, autor, texto, passo, criado_em, robo from conversa_mensagens
     where conta_id = ${conta} and lead_id = ${lead}
     order by criado_em, id
     limit ${MAX_MENSAGENS}
@@ -29,6 +31,7 @@ export async function mensagensDaConversa(conta: string, lead: string): Promise<
     texto: x.texto as string,
     passo: (x.passo as string) || null,
     em: new Date(x.criado_em).toISOString(),
+    robo: Boolean(x.robo),
   }));
 }
 
@@ -45,20 +48,25 @@ export async function registrarMensagem(
   passo: string | null,
   /** id da mensagem no WhatsApp (Evolution): a mesma mensagem nunca entra duas vezes */
   externoId: string | null = null,
+  robo = false,
 ): Promise<MensagemConversa | 'cheio' | 'repetida'> {
   const [n] = await db()`select count(*)::int as n from conversa_mensagens where conta_id = ${conta} and lead_id = ${lead}`;
   if ((n.n as number) >= MAX_MENSAGENS) return 'cheio';
   const p = passoPorId(passo) ? passo : null;
   const linhas = await db()`
-    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo, externo_id)
-    values (${conta}, ${lead}, ${autor}, ${texto}, ${p}, ${externoId})
+    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo, externo_id, robo)
+    values (${conta}, ${lead}, ${autor}, ${texto}, ${p}, ${externoId}, ${robo})
     on conflict (conta_id, externo_id) where externo_id is not null do nothing
     returning id, criado_em
   `;
-  if (!linhas.length) return 'repetida';
+  if (!linhas.length) {
+    // o webhook do WhatsApp gravou a mesma mensagem antes: só marca que foi do robô
+    if (robo && externoId) await db()`update conversa_mensagens set robo = true where conta_id = ${conta} and externo_id = ${externoId}`;
+    return 'repetida';
+  }
   const [x] = linhas;
   if (p && autor === 'eu') await marcarPasso(conta, lead, p, true);
-  return { id: Number(x.id), autor, texto, passo: p, em: new Date(x.criado_em).toISOString() };
+  return { id: Number(x.id), autor, texto, passo: p, em: new Date(x.criado_em).toISOString(), robo };
 }
 
 export async function apagarMensagem(conta: string, lead: string, id: number): Promise<boolean> {

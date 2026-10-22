@@ -9,6 +9,7 @@ import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao
 import type { MensagemConversa } from '@/lib/conversa';
 import type { UsoIa } from '@/lib/ia';
 import { lerRespostaColada, type Sugestao } from '@/lib/sugestao';
+import { ROTULO_AGUARDANDO, type EstadoRobo } from '@/lib/robo-tipos';
 
 /**
  * A tela da conversa guiada. Três colunas no computador (roteiro, conversa,
@@ -61,6 +62,7 @@ export default function ConversaGuiada({
   usoInicial,
   statusLead,
   whatsappLigado = false,
+  roboInicial,
 }: {
   leadId: string;
   numero: string | null;
@@ -73,7 +75,10 @@ export default function ConversaGuiada({
   statusLead: string;
   /** o WhatsApp da Vertion está conectado pela Evolution: envia daqui e as respostas chegam sozinhas */
   whatsappLigado?: boolean;
+  /** o robô de vendas nesta conversa (lib/robo) */
+  roboInicial: EstadoRobo;
 }) {
+  const [robo, setRobo] = useState(roboInicial);
   const [aba, setAba] = useState<Aba>('conversa');
   const [mensagens, setMensagens] = useState(mensagensIniciais);
   const [passos, setPassos] = useState<Set<string>>(new Set(passosIniciais));
@@ -105,6 +110,7 @@ export default function ConversaGuiada({
         if (!parado && j.ok) {
           setMensagens((atual) => (j.mensagens.length !== atual.length ? j.mensagens : atual));
           setPassos(new Set(j.passos));
+          if (j.robo) setRobo(j.robo);
         }
       } catch {
         // rede caiu: tenta de novo na próxima volta
@@ -400,6 +406,20 @@ export default function ConversaGuiada({
         <section aria-labelledby="t-conversa" className={`${aba === 'conversa' ? '' : 'hidden'} min-w-0 lg:block`}>
           <h2 id="t-conversa" className="sr-only">Conversa</h2>
 
+          {whatsappLigado && (
+            <PainelRobo
+              base={base}
+              robo={robo}
+              previa={dados.previaUrl || null}
+              proposta={proposta}
+              aoMudar={(j) => {
+                setRobo(j.robo);
+                setMensagens(j.mensagens);
+                setPassos(new Set(j.passos));
+              }}
+            />
+          )}
+
           <div className="rounded-[24px] bg-zinc-50 p-4 ring-1 ring-inset ring-zinc-200">
             {mensagens.length === 0 ? (
               <p className="py-6 text-center text-[13px] text-zinc-500">
@@ -412,10 +432,11 @@ export default function ConversaGuiada({
                   const p = passoPorId(m.passo);
                   return (
                     <li key={m.id} className={`group flex ${eu ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`relative max-w-[85%] rounded-[18px] px-3.5 py-2.5 ${eu ? 'bg-tinta text-white' : 'bg-white ring-1 ring-inset ring-zinc-200'}`}>
+                      <div className={`relative max-w-[85%] rounded-[18px] px-3.5 py-2.5 ${m.robo ? 'bg-roxo-800 text-white' : eu ? 'bg-tinta text-white' : 'bg-white ring-1 ring-inset ring-zinc-200'}`}>
                         <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.texto}</p>
-                        <p className={`mt-1 text-[10.5px] font-medium ${eu ? 'text-white/60' : 'text-zinc-400'}`}>
-                          {eu ? 'Você' : 'Cliente'} · {hora(m.em)}{p ? ` · ${p.titulo}` : ''}
+                        <p className={`mt-1 flex items-center gap-1 text-[10.5px] font-medium ${eu ? 'text-white/70' : 'text-zinc-500'}`}>
+                          {m.robo && <Bot aria-hidden className="h-3 w-3" />}
+                          {m.robo ? 'Robô' : eu ? 'Você' : 'Cliente'} · {hora(m.em)}{p ? ` · ${p.titulo}` : ''}
                         </p>
                         <button
                           type="button"
@@ -795,5 +816,156 @@ function MedidorIa({ uso, aoMudar }: { uso: UsoIa; aoMudar: (u: UsoIa) => void }
         </button>
       )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ robô */
+
+interface RespostaRobo {
+  robo: EstadoRobo;
+  mensagens: MensagemConversa[];
+  passos: string[];
+}
+
+/**
+ * O robô de vendas nesta conversa: ligado ou pausado (e por quê), e, quando
+ * ele está esperando você, o que ele precisa, com o "Entregar ao robô".
+ */
+function PainelRobo({
+  base,
+  robo,
+  previa,
+  proposta,
+  aoMudar,
+}: {
+  base: string;
+  robo: EstadoRobo;
+  previa: string | null;
+  proposta: string | null;
+  aoMudar: (j: RespostaRobo) => void;
+}) {
+  const [entrega, setEntrega] = useState('');
+  const [ocupado, setOcupado] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  // o que ele espera já existe? vem preenchido
+  useEffect(() => {
+    if (robo.aguardando === 'previa' && previa) setEntrega((e) => e || previa);
+    else if (robo.aguardando === 'proposta' && proposta) setEntrega((e) => e || proposta);
+  }, [robo.aguardando, previa, proposta]);
+
+  async function acao(nome: string, corpo: Record<string, unknown>) {
+    setOcupado(nome);
+    setErro(null);
+    try {
+      const r = await fetch(`${base}/robo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
+      const j = await r.json().catch(() => ({ ok: false }));
+      if (j.robo) aoMudar(j);
+      if (!j.ok) throw new Error(j.erro || 'Não deu certo. Tente de novo.');
+      if (nome === 'entregar') setEntrega('');
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setOcupado(null);
+    }
+  }
+
+  const botao = 'inline-flex min-h-[38px] items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold transition disabled:opacity-50';
+
+  if (!robo.pronto || !robo.ativoNaConta) {
+    return (
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[20px] bg-zinc-50 px-4 py-3 ring-1 ring-inset ring-zinc-200">
+        <Bot aria-hidden className="h-5 w-5 shrink-0 text-zinc-500" />
+        <p className="min-w-0 flex-1 text-[12.5px] font-semibold text-zinc-700">
+          {!robo.pronto
+            ? 'Robô de vendas: falta a chave do Gemini (GEMINI_API_KEY) na Vercel.'
+            : 'Robô de vendas desligado na conta. Ligue na lista de Conversas para ele responder os leads.'}
+        </p>
+        {robo.pronto && (
+          <a href="/conversas" className={`${botao} bg-white text-tinta ring-1 ring-inset ring-zinc-300 hover:ring-zinc-500`}>
+            Ir para Conversas
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`mb-4 rounded-[20px] p-4 ${robo.ligado ? 'bg-lavanda' : 'bg-zinc-50 ring-1 ring-inset ring-zinc-200'}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${robo.ligado ? 'bg-roxo-800 text-white' : 'bg-white text-zinc-500'}`}>
+          <Bot aria-hidden className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] font-extrabold">
+            {robo.ligado ? (robo.aguardando ? 'Robô esperando você' : 'Robô respondendo esta conversa') : 'Robô pausado nesta conversa'}
+          </p>
+          <p className="text-[12px] font-medium text-zinc-700">
+            {robo.ligado
+              ? `Responde quem responder, das 8h às 21h.${robo.respostasHoje ? ` ${robo.respostasHoje} ${robo.respostasHoje === 1 ? 'resposta' : 'respostas'} hoje.` : ''}`
+              : robo.pausadoMotivo
+                ? `Parou porque ${robo.pausadoMotivo}.`
+                : 'Você conduz esta conversa.'}
+          </p>
+        </div>
+        {robo.ligado && !robo.aguardando && (
+          <button type="button" disabled={Boolean(ocupado)} onClick={() => acao('responder', { acao: 'responder' })} className={`${botao} bg-white text-tinta hover:bg-roxo-100`}>
+            <SendHorizontal aria-hidden className="h-4 w-4" />
+            {ocupado === 'responder' ? 'Respondendo…' : 'Responder agora'}
+          </button>
+        )}
+        <button
+          type="button"
+          disabled={Boolean(ocupado)}
+          aria-pressed={robo.ligado}
+          onClick={() => acao('ligar', { acao: 'ligar', ligado: !robo.ligado })}
+          className={`${botao} ${robo.ligado ? 'bg-white text-tinta ring-1 ring-inset ring-zinc-300 hover:ring-zinc-500' : 'bg-roxo-800 text-white hover:bg-roxo-700'}`}
+        >
+          {robo.ligado ? 'Pausar robô' : 'Ligar o robô aqui'}
+        </button>
+      </div>
+
+      {robo.ligado && robo.aguardando && (
+        <div className="mt-3 rounded-[16px] bg-white p-3.5">
+          <p className="text-[12.5px] font-extrabold text-roxo-800">{ROTULO_AGUARDANDO[robo.aguardando]}</p>
+          {robo.aguardandoMotivo && <p className="mt-0.5 text-[13px] leading-snug text-zinc-800">{robo.aguardandoMotivo}</p>}
+          <label htmlFor="entrega-robo" className="mt-3 block text-[12.5px] font-bold">
+            O que o robô deve mandar
+          </label>
+          <textarea
+            id="entrega-robo"
+            value={entrega}
+            onChange={(e) => setEntrega(e.target.value.slice(0, 1500))}
+            rows={3}
+            placeholder={
+              robo.aguardando === 'previa'
+                ? 'Cole o link da prévia (gere no painel, botão PRÉVIA)'
+                : robo.aguardando === 'proposta'
+                  ? 'Cole o link da proposta (monte no painel ou em Propostas)'
+                  : 'Escreva a resposta ou a decisão: "posso fazer 10% à vista", "terça às 15h confirmado"...'
+            }
+            className="mt-1.5 w-full resize-y rounded-2xl border border-zinc-300 px-3.5 py-2.5 text-[13.5px] leading-relaxed outline-none focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+          />
+          <p className="mt-1 text-[11.5px] text-zinc-600">O robô transforma isso numa mensagem natural e manda ao cliente.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={Boolean(ocupado) || !entrega.trim()}
+              onClick={() => acao('entregar', { acao: 'entregar', texto: entrega })}
+              className={`${botao} bg-roxo-800 text-white hover:bg-roxo-700`}
+            >
+              <Send aria-hidden className="h-4 w-4" />
+              {ocupado === 'entregar' ? 'Enviando…' : 'Entregar ao robô'}
+            </button>
+            <button type="button" disabled={Boolean(ocupado)} onClick={() => acao('resolver', { acao: 'resolver' })} className={`${botao} bg-zinc-100 text-tinta hover:bg-zinc-200`}>
+              <Check aria-hidden className="h-4 w-4" />
+              Resolvi eu mesmo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {erro && <p role="alert" className="mt-2 text-[12.5px] font-semibold text-red-700">{erro}</p>}
+    </div>
   );
 }

@@ -8,6 +8,7 @@ import { numeroWhatsapp } from '@/lib/telefone';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { passosFeitos, registrarMensagem } from '@/lib/conversa';
 import { enviarTexto, ErroEvolution } from '@/lib/evolution';
+import { aoMandarPorContaPropria } from '@/lib/robo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,6 +55,8 @@ export async function POST(req: Request, ctx: Ctx) {
   const m = await registrarMensagem(contaId, idLead, 'eu', texto, corpo.passo ? String(corpo.passo).slice(0, 40) : null, enviado.id);
   await registrarEvento(contaId, idLead, 'whatsapp', `WhatsApp enviado pela ferramenta: “${texto.replace(/\s+/g, ' ').slice(0, 160)}${texto.length > 160 ? '…' : ''}”`, quem);
   await db()`update leads set contatado_em = coalesce(contatado_em, now()) where conta_id = ${contaId} and id = ${idLead}`;
+  // primeira mensagem: o robô fica de prontidão; depois de ele já ter falado, você assumiu e ele pausa
+  await aoMandarPorContaPropria(contaId, idLead);
   if (lead.status === 'novo') await atualizarLead(contaId, idLead, { status: 'contatado' }, quem);
 
   return NextResponse.json({

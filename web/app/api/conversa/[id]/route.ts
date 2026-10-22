@@ -4,6 +4,7 @@ import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { apagarMensagem, marcarPasso, mensagensDaConversa, passosFeitos, registrarMensagem } from '@/lib/conversa';
+import { estadoDoRobo } from '@/lib/robo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,7 +36,7 @@ export async function GET(_req: Request, ctx: Ctx) {
   if (e.erro) return e.erro;
   const mensagens = await mensagensDaConversa(e.conta, e.lead);
   const passos = await passosFeitos(e.conta, e.lead);
-  return NextResponse.json({ ok: true, mensagens, passos });
+  return NextResponse.json({ ok: true, mensagens, passos, robo: await estadoDoRobo(e.conta, e.lead) });
 }
 
 /**

@@ -12,6 +12,9 @@ import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { TODOS_OS_PASSOS } from '@/lib/roteiro';
 import Casca from '@/app/casca';
 import ListaConversas, { type ItemConversa } from './lista';
+import RoboGeral from './robo-geral';
+import { geminiLigado } from '@/lib/gemini';
+import { avisosAbertos, roboAtivoNaConta } from '@/lib/robo';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +80,12 @@ export default async function PaginaConversas() {
         </Link>
       }
     >
+      <RoboGeral
+        pronto={geminiLigado() && zap === 'open'}
+        falta={!geminiLigado() ? 'Falta a chave do Gemini (GEMINI_API_KEY) na Vercel.' : zap !== 'open' ? 'Conecte o WhatsApp para ligar o robô.' : null}
+        ativoInicial={await roboAtivoNaConta(sessao.contaId)}
+        avisosIniciais={await avisosAbertos(sessao.contaId)}
+      />
       <ListaConversas itens={itens} totalPassos={TODOS_OS_PASSOS.length} />
     </Casca>
   );
