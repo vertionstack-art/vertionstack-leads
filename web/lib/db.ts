@@ -67,6 +67,14 @@ export interface Lead {
   telefoneTipo: TipoTelefone | null;
   /** de onde veio: 'maps' pela extensão, 'manual' cadastrado à mão */
   origem: string;
+  /** um comércio ou uma pessoa que quer um projeto */
+  tipo: 'comercio' | 'pessoa';
+  /** o que ele quer (ids de lib/interesses) */
+  interesse: string[];
+  /** a ideia que ele contou, para a reunião */
+  ideia: string | null;
+  /** proposta feita sem cadastrar cliente: não aparece na lista de leads */
+  soProposta: boolean;
   /**
    * Endereço do site de prévia publicado para este comércio.
    * Fica no lead, e não dentro da proposta, porque a prévia é usada antes
@@ -200,6 +208,10 @@ export function normalizarLead(
     telefoneTipo,
     origem,
     previaUrl: link(cru.previaUrl, 500),
+    tipo: cru.tipo === 'pessoa' ? 'pessoa' : 'comercio',
+    interesse: [],
+    ideia: null,
+    soProposta: false,
     cnpj: null,
     briefing: null,
     contatadoEm: null,
@@ -253,6 +265,10 @@ export function daLinha(r: any): Lead {
     whatsappFonte: r.whatsapp_fonte ?? null,
     telefoneTipo: r.telefone_tipo ?? null,
     origem: r.origem || 'maps',
+    tipo: r.tipo === 'pessoa' ? 'pessoa' : 'comercio',
+    interesse: Array.isArray(r.interesse) ? r.interesse : [],
+    ideia: r.ideia ?? null,
+    soProposta: Boolean(r.so_proposta),
     previaUrl: r.previa_url,
     cnpj: json(r.cnpj),
     briefing: json(r.briefing),
@@ -472,7 +488,7 @@ async function acompanharNoFunil(conta: string, id: string, status: Status): Pro
     )
     update leads set etapa_id = (select id from destino), etapa_em = now(),
       etapa_ordem = extract(epoch from now())
-    where conta_id = ${conta} and id = ${id}
+    where conta_id = ${conta} and id = ${id} and not so_proposta
       and exists (select 1 from destino)
       and coalesce((select situacao from atual), '') <> ${status}
   `;
@@ -610,7 +626,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
   const offsetSql = porTemperatura ? 0 : offset;
 
   const onde = sql`
-    conta_id = ${conta}
+    conta_id = ${conta} and not so_proposta
       and (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
@@ -636,13 +652,13 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
         limit ${limitSql} offset ${offsetSql}
       `,
       sql`select count(*)::int as n from leads where ${onde}`,
-      sql`select website_kind, count(*)::int as n from leads where conta_id = ${conta} group by website_kind`,
-      sql`select status, count(*)::int as n from leads where conta_id = ${conta} group by status`,
+      sql`select website_kind, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by website_kind`,
+      sql`select status, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by status`,
       // "oportunidade" segue o is_lead, que a verificação de site também altera:
       // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
-      sql`select count(*)::int as n from leads where conta_id = ${conta} and is_lead = true`,
-      sql`select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads where conta_id = ${conta} group by 1`,
-      sql`select count(*)::int as n from leads where conta_id = ${conta} and site_status = any(${SITE_QUEBRADO}::text[])`,
+      sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta and is_lead = true`,
+      sql`select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by 1`,
+      sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta and site_status = any(${SITE_QUEBRADO}::text[])`,
       sql`select distinct city from leads where conta_id = ${conta} and city is not null order by city limit 200`,
       sql`select distinct category from leads where conta_id = ${conta} and category is not null order by category limit 300`,
       /*
@@ -652,7 +668,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
        */
       sql`
         select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
-        from leads where conta_id = ${conta} limit 5000
+        from leads where conta_id = ${conta} and not so_proposta limit 5000
       `,
     ]);
 

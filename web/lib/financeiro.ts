@@ -89,7 +89,7 @@ export async function financeiroDaConta(contaId: string): Promise<Financeiro> {
       select id, name, category, city, status, proposta, updated_at from leads
       where conta_id = ${contaId} and (proposta is not null or status = 'fechado')
     `,
-    sql`select status, count(*)::int as n from leads where conta_id = ${contaId} group by status`,
+    sql`select status, count(*)::int as n from leads where conta_id = ${contaId} and not so_proposta group by status`,
     sql`select meta_mensal_centavos from contas where id = ${contaId}`,
   ]);
 

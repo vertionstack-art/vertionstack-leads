@@ -29,7 +29,7 @@ export default async function PaginaConversas() {
 
   const linhas = await db()`
     select * from leads
-    where conta_id = ${sessao.contaId} and status <> 'descartado'
+    where conta_id = ${sessao.contaId} and status <> 'descartado' and not so_proposta
     order by updated_at desc
     limit ${MAX_LEADS}
   `;

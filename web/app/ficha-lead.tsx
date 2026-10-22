@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { baixarIcs, linkGoogleAgenda, type EventoAgenda } from '@/lib/agenda';
 import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
+import { rotuloDoInteresse } from '@/lib/interesses';
 
 /**
  * A ficha do lead: a mensagem do WhatsApp já escrita, o lembrete ("ligar dia
@@ -36,6 +37,9 @@ interface LeadFicha {
   lembreteTexto: string | null;
   contatadoEm: string | null;
   email: string | null;
+  tipo: 'comercio' | 'pessoa';
+  interesse: string[];
+  ideia: string | null;
 }
 
 interface Modelo {
@@ -323,6 +327,22 @@ export default function FichaLead({
                   Cancelar
                 </button>
               </div>
+            )}
+            {lead && (lead.tipo === 'pessoa' || lead.interesse?.length > 0) && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {lead.tipo === 'pessoa' && (
+                  <span className="rounded-full bg-rosa px-2.5 py-1 text-[11.5px] font-bold text-tinta">Pessoa</span>
+                )}
+                {lead.interesse?.map((i) => (
+                  <span key={i} className="rounded-full bg-lavanda px-2.5 py-1 text-[11.5px] font-bold text-tinta">{rotuloDoInteresse(i)}</span>
+                ))}
+              </div>
+            )}
+            {lead?.ideia && (
+              <details className="mt-2 rounded-2xl bg-manteiga px-3.5 py-2.5 text-[12.5px]">
+                <summary className="cursor-pointer font-bold text-tinta">A ideia que ele contou</summary>
+                <p className="mt-1.5 whitespace-pre-wrap leading-relaxed text-tinta">{lead.ideia}</p>
+              </details>
             )}
           </div>
           <button type="button" onClick={aoFechar} aria-label="Fechar" className="rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-tinta">

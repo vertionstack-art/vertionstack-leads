@@ -200,7 +200,7 @@ export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
   const teste = plano === 'gratis';
   const [r, g, c] = await Promise.all([
     sql`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`,
-    sql`select count(*)::int as n from leads where conta_id = ${conta}`,
+    sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta`,
     sql`select teste_usados, teste_negado, leads_bonus from contas where id = ${conta}`,
   ]);
   const bonus = Number(c[0]?.leads_bonus) || 0;
@@ -251,7 +251,7 @@ export async function reservarCota(conta: string, pedidos: number, plano: Plano)
     return pedidos;
   }
   const lim = LIMITES[plano];
-  const g = await sql`select count(*)::int as n from leads where conta_id = ${conta}`;
+  const g = await sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta`;
   const cabem = Math.max(0, Math.min(pedidos, lim.guardados - (g[0].n as number)));
   if (!cabem) return 0;
   let concedidos = plano === 'gratis' ? await reservarTeste(conta, cabem, lim.semana, semana) : await reservarSemana(conta, cabem, lim.semana, semana);

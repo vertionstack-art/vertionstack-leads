@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Crown, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
+  Crown, FileText, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -13,11 +13,11 @@ import Logo from './logo';
  * qualquer lugar com um clique. A tela atual fica marcada.
  *
  * O painel passa ações só dele (baixar CSV, atualizar) em `extras` e abre o
- * cadastro na hora; nas outras telas, "Cadastrar comércio" leva ao painel já
+ * cadastro na hora; nas outras telas, "Cadastrar lead" leva ao painel já
  * com o cadastro aberto (/?cadastrar=1).
  */
 
-export type Tela = 'painel' | 'buscar' | 'conversas' | 'crm' | 'financeiro' | 'planos' | 'mapa' | 'importar' | 'perfil' | null;
+export type Tela = 'painel' | 'buscar' | 'conversas' | 'crm' | 'propostas' | 'financeiro' | 'planos' | 'mapa' | 'importar' | 'perfil' | null;
 
 export interface ItemExtra {
   rotulo: string;
@@ -138,10 +138,13 @@ export default function MenuLateral({
           <Item rotulo="CRM" ativo={ativo === 'crm'} href="/crm">
             <Kanban className={i} strokeWidth={1.8} />
           </Item>
+          <Item rotulo="Propostas" ativo={ativo === 'propostas'} href="/propostas">
+            <FileText className={i} strokeWidth={1.8} />
+          </Item>
           <Item rotulo="Financeiro" ativo={ativo === 'financeiro'} href="/financeiro">
             <Wallet className={i} strokeWidth={1.8} />
           </Item>
-          <Item rotulo="Cadastrar comércio" href={aoCadastrar ? undefined : '/?cadastrar=1'} onClick={aoCadastrar}>
+          <Item rotulo="Cadastrar lead" href={aoCadastrar ? undefined : '/?cadastrar=1'} onClick={aoCadastrar}>
             <Plus className={i} strokeWidth={1.8} />
           </Item>
           <Item rotulo="Planos" ativo={ativo === 'planos'} href="/planos">

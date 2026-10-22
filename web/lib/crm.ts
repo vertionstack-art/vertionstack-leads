@@ -242,7 +242,7 @@ export async function candidatos(conta: string, funilId: string, busca: string) 
     from leads l
     left join etapas e on e.id = l.etapa_id
     left join funis f on f.id = e.funil_id
-    where l.conta_id = ${conta}
+    where l.conta_id = ${conta} and not l.so_proposta
       and (e.funil_id is null or e.funil_id <> ${funilId})
       and l.status <> 'descartado'
       and (${busca === ''} or l.name ilike ${termo} or l.category ilike ${termo} or l.city ilike ${termo} or l.phone ilike ${termo})
