@@ -16,7 +16,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, ctx: Ctx) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome, email } = s.sessao;
+  const { contaId, nome, email, artigo } = s.sessao;
   const { id } = await ctx.params;
   const idLead = decodeURIComponent(id).slice(0, 300);
 
@@ -39,6 +39,7 @@ export async function GET(_req: Request, ctx: Ctx) {
     conversaGuiada: podeUsarConversa(email),
     remetente: {
       nome,
+      artigo,
       empresa: (c?.empresa_nome as string) || null,
       oferta: (c?.oferta as string) || 'sites',
       ofertaTexto: (c?.oferta_texto as string) || null,

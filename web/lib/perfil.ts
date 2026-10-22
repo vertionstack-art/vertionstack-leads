@@ -11,6 +11,8 @@ import { db } from './sql';
 
 export interface Perfil {
   nome: string;
+  /** "o", "a" ou "" antes do nome nas mensagens prontas */
+  artigo: string;
   empresaNome: string;
   empresaWhatsapp: string;
   empresaEmail: string;
@@ -30,7 +32,7 @@ export interface DadosDaEmpresa {
 
 export async function lerPerfil(contaId: string, userId: string): Promise<Perfil> {
   const r = await db()`
-    select m.nome, c.empresa_nome, c.empresa_whatsapp, c.empresa_email, c.empresa_site, c.empresa_cidade,
+    select m.nome, m.artigo, c.empresa_nome, c.empresa_whatsapp, c.empresa_email, c.empresa_site, c.empresa_cidade,
            c.empresa_documento, c.meta_mensal_centavos
     from membros m join contas c on c.id = m.conta_id
     where m.conta_id = ${contaId} and m.user_id = ${userId}
@@ -38,6 +40,7 @@ export async function lerPerfil(contaId: string, userId: string): Promise<Perfil
   const x = r[0] || {};
   return {
     nome: x.nome || '',
+    artigo: x.artigo || '',
     empresaNome: x.empresa_nome || '',
     empresaWhatsapp: x.empresa_whatsapp || '',
     empresaEmail: x.empresa_email || '',
@@ -80,6 +83,7 @@ export function validarPerfil(cru: Record<string, unknown>): { ok: true; perfil:
     ok: true,
     perfil: {
       nome,
+      artigo: cru.artigo === 'o' || cru.artigo === 'a' ? cru.artigo : '',
       empresaNome: texto(cru.empresaNome, 80),
       empresaWhatsapp,
       empresaEmail,
@@ -93,7 +97,7 @@ export function validarPerfil(cru: Record<string, unknown>): { ok: true; perfil:
 
 export async function salvarPerfil(contaId: string, userId: string, p: Perfil, podeEditarEmpresa: boolean): Promise<void> {
   const sql = db();
-  await sql`update membros set nome = ${p.nome} where conta_id = ${contaId} and user_id = ${userId}`;
+  await sql`update membros set nome = ${p.nome}, artigo = ${p.artigo} where conta_id = ${contaId} and user_id = ${userId}`;
   // os dados da empresa são da conta: só o dono muda, para um membro não trocar a assinatura das propostas de todos
   if (!podeEditarEmpresa) return;
   await sql`

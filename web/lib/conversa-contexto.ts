@@ -21,7 +21,7 @@ export interface DadosDoLead {
   avaliacoes: string | null;
 }
 
-export async function dadosDoLead(conta: string, nomeDeQuemManda: string, lead: Lead, site: string): Promise<DadosDoLead> {
+export async function dadosDoLead(conta: string, nomeDeQuemManda: string, lead: Lead, site: string, artigo = ''): Promise<DadosDoLead> {
   const [c] = await db()`select empresa_nome, oferta, oferta_texto from contas where id = ${conta}`;
   // a prévia já fica no lead como link completo (api/leads/[id]/previa)
   const linkPrevia = lead.previaUrl || null;
@@ -44,6 +44,7 @@ export async function dadosDoLead(conta: string, nomeDeQuemManda: string, lead: 
   };
   const remetente: Remetente = {
     nome: nomeDeQuemManda,
+    artigo,
     empresa: (c?.empresa_nome as string) || null,
     oferta: (c?.oferta as string) || 'sites',
     ofertaTexto: (c?.oferta_texto as string) || null,

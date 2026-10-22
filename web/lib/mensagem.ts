@@ -28,6 +28,8 @@ export interface DadosMensagem {
 export interface Remetente {
   /** primeiro nome de quem manda */
   nome: string;
+  /** "o" ou "a" antes do nome ("Aqui é o Lucas"), escolhido em Meu perfil; vazio = sem artigo */
+  artigo?: string;
   empresa: string | null;
   /** o que a pessoa vende (lib/ofertas) e, em "outro", a frase dela */
   oferta?: string;
@@ -63,6 +65,25 @@ const primeiroNome = (s: string) => {
   return p.charAt(0).toUpperCase() + p.slice(1);
 };
 
+/** "o Lucas", "a Ana" ou só "Lucas", como a pessoa escolheu em Meu perfil */
+export function eu(r: Remetente): string {
+  const nome = primeiroNome(r.nome || '') || 'eu';
+  return r.artigo === 'o' || r.artigo === 'a' ? `${r.artigo} ${nome}` : nome;
+}
+
+/**
+ * Escolhe uma variação pelo nome do comércio: cada lead recebe um jeito
+ * diferente de começar, mas o mesmo lead vê sempre o mesmo texto (não muda
+ * a cada vez que a tela abre).
+ */
+function escolher<T>(semente: string, opcoes: T[]): T {
+  let h = 0;
+  for (const c of semente) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return opcoes[h % opcoes.length];
+}
+
+const ABERTURAS = ['Oi, tudo bem?', 'Olá, tudo bem?', 'Oi! Tudo certo por aí?', 'Opa, tudo bem?', 'Oi, como vai?', 'Olá! Tudo tranquilo?'];
+
 /** "4,8 estrelas e 412 avaliações no Google" quando vale a pena citar */
 function reputacao(d: DadosMensagem): string | null {
   if (!d.rating || !d.reviews || d.reviews < 20 || d.rating < 4.2) return null;
@@ -70,15 +91,16 @@ function reputacao(d: DadosMensagem): string | null {
 }
 
 export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
-  const eu = primeiroNome(r.nome || '') || 'eu';
+  const quem = eu(r);
   const oferta = d.oferta && d.oferta !== 'sites' ? d.oferta : r.oferta && r.oferta !== 'sites' && !d.oferta ? r.oferta : 'sites';
   const trabalho = oferta === 'outro' ? (r.ofertaTexto ? `trabalho com ${r.ofertaTexto.replace(/^(eu )?(vendo|faço|trabalho com)\s+/i, '').replace(/[.!]+$/, '')}` : '') : TRABALHO[oferta] || TRABALHO.sites;
   const apresentacao = r.empresa
-    ? `Aqui é ${eu}, do time ${r.empresa}.`
+    ? `Aqui é ${quem}, do time ${r.empresa}.`
     : trabalho
-      ? `Aqui é ${eu}, ${trabalho}.`
-      : `Aqui é ${eu}.`;
-  if (oferta !== 'sites') return mensagemDaOferta(oferta, d, apresentacao, trabalho);
+      ? `Aqui é ${quem}, ${trabalho}.`
+      : `Aqui é ${quem}.`;
+  const abertura = escolher(d.nome, ABERTURAS);
+  if (oferta !== 'sites') return mensagemDaOferta(oferta, d, `${abertura} ${apresentacao}`, trabalho);
   const rep = reputacao(d);
   const ramo = (d.category || 'o serviço de vocês').toLowerCase();
   const onde = d.city ? ` em ${d.city}` : '';
@@ -108,20 +130,31 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
         gancho = `Vi que a ${d.nome} atende pelo ${plataforma(d.website)}. Com um site próprio, o cliente fala direto com vocês, sem pagar comissão para ninguém.`;
       } else if (d.websiteKind === 'weak') {
         gancho = `Vi que o site da ${d.nome} está num construtor gratuito. Um site próprio, com o endereço de vocês, passa muito mais confiança.`;
+      } else if (d.websiteKind === 'site') {
+        // tem site no ar: a ferramenta não mede se é lento ou feio, então o gancho é melhorar, sem acusar
+        gancho = escolher(d.nome + 'site', [
+          `Dei uma olhada no site da ${d.nome} e acho que dá para deixar ele mais moderno e pensado para o celular, que é onde a maioria procura hoje.`,
+          `Vi o site da ${d.nome} e tive umas ideias para ele trazer mais cliente pelo Google e pelo WhatsApp.`,
+          `Entrei no site da ${d.nome} e acho que ele pode trabalhar mais a favor de vocês, com um visual mais atual e um jeito rápido de chamar no WhatsApp.`,
+        ]);
       } else {
-        gancho = `Procurei ${ramo}${onde} no Google e a ${d.nome} aparece${rep ? ` com ${rep}` : ''}, mas sem site. Quem pesquisa acaba indo para quem tem.`;
+        gancho = `Procurei ${ramo}${onde} no Google e a ${d.nome} aparece${rep ? ` com ${rep.replace(/ no Google$/, '')}` : ''}, mas sem site. Quem pesquisa acaba indo para quem tem.`;
       }
   }
 
   const fecho = d.previaUrl
-    ? `Fiz uma prévia de como o site de vocês poderia ficar: ${d.previaUrl}\nO que você acha?`
-    : 'Montei uma ideia rápida de como o site de vocês poderia ficar. Posso te mostrar?';
+    ? `${escolher(d.nome + 'p', ['Fiz uma prévia de como o site de vocês poderia ficar', 'Montei uma prévia de como poderia ficar', 'Fiz um rascunho de como o site de vocês poderia ser'])}: ${d.previaUrl}\n${escolher(d.nome + 'q', ['O que você acha?', 'Me fala o que achou!', 'Faz sentido para vocês?'])}`
+    : escolher(d.nome + 'f', [
+        'Montei uma ideia rápida de como o site de vocês poderia ficar. Posso te mostrar?',
+        'Fiz um rascunho de como poderia ficar. Quer dar uma olhada?',
+        'Tenho uma ideia pronta de como ficaria. Posso te mandar?',
+      ]);
 
-  return `Oi, tudo bem? ${apresentacao}\n\n${gancho}\n\n${fecho}`;
+  return `${abertura} ${apresentacao}\n\n${gancho}\n\n${fecho}`;
 }
 
 /** a primeira mensagem para quem não vende site: o gancho é a dor daquela oferta */
-function mensagemDaOferta(oferta: string, d: DadosMensagem, apresentacao: string, trabalho: string): string {
+function mensagemDaOferta(oferta: string, d: DadosMensagem, inicio: string, trabalho: string): string {
   const rep = reputacao(d);
   const ramo = (d.category || 'o seu ramo').toLowerCase();
   const onde = d.city ? ` em ${d.city}` : '';
@@ -154,7 +187,7 @@ function mensagemDaOferta(oferta: string, d: DadosMensagem, apresentacao: string
       gancho = `Vi a ${d.nome} no Google${rep ? `, com ${rep}` : ''}, e acho que posso ajudar vocês.`;
       fecho = trabalho ? 'Posso te contar em 2 minutos como funciona?' : 'Posso te mostrar o que eu faço?';
   }
-  return `Oi, tudo bem? ${apresentacao}\n\n${gancho}\n\n${fecho}`;
+  return `${inicio}\n\n${gancho}\n\n${fecho}`;
 }
 
 /** link do WhatsApp com o texto já preenchido */
@@ -173,6 +206,7 @@ export const MARCADORES: { chave: string; rotulo: string }[] = [
   { chave: '{avaliacoes}', rotulo: 'nota e avaliações no Google' },
   { chave: '{previa}', rotulo: 'link da prévia' },
   { chave: '{meu_nome}', rotulo: 'seu nome' },
+  { chave: '{eu}', rotulo: 'seu nome com "o" ou "a" (Meu perfil)' },
   { chave: '{empresa}', rotulo: 'sua empresa' },
 ];
 
@@ -194,6 +228,7 @@ export function problemaCurto(d: DadosMensagem): string {
   if (d.websiteKind === 'social') return 'vocês só têm rede social, sem site próprio';
   if (d.websiteKind === 'marketplace') return `vocês dependem do ${plataforma(d.website)}`;
   if (d.websiteKind === 'weak') return 'o site de vocês está num construtor gratuito';
+  if (d.websiteKind === 'site') return 'o site de vocês pode ficar mais moderno e trazer mais clientes';
   return 'vocês ainda não têm site';
 }
 
@@ -206,6 +241,7 @@ function valores(d: DadosMensagem, r: Remetente): Record<string, string> {
     '{avaliacoes}': d.rating && d.reviews ? `${d.rating.toFixed(1).replace('.', ',')} estrelas e ${d.reviews} avaliações` : '',
     '{previa}': d.previaUrl || '',
     '{meu_nome}': primeiroNome(r.nome || ''),
+    '{eu}': eu(r),
     '{empresa}': r.empresa || '',
   };
 }
@@ -224,7 +260,7 @@ export function aplicarModelo(modelo: string, d: DadosMensagem, r: Remetente): s
  */
 export function virarModelo(texto: string, d: DadosMensagem, r: Remetente): string {
   const v = valores(d, r);
-  const trocas = (['{comercio}', '{previa}', '{avaliacoes}', '{problema}', '{empresa}', '{cidade}', '{meu_nome}', '{ramo}'] as const)
+  const trocas = (['{comercio}', '{previa}', '{avaliacoes}', '{problema}', '{empresa}', '{cidade}', '{eu}', '{meu_nome}', '{ramo}'] as const)
     .map((k) => [k, v[k]] as const)
     .filter(([, val]) => val && val.length >= 3)
     .sort((a, b) => b[1].length - a[1].length);

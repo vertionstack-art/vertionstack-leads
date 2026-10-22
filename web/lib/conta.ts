@@ -25,6 +25,8 @@ export interface Sessao {
   email: string;
   /** como a pessoa aparece no painel (responsável, coletado por) */
   nome: string;
+  /** "o" ou "a" antes do nome nas mensagens ("Aqui é o Lucas"); vazio = sem artigo */
+  artigo: string;
   contaId: string;
   contaNome: string;
   papel: 'dono' | 'membro';
@@ -119,14 +121,14 @@ export async function sessaoAtual(): Promise<Sessao | null> {
 
   const sql = db();
   let linhas = await sql`
-    select m.conta_id, m.nome, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
+    select m.conta_id, m.nome, m.artigo, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
     from membros m join contas c on c.id = m.conta_id
     where m.user_id = ${user.id}
   `;
   if (!linhas.length) {
     await criarContaPara(user.id, nomeDe(user.email, user.user_metadata), await conviteDe(user.user_metadata), user.email);
     linhas = await sql`
-      select m.conta_id, m.nome, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
+      select m.conta_id, m.nome, m.artigo, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
       from membros m join contas c on c.id = m.conta_id
       where m.user_id = ${user.id}
     `;
@@ -145,6 +147,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
     userId: user.id,
     email: user.email,
     nome: r.nome,
+    artigo: r.artigo || '',
     contaId: r.conta_id,
     contaNome: r.conta_nome,
     papel: r.papel,

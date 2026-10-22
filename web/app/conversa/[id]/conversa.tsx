@@ -144,6 +144,30 @@ export default function ConversaGuiada({
     }
   }
 
+  // "Gerar nova abordagem": as que já saíram (para a IA não repetir) e o último ângulo sorteado
+  const [abordagens, setAbordagens] = useState<string[]>([]);
+  const [anguloAnterior, setAnguloAnterior] = useState<string | null>(null);
+  const [gerando, setGerando] = useState(false);
+
+  async function novaAbordagem() {
+    setGerando(true);
+    setErro(null);
+    try {
+      const j = await chamar(`${base}/abordagem`, {
+        method: 'POST',
+        body: JSON.stringify({ anteriores: abordagens, anguloAnterior }),
+      });
+      setAbordagens((a) => [...a, j.mensagem].slice(-6));
+      setAnguloAnterior(j.angulo);
+      usarTexto(j.mensagem, 'primeira');
+      setAviso(`Abordagem nova (${j.rotulo}). Revise antes de enviar; clique de novo para outra.`);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setGerando(false);
+    }
+  }
+
   /** troca os marcadores do roteiro pelos dados deste lead */
   const preencher = useMemo(() => {
     return (modelo: string) => {
@@ -390,6 +414,17 @@ export default function ConversaGuiada({
                                   {m.rotulo}
                                 </button>
                               ))}
+                              {p.id === 'primeira' && (
+                                <button
+                                  type="button"
+                                  onClick={novaAbordagem}
+                                  disabled={gerando}
+                                  className="inline-flex items-center gap-1 rounded-full bg-roxo-800 px-2.5 py-1 text-[11.5px] font-bold text-white transition hover:bg-roxo-700 disabled:opacity-60"
+                                >
+                                  <Sparkles aria-hidden className="h-3.5 w-3.5" />
+                                  {gerando ? 'Gerando…' : abordagens.length ? 'Gerar outra abordagem' : 'Gerar nova abordagem (IA)'}
+                                </button>
+                              )}
                             </div>
                           </li>
                         );

@@ -8,6 +8,7 @@ import FotoDePerfil from './foto';
 
 interface Perfil {
   nome: string;
+  artigo: string;
   empresaNome: string;
   empresaWhatsapp: string;
   empresaEmail: string;
@@ -122,6 +123,28 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
             <input value={p.nome} onChange={set('nome')} maxLength={40} className={campo} />
             <span className="mt-1.5 block text-[12px] text-zinc-500">É o nome que aparece em &quot;com você&quot; e em quem coletou cada lead.</span>
           </label>
+          <div className="block md:col-span-2">
+            <span className={rotulo}>Nas mensagens prontas</span>
+            <div role="radiogroup" aria-label="Como você se apresenta nas mensagens" className="flex flex-wrap gap-2">
+              {(['o', 'a', ''] as const).map((a) => {
+                const primeiro = (p.nome || 'Seu nome').trim().split(/\s+/)[0];
+                return (
+                  <button
+                    key={a || 'sem'}
+                    type="button"
+                    role="radio"
+                    aria-checked={(p.artigo || '') === a}
+                    onClick={() => setP((x) => (x ? { ...x, artigo: a } : x))}
+                    className={`min-h-[40px] rounded-full px-4 text-[13px] font-bold transition ${
+                      (p.artigo || '') === a ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta hover:bg-zinc-200'
+                    }`}
+                  >
+                    &quot;Aqui é {a ? `${a} ` : ''}{primeiro}&quot;
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <label className="block">
             <span className={rotulo}>E-mail de acesso</span>
             <input value={dados.email} disabled className={campo} />

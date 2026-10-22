@@ -221,3 +221,122 @@ export function mensagensSeguras(mensagens: string[], links: string[]): string[]
   }
   return saida;
 }
+
+// ------------------------------------------------------------ abordagem nova
+
+/** os jeitos de começar a conversa; cada clique em "Gerar nova abordagem" sorteia um diferente */
+const ANGULOS: { id: string; rotulo: string; quando?: (l: DadosAbordagem) => boolean; instrucao: string }[] = [
+  {
+    id: 'elogio',
+    rotulo: 'Elogio sincero',
+    quando: (l) => Boolean(l.avaliacoes || l.instagram),
+    instrucao: 'Comece com um elogio curto, sincero e específico a algo real do lead (as avaliações no Google ou o Instagram, como está em <lead>). Depois ligue isso ao que você pode fazer.',
+  },
+  {
+    id: 'pergunta',
+    rotulo: 'Pergunta curiosa',
+    instrucao: 'Não venda de cara: comece com uma pergunta simples e curiosa sobre o negócio (por exemplo, como os clientes costumam encontrar vocês), que dê vontade de responder.',
+  },
+  {
+    id: 'problema',
+    rotulo: 'Direto no ponto',
+    instrucao: 'Vá direto ao que encontramos sobre o lead (em <lead>), com cuidado e sem exagero, e ofereça mostrar como resolver.',
+  },
+  {
+    id: 'previa',
+    rotulo: 'Ideia pronta',
+    instrucao: 'Diga que já montou uma ideia de como ficaria para eles e pergunte se pode mostrar. Se houver link da prévia em <lead>, mande o link.',
+  },
+  {
+    id: 'curta',
+    rotulo: 'Bem curta',
+    instrucao: 'Uma mensagem curtíssima, de no máximo 2 frases: se apresente e peça licença para mandar uma ideia.',
+  },
+  {
+    id: 'responsavel',
+    rotulo: 'Pelo responsável',
+    instrucao: 'Pergunte de forma leve se está falando com quem cuida da divulgação ou do site, dizendo em meia frase o motivo.',
+  },
+  {
+    id: 'cliente',
+    rotulo: 'Olhar do cliente',
+    quando: (l) => l.semSite || l.siteComProblema,
+    instrucao: 'Fale do ponto de vista de quem procura o serviço: alguém que pesquisa no Google e não encontra (ou encontra o site com problema), usando só o que está em <lead>.',
+  },
+];
+
+export interface DadosAbordagem {
+  nome: string;
+  tipo: 'comercio' | 'pessoa';
+  ramo: string | null;
+  cidade: string | null;
+  /** o que encontramos, em uma frase (problemaCurto) */
+  problema: string;
+  /** o detalhe da verificação do site, quando houve */
+  detalheSite: string | null;
+  avaliacoes: string | null;
+  instagram: boolean;
+  previa: string | null;
+  interesse: string[];
+  ideia: string | null;
+  semSite: boolean;
+  siteComProblema: boolean;
+}
+
+export function sortearAngulo(l: DadosAbordagem, anterior: string | null): (typeof ANGULOS)[number] {
+  const possiveis = ANGULOS.filter((a) => (!a.quando || a.quando(l)) && a.id !== anterior);
+  return possiveis[Math.floor(Math.random() * possiveis.length)] || ANGULOS[1];
+}
+
+const ESQUEMA_ABORDAGEM = {
+  type: 'object',
+  required: ['mensagem'],
+  properties: { mensagem: { type: 'string', description: 'A primeira mensagem, pronta para o WhatsApp.' } },
+};
+
+/**
+ * Uma primeira mensagem nova para o lead, no jeito de escrever do treino e
+ * pelo ângulo sorteado. `anteriores` são as que já saíram, para não repetir.
+ */
+export async function gerarAbordagem(
+  cfg: ConfigRobo,
+  empresa: string,
+  oferta: string,
+  quem: string,
+  l: DadosAbordagem,
+  angulo: (typeof ANGULOS)[number],
+  anteriores: string[],
+) {
+  const instrucoes = `Você escreve a PRIMEIRA mensagem de WhatsApp de ${quem}, de ${empresa} (vende: ${oferta}), para um possível cliente que ainda não conhece ninguém da empresa. Quem vai enviar é o próprio ${cfg.nome}, depois de revisar.
+
+Jeito de escrever: ${TOM[cfg.formalidade]} ${EMOJI[cfg.emojis]}${cfg.expressoes.trim() ? ` Expressões que ele usa: ${cfg.expressoes.trim()}.` : ''}
+- Português do Brasil, como alguém digitando no celular. De 2 a 4 frases curtas no total (pode quebrar linha). Nada de lista, negrito ou linguagem de e-mail.
+- Apresente-se como "${quem}" (exatamente com esse artigo), da ${empresa}.
+- Varie o cumprimento: não use "Oi, tudo bem?" e não comece igual às mensagens em <ja_usadas>. Pode usar "Olá", "Opa", "Bom dia", "E aí", "Oi, como vai?", o que combinar com o tom.
+- Termine com uma pergunta fácil de responder.
+- Use só fatos que estão em <lead>. Nunca invente número, resultado, preço, prazo, cliente ou elogio que não tenha base. Não diga que é robô ou IA.
+- Link, só o da prévia que estiver em <lead>. Nada de [colchetes] ou marcadores.
+- Nada de frases de telemarketing ("prezado", "solução", "agregar valor", "sem compromisso", "não hesite").
+
+Ângulo desta vez: ${angulo.instrucao}`;
+
+  const pedido = [
+    '<lead>',
+    `${l.tipo === 'pessoa' ? 'Pessoa' : 'Comércio'}: ${l.nome}`,
+    l.ramo ? `Ramo: ${l.ramo}` : null,
+    l.cidade ? `Cidade: ${l.cidade}` : null,
+    l.tipo === 'pessoa' ? null : `O que encontramos: ${l.problema}`,
+    l.detalheSite ? `Verificação do site: ${l.detalheSite}` : null,
+    l.avaliacoes ? `Google: ${l.avaliacoes}` : null,
+    l.instagram ? 'Tem Instagram.' : null,
+    l.interesse.length ? `O que ele quer: ${l.interesse.join(', ')}` : null,
+    l.ideia ? `Ideia que ele contou: ${l.ideia.slice(0, 600)}` : null,
+    `Prévia: ${l.previa || 'ainda não existe'}`,
+    '</lead>',
+    anteriores.length ? `<ja_usadas>\n${anteriores.slice(-6).map((a) => `- ${a.replace(/\s+/g, ' ').slice(0, 300)}`).join('\n')}\n</ja_usadas>` : null,
+    'Escreva a mensagem.',
+  ].filter((x) => x !== null).join('\n');
+
+  const r = await perguntarJson<{ mensagem: string }>(instrucoes, pedido, ESQUEMA_ABORDAGEM);
+  return { mensagem: String(r.dados?.mensagem || '').trim(), entrada: r.entrada, saida: r.saida, modelo: r.modelo };
+}

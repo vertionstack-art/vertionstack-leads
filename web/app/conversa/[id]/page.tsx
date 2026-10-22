@@ -32,7 +32,7 @@ export default async function PaginaConversa({ params }: { params: Promise<{ id:
 
   const h = await headers();
   const site = process.env.SITE_URL?.replace(/\/$/, '') || `${h.get('x-forwarded-proto') || 'https'}://${h.get('host')}`;
-  const d = await dadosDoLead(sessao.contaId, sessao.nome, lead, site);
+  const d = await dadosDoLead(sessao.contaId, sessao.nome, lead, site, sessao.artigo);
   const mensagens = await mensagensDaConversa(sessao.contaId, idLead);
   const passos = await passosFeitos(sessao.contaId, idLead);
   const uso = await usoDaIa(sessao.contaId);

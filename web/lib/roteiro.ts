@@ -63,7 +63,33 @@ export const FASES: Fase[] = [
           {
             id: 'curta',
             rotulo: 'Curta, perguntando pelo responsável',
-            texto: '{saudacao}, tudo bem? Aqui é {meu_nome}{do_time}. Esse é o WhatsApp da {comercio}? Queria falar com quem cuida da divulgação de vocês.',
+            texto: '{saudacao}, tudo bem? Aqui é {eu}{do_time}. Esse é o WhatsApp da {comercio}? Queria falar com quem cuida da divulgação de vocês.',
+          },
+          // tem site, mas fraco: a ferramenta não mede lentidão nem visual, por isso quem escolhe é a pessoa, depois de olhar o site
+          {
+            id: 'site_antigo',
+            rotulo: 'Tem site, mas antigo ou feio',
+            texto: '{saudacao}! Aqui é {eu}{do_time}. Dei uma olhada no site da {comercio} e acho que dá para deixar ele bem mais moderno e fácil de usar no celular. Montei uma ideia de como poderia ficar. Posso te mostrar?',
+          },
+          {
+            id: 'site_lento',
+            rotulo: 'Tem site, mas lento (confira antes)',
+            texto: 'Oi, tudo certo? Aqui é {eu}{do_time}. Tentei abrir o site da {comercio} pelo celular e ele demorou bastante para carregar. Muita gente desiste antes de a página abrir. Fiz uma ideia de uma versão mais leve e rápida, quer ver?',
+          },
+          {
+            id: 'site_sem_contato',
+            rotulo: 'Tem site, mas difícil de chamar no WhatsApp',
+            texto: 'Olá! Aqui é {eu}{do_time}. Entrei no site da {comercio} e senti falta de um jeito rápido de chamar vocês no WhatsApp ou pedir orçamento. É ali que muito cliente acaba desistindo. Posso te mostrar uma ideia?',
+          },
+          {
+            id: 'site_google',
+            rotulo: 'Tem site, mas não aparece no Google (confira antes)',
+            texto: 'Opa, tudo bem? Aqui é {eu}{do_time}. Pesquisei no Google pelo que vocês fazem e o site da {comercio} quase não aparece. Dá para melhorar isso. Posso te explicar como em 2 minutos?',
+          },
+          {
+            id: 'site_bom',
+            rotulo: 'Tem site bom, mas dá para vender mais',
+            texto: '{saudacao}! Aqui é {eu}{do_time}. Vi o site da {comercio}, ficou bacana! Trabalho deixando sites de comércio mais focados em trazer cliente pelo Google e pelo WhatsApp. Posso te mandar umas ideias?',
           },
         ],
       },
@@ -144,7 +170,7 @@ export const FASES: Fase[] = [
           {
             id: 'indicado',
             rotulo: 'Veio pelo atendente',
-            texto: '{saudacao}, tudo bem? Aqui é {meu_nome}{do_time}. A equipe de vocês me passou seu contato. Vi que {problema} e montei uma ideia de como resolver. Posso te mostrar?',
+            texto: '{saudacao}, tudo bem? Aqui é {eu}{do_time}. A equipe de vocês me passou seu contato. Vi que {problema} e montei uma ideia de como resolver. Posso te mostrar?',
           },
           {
             id: 'direto',
@@ -393,7 +419,7 @@ export const OBJECOES: Objecao[] = [
     id: 'quem_e_voce',
     frase: 'Quem é você? / Como achou meu número?',
     dica: 'Seja transparente: o número está no Google.',
-    resposta: 'Desculpa não ter me apresentado direito! Sou {meu_nome}{do_time} e trabalho com sites para comércios da região. Achei a {comercio} pesquisando no Google e vi que {problema}.',
+    resposta: 'Desculpa não ter me apresentado direito! Sou {eu}{do_time} e trabalho com sites para comércios da região. Achei a {comercio} pesquisando no Google e vi que {problema}.',
   },
   {
     id: 'conhecido',
