@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
-import { buscaLigada, buscasDaConta, resumoDeBuscas } from '@/lib/google-places';
+import { buscaLigada, buscasDaConta, chamadasDeHoje, GRATIS_POR_MES, resumoDeBuscas, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
 import { LIMITES } from '@/lib/planos';
 import BuscaGoogle from './busca';
 import EscolhaOferta from './oferta';
@@ -20,6 +20,22 @@ export default async function PaginaBuscar() {
     buscasDaConta(sessao.contaId, sessao.plano, sessao.pagoAte),
   ]);
   const resumoBuscas = await resumoDeBuscas(sessao.contaId);
+  /*
+   * O que ainda dá para buscar. Quem tem plano vê o que resta do plano. A
+   * conta da Vertion (sem limite) e o administrador veem a trava da
+   * ferramenta inteira, que é o que protege a conta do Google: os outros
+   * usuários não veem esse número, que soma o uso de todo mundo.
+   */
+  const verTrava = sessao.plano === 'cortesia' || sessao.admin;
+  const trava = verTrava
+    ? {
+        hoje: await chamadasDeHoje(),
+        tetoDia: tetoDiario(),
+        mes: (await usoDoMes()).chamadas,
+        tetoMes: tetoMensal(),
+        gratisGoogle: GRATIS_POR_MES,
+      }
+    : null;
   const [c] = await db()`
     select oferta, oferta_texto, oferta_publico, empresa_nome,
       (oferta = 'sites' and cardinality(oferta_publico) = 0 and oferta_texto is null) as nova
@@ -50,6 +66,7 @@ export default async function PaginaBuscar() {
           cotaInicial={cotaParaJson(cota)}
           buscasIniciais={{ usadas, limite: LIMITES[sessao.plano].buscas, periodo, ilimitado: sessao.plano === 'cortesia' }}
           resumoInicial={resumoBuscas}
+          trava={trava}
         />
     </Casca>
   );

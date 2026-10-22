@@ -70,14 +70,18 @@ export default function BuscaGoogle({
   cotaInicial,
   buscasIniciais,
   resumoInicial,
+  trava: travaInicial,
 }: {
   ligada: boolean;
   cotaInicial: CotaJson;
   buscasIniciais: Buscas;
   /** buscas feitas hoje, na semana, no mês e desde o começo (lib/google-places) */
   resumoInicial: ResumoBuscas;
+  /** a trava da ferramenta inteira (só para a conta da Vertion e o administrador) */
+  trava: Trava | null;
 }) {
   const [resumo, setResumo] = useState<ResumoBuscas>(resumoInicial);
+  const [trava, setTrava] = useState<Trava | null>(travaInicial);
   const [cota, setCota] = useState<CotaJson>(cotaInicial);
   const [buscas, setBuscas] = useState<Buscas>(buscasIniciais);
   const [nichos, setNichos] = useState<Set<string>>(new Set());
@@ -163,6 +167,7 @@ export default function BuscaGoogle({
           if (r.ok && !r.jaFeita) {
             const novos = Number(r.novos) || 0;
             setResumo((x) => ({ ...x, hoje: x.hoje + 1, semana: x.semana + 1, mes: x.mes + 1, total: x.total + 1, leadsMes: x.leadsMes + novos, leadsTotal: x.leadsTotal + novos }));
+            setTrava((x) => (x ? { ...x, hoje: x.hoje + 1, mes: x.mes + 1 } : x));
           }
           if (r.buscas) setBuscas((b) => ({ ...b, usadas: r.buscas.usadas, limite: r.buscas.limite }));
           if (!r.ok) {
@@ -189,7 +194,7 @@ export default function BuscaGoogle({
     setTerminou(true);
   }
 
-  const quadro = <QuadroBuscas resumo={resumo} />;
+  const quadro = <QuadroBuscas resumo={resumo} buscas={buscas} trava={trava} />;
 
   if (!ligada) {
     return (
@@ -489,8 +494,42 @@ export default function BuscaGoogle({
 
 const num = (n: number) => n.toLocaleString('pt-BR');
 
-/** "Suas buscas no Google": hoje, 7 dias, mês e desde o começo, com os leads que renderam */
-function QuadroBuscas({ resumo }: { resumo: ResumoBuscas }) {
+interface Trava {
+  hoje: number;
+  tetoDia: number;
+  mes: number;
+  tetoMes: number;
+  gratisGoogle: number;
+}
+
+function Restam({ rotulo, usadas, teto, nota }: { rotulo: string; usadas: number; teto: number; nota: string }) {
+  const restam = Math.max(0, teto - usadas);
+  const pct = Math.min(100, teto > 0 ? (usadas / teto) * 100 : 0);
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[13px] font-bold">{rotulo}</span>
+        <span className="text-[13px] tabular-nums">
+          <b className="text-[18px] font-extrabold">{num(restam)}</b> <span className="text-zinc-600">de {num(teto)}</span>
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-label={`${rotulo}: restam ${restam} de ${teto}`}
+        aria-valuemin={0}
+        aria-valuemax={teto}
+        aria-valuenow={restam}
+        className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-white"
+      >
+        <div className={`h-full rounded-full ${pct >= 90 ? 'bg-red-600' : pct >= 70 ? 'bg-amber-500' : 'bg-tinta'}`} style={{ width: `${pct}%` }} />
+      </div>
+      <p className="mt-1 text-[11.5px] font-medium text-zinc-600">{nota}</p>
+    </div>
+  );
+}
+
+/** "Suas buscas no Google": hoje, 7 dias, mês e desde o começo, com os leads que renderam, e o que ainda resta */
+function QuadroBuscas({ resumo, buscas, trava }: { resumo: ResumoBuscas; buscas: Buscas; trava: Trava | null }) {
   const blocos = [
     { rotulo: 'Hoje', valor: resumo.hoje, detalhe: null, fundo: 'bg-ceu' },
     { rotulo: 'Últimos 7 dias', valor: resumo.semana, detalhe: null, fundo: 'bg-manteiga' },
@@ -514,6 +553,32 @@ function QuadroBuscas({ resumo }: { resumo: ResumoBuscas }) {
           </div>
         ))}
       </div>
+      {(trava || !buscas.ilimitado) && (
+        <div className="mt-3 rounded-[22px] bg-zinc-100 px-5 py-4">
+          <p className="text-[14px] font-extrabold">Ainda dá para buscar</p>
+          <div className="mt-3 flex flex-col gap-4 md:flex-row md:gap-8">
+            {!buscas.ilimitado && (
+              <Restam rotulo={`No seu plano (${buscas.periodo})`} usadas={buscas.usadas} teto={buscas.limite} nota="O limite de buscas do seu plano." />
+            )}
+            {trava && (
+              <>
+                <Restam
+                  rotulo="Hoje, na ferramenta inteira"
+                  usadas={trava.hoje}
+                  teto={trava.tetoDia}
+                  nota="Trava diária de todos os usuários juntos. Zera à meia-noite."
+                />
+                <Restam
+                  rotulo="Este mês, na ferramenta inteira"
+                  usadas={trava.mes}
+                  teto={trava.tetoMes}
+                  nota={`O Google dá ${num(trava.gratisGoogle)} buscas grátis por mês; a trava para antes, para não gerar cobrança.`}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
