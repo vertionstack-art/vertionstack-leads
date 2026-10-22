@@ -16,7 +16,7 @@ export const ROTULO_AGUARDANDO: Record<string, string> = {
 export interface EstadoRobo {
   /** o interruptor geral da conta */
   ativoNaConta: boolean;
-  /** a chave do Gemini está na Vercel e o WhatsApp está configurado */
+  /** a IA do robô (PC ou Gemini) e o WhatsApp estão configurados na Vercel */
   pronto: boolean;
   ligado: boolean;
   aguardando: Aguardando | null;

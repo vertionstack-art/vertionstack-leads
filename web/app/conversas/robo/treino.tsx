@@ -106,14 +106,14 @@ export default function TreinoRobo({
   oferta,
   escritaAprendida,
   catalogo,
-  geminiLigado,
+  iaLigada,
 }: {
   inicial: ConfigRobo;
   empresa: string;
   oferta: string;
   escritaAprendida: string[];
   catalogo: string[];
-  geminiLigado: boolean;
+  iaLigada: boolean;
 }) {
   const [cfg, setCfg] = useState<ConfigRobo>(inicial);
   const [salvo, setSalvo] = useState(JSON.stringify(inicial));
@@ -367,7 +367,7 @@ export default function TreinoRobo({
       {/* ------------------------------------------------------------ testar */}
       <TestarRobo
         cfg={cfg}
-        geminiLigado={geminiLigado}
+        iaLigada={iaLigada}
         aoCorrigir={(ex) => {
           const proximo = { ...cfg, exemplos: [...cfg.exemplos, ex].slice(-40) };
           setCfg(proximo);
@@ -378,7 +378,7 @@ export default function TreinoRobo({
   );
 }
 
-function TestarRobo({ cfg, geminiLigado, aoCorrigir }: { cfg: ConfigRobo; geminiLigado: boolean; aoCorrigir: (e: Exemplo) => void }) {
+function TestarRobo({ cfg, iaLigada, aoCorrigir }: { cfg: ConfigRobo; iaLigada: boolean; aoCorrigir: (e: Exemplo) => void }) {
   const [nome, setNome] = useState('Barbearia do Zé');
   const [ramo, setRamo] = useState('Barbearia');
   const [previa, setPrevia] = useState(false);
@@ -548,7 +548,7 @@ function TestarRobo({ cfg, geminiLigado, aoCorrigir }: { cfg: ConfigRobo; gemini
         </div>
 
         {erro && <p role="alert" className="mt-2 text-[12.5px] font-semibold text-red-700">{erro}</p>}
-        {!geminiLigado && <p className="mt-2 text-[12px] font-semibold text-zinc-700">Para testar, falta a chave do Gemini (GEMINI_API_KEY) na Vercel.</p>}
+        {!iaLigada && <p className="mt-2 text-[12px] font-semibold text-zinc-700">Para testar, falta configurar a IA do robô na Vercel.</p>}
 
         <form
           onSubmit={(e) => { e.preventDefault(); mandar(); }}
@@ -561,13 +561,13 @@ function TestarRobo({ cfg, geminiLigado, aoCorrigir }: { cfg: ConfigRobo; gemini
             onChange={(e) => setTexto(e.target.value.slice(0, 1000))}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mandar(); } }}
             rows={2}
-            disabled={!geminiLigado}
+            disabled={!iaLigada}
             placeholder="Escreva como se fosse o cliente…"
             className={`${caixa} resize-none`}
           />
           <button
             type="submit"
-            disabled={!texto.trim() || pensando || !geminiLigado}
+            disabled={!texto.trim() || pensando || !iaLigada}
             aria-label="Mandar como cliente"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-tinta text-white transition hover:bg-tinta-70 disabled:bg-zinc-300"
           >

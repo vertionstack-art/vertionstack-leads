@@ -913,7 +913,7 @@ function PainelRobo({
         <Bot aria-hidden className="h-5 w-5 shrink-0 text-zinc-500" />
         <p className="min-w-0 flex-1 text-[12.5px] font-semibold text-zinc-700">
           {!robo.pronto
-            ? 'Robô de vendas: falta a chave do Gemini (GEMINI_API_KEY) na Vercel.'
+            ? 'Robô de vendas: falta configurar a IA do robô na Vercel.'
             : 'Robô de vendas desligado na conta. Ligue na lista de Conversas para ele responder os leads.'}
         </p>
         {robo.pronto && (

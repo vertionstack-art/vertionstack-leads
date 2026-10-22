@@ -29,7 +29,7 @@ import { enviarTexto, evolutionLigada, marcarComoLida } from './evolution';
 import { numeroWhatsapp } from './telefone';
 import { valores, type CfgProposta } from './financeiro';
 import { rotuloDoInteresse } from './interesses';
-import { ErroGemini, geminiLigado } from './gemini';
+import { ErroIa, cabecaLigada } from './cabeca';
 import { decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type Decisao, type LeadParaIa } from './robo-cerebro';
 import { normalizarConfig, type ConfigRobo } from './robo-config';
 import type { Aguardando, AvisoRobo, EstadoRobo } from './robo-tipos';
@@ -38,7 +38,7 @@ import type { Aguardando, AvisoRobo, EstadoRobo } from './robo-tipos';
 const ESPERA_MS = 25_000;
 /** respostas do robô por conversa, por dia: passou disso é conversa estranha, chama a pessoa */
 const MAX_POR_CONVERSA = 30;
-/** pedidos ao Gemini por dia na conta inteira (a faixa grátis tem limite diário) */
+/** pedidos à IA do robô por dia na conta inteira (o Gemini grátis tem limite diário) */
 const MAX_POR_DIA = Number(process.env.ROBO_MAX_DIA) || 200;
 
 export { ROTULO_AGUARDANDO } from './robo-tipos';
@@ -79,7 +79,7 @@ export async function estadoDoRobo(conta: string, lead: string): Promise<EstadoR
   `;
   return {
     ativoNaConta: Boolean(r?.robo_ativo),
-    pronto: geminiLigado() && evolutionLigada(),
+    pronto: cabecaLigada() && evolutionLigada(),
     ligado: Boolean(r?.ligado),
     aguardando: (r?.aguardando as Aguardando) || null,
     aguardandoMotivo: (r?.aguardando_motivo as string) || null,
@@ -263,7 +263,7 @@ async function montarContexto(conta: string, leadId: string, entrega: string | n
 
 async function travar(conta: string, lead: string): Promise<boolean> {
   const r = await sql()`
-    update robo_conversas set processando_ate = now() + interval '90 seconds'
+    update robo_conversas set processando_ate = now() + interval '150 seconds'
     where conta_id = ${conta} and lead_id = ${lead} and (processando_ate is null or processando_ate < now())
     returning lead_id
   `;
@@ -274,11 +274,11 @@ async function destravar(conta: string, lead: string): Promise<void> {
   await sql()`update robo_conversas set processando_ate = null where conta_id = ${conta} and lead_id = ${lead}`;
 }
 
-/** pedidos ao Gemini hoje (conversas de verdade e testes) */
+/** pedidos à IA do robô hoje (conversas de verdade e testes); o Claude da conversa guiada fica de fora */
 export async function pedidosHoje(conta: string): Promise<number> {
   const [r] = await sql()`
     select count(*)::int as n from uso_ia
-    where conta_id = ${conta} and modelo like 'gemini%'
+    where conta_id = ${conta} and modelo not like 'claude%'
       and (criado_em at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date
   `;
   return (r?.n as number) || 0;
@@ -314,7 +314,7 @@ export async function responderSePrecisar(conta: string, leadId: string, gatilho
   `;
   if (!estado?.robo_ativo || !estado.ligado) return { feito: 'pulou', motivo: 'robô desligado' };
   if (estado.aguardando && !forcar) return { feito: 'pulou', motivo: 'esperando você' };
-  if (!geminiLigado() || !evolutionLigada()) return { feito: 'pulou', motivo: 'falta configurar' };
+  if (!cabecaLigada() || !evolutionLigada()) return { feito: 'pulou', motivo: 'falta configurar' };
   const treino = await treinoDoRobo(conta);
   if (!forcar && !dentroDoHorario(treino.cfg)) return { feito: 'pulou', motivo: 'fora do horário' };
 
@@ -355,7 +355,7 @@ export async function responderSePrecisar(conta: string, leadId: string, gatilho
 
 /** "Entregar ao robô": o que a pessoa preparou (link da prévia, valor, resposta) vira mensagem natural */
 export async function entregarAoRobo(conta: string, leadId: string, entrega: string, quem: string): Promise<Resultado> {
-  if (!geminiLigado() || !evolutionLigada()) return { feito: 'erro', motivo: 'Falta configurar o Gemini ou o WhatsApp.' };
+  if (!cabecaLigada() || !evolutionLigada()) return { feito: 'erro', motivo: 'Falta configurar a IA do robô ou o WhatsApp.' };
   await sql()`
     insert into robo_conversas (conta_id, lead_id, ligado) values (${conta}, ${leadId}, true)
     on conflict (conta_id, lead_id) do update set ligado = true, pausado_motivo = null
@@ -376,7 +376,7 @@ export async function entregarAoRobo(conta: string, leadId: string, entrega: str
   }
 }
 
-/** grava o uso no medidor (o Gemini grátis não custa nada, mas conta para o limite do dia) */
+/** grava o uso no medidor (a IA do PC e o Gemini grátis não custam nada, mas contam para o limite do dia) */
 export async function registrarUso(conta: string, leadId: string, r: { modelo: string; entrada: number; saida: number }): Promise<void> {
   await sql()`
     insert into uso_ia (conta_id, lead_id, modelo, entrada, saida, cache_lida, cache_gravada, custo_usd)
@@ -392,7 +392,7 @@ async function decidirEEnviar(conta: string, ctx: Contexto, entrega: string | nu
     d = r.decisao;
     await registrarUso(conta, leadId, r);
   } catch (e) {
-    const motivo = e instanceof ErroGemini ? e.message : 'O Gemini falhou.';
+    const motivo = e instanceof ErroIa ? e.message : 'A IA falhou.';
     await pararParaVoce(conta, leadId, ctx.ultimoClienteId, 'humano', `O robô não conseguiu responder: ${motivo} Responda você ou clique em "Responder agora".`);
     return { feito: 'erro', motivo };
   }

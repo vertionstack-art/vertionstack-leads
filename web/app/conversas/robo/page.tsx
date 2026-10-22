@@ -4,7 +4,7 @@ import { ArrowLeft, Bot } from 'lucide-react';
 import { sessaoAtual } from '@/lib/conta';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { CATALOGO } from '@/lib/catalogo';
-import { geminiLigado } from '@/lib/gemini';
+import { cabecaLigada } from '@/lib/cabeca';
 import { escritaDoDono, treinoDoRobo } from '@/lib/robo';
 import Casca from '@/app/casca';
 import TreinoRobo from './treino';
@@ -44,7 +44,7 @@ export default async function PaginaTreino() {
         oferta={t.oferta}
         escritaAprendida={escrita}
         catalogo={CATALOGO.filter((s) => s.familia !== 'cortesia').map((s) => s.nome)}
-        geminiLigado={geminiLigado()}
+        iaLigada={cabecaLigada()}
       />
     </Casca>
   );

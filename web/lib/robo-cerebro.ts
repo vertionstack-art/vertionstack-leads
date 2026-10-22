@@ -1,14 +1,14 @@
 /**
  * O "cérebro" do robô de vendas: monta as instruções a partir do que o dono
  * ensinou (lib/robo-config), monta o pedido com o lead e a conversa, pergunta
- * ao Gemini e confere a resposta antes de ela sair. Usado pela conversa de
+ * à IA (lib/cabeca) e confere a resposta antes de ela sair. Usado pela conversa de
  * verdade (lib/robo) e pelo "Testar o robô", para os dois se comportarem
  * igual. Só roda no servidor.
  */
 
 import { CATALOGO } from './catalogo';
 import { roteiroEmTexto, OBJECOES, TODOS_OS_PASSOS } from './roteiro';
-import { perguntarJson } from './gemini';
+import { perguntarJson } from './cabeca';
 import { linksDoPortfolio, type ConfigRobo } from './robo-config';
 
 export const ACOES = ['responder', 'chamar_dono', 'encerrar', 'nada'] as const;

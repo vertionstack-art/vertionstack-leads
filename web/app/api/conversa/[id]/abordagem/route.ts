@@ -7,11 +7,11 @@ import { eu } from '@/lib/mensagem';
 import { rotuloDoInteresse } from '@/lib/interesses';
 import { gerarAbordagem, mensagensSeguras, sortearAngulo, type DadosAbordagem } from '@/lib/robo-cerebro';
 import { LIMITE_POR_DIA, pedidosHoje, registrarUso, treinoDoRobo } from '@/lib/robo';
-import { ErroGemini, geminiLigado } from '@/lib/gemini';
+import { ErroIa, FALTA_CABECA, cabecaLigada } from '@/lib/cabeca';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -28,7 +28,7 @@ export async function POST(req: Request, ctx: Ctx) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
   if (!podeUsarConversa(s.sessao.email)) return NextResponse.json({ ok: false, erro: 'Não encontrado.' }, { status: 404 });
-  if (!geminiLigado()) return NextResponse.json({ ok: false, erro: 'Falta a chave do Gemini (GEMINI_API_KEY) na Vercel.' }, { status: 503 });
+  if (!cabecaLigada()) return NextResponse.json({ ok: false, erro: FALTA_CABECA }, { status: 503 });
   if (await estourou('abordagem:' + s.sessao.userId, 20, 60)) {
     return NextResponse.json({ ok: false, erro: 'Muitas abordagens seguidas. Espere um minuto.' }, { status: 429 });
   }
@@ -70,7 +70,7 @@ export async function POST(req: Request, ctx: Ctx) {
     if (!segura) return NextResponse.json({ ok: false, erro: 'A IA escreveu algo que não pode sair (link ou trecho inventado). Clique de novo.' }, { status: 422 });
     return NextResponse.json({ ok: true, mensagem: segura[0], angulo: angulo.id, rotulo: angulo.rotulo });
   } catch (e) {
-    const erro = e instanceof ErroGemini ? e.message : 'A IA não respondeu agora. Tente de novo.';
+    const erro = e instanceof ErroIa ? e.message : 'A IA não respondeu agora. Tente de novo.';
     return NextResponse.json({ ok: false, erro }, { status: 502 });
   }
 }

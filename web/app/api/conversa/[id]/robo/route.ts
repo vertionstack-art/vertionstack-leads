@@ -8,7 +8,7 @@ import { entregarAoRobo, estadoDoRobo, ligarRoboNaConversa, resolverEspera, resp
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 90;
+export const maxDuration = 150;
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -51,7 +51,7 @@ export async function POST(req: Request, ctx: Ctx) {
     else if (r.feito === 'pulou') {
       erro = {
         'robô desligado': 'Ligue o robô na conta e nesta conversa primeiro.',
-        'falta configurar': 'Falta a chave do Gemini (ou o WhatsApp) na Vercel.',
+        'falta configurar': 'Falta configurar a IA do robô (ou o WhatsApp) na Vercel.',
         'última mensagem não é do cliente': 'A última mensagem não é do cliente: não há o que responder.',
         'já respondido': 'O robô já respondeu a última mensagem do cliente.',
         ocupado: 'O robô está respondendo agora. Espere alguns segundos.',

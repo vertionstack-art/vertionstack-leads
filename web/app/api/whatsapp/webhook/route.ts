@@ -9,7 +9,7 @@ import { aoMandarPorContaPropria, responderSePrecisar } from '@/lib/robo';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // o robô espera o cliente terminar de digitar (25 s) e pensa antes de responder
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 /**
  * O servidor da Evolution API avisa aqui cada mensagem nova do WhatsApp da

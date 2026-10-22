@@ -5,11 +5,11 @@ import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { normalizarConfig } from '@/lib/robo-config';
 import { decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type FalaParaIa, type LeadParaIa } from '@/lib/robo-cerebro';
 import { escritaDoDono, LIMITE_POR_DIA, pedidosHoje, registrarUso, treinoDoRobo } from '@/lib/robo';
-import { ErroGemini, geminiLigado } from '@/lib/gemini';
+import { ErroIa, FALTA_CABECA, cabecaLigada } from '@/lib/cabeca';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /**
  * "Testar o robô": você faz o papel do cliente e vê o que ele responderia,
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
   if (!podeUsarConversa(s.sessao.email)) return NextResponse.json({ ok: false }, { status: 404 });
-  if (!geminiLigado()) return NextResponse.json({ ok: false, erro: 'Falta a chave do Gemini (GEMINI_API_KEY) na Vercel.' }, { status: 503 });
+  if (!cabecaLigada()) return NextResponse.json({ ok: false, erro: FALTA_CABECA }, { status: 503 });
   if (await estourou('robo-teste:' + s.sessao.userId, 20, 60)) {
     return NextResponse.json({ ok: false, erro: 'Muitos testes seguidos. Espere um minuto.' }, { status: 429 });
   }
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     const seguras = r.decisao.acao === 'nada' ? [] : mensagensSeguras(r.decisao.mensagens, linksPermitidos(lead, cfg, null));
     return NextResponse.json({ ok: true, decisao: r.decisao, bloqueada: seguras === null });
   } catch (e) {
-    const erro = e instanceof ErroGemini ? e.message : 'O Gemini não respondeu agora.';
+    const erro = e instanceof ErroIa ? e.message : 'A IA não respondeu agora.';
     return NextResponse.json({ ok: false, erro }, { status: 502 });
   }
 }
