@@ -43,15 +43,20 @@ export async function registrarMensagem(
   autor: 'eu' | 'cliente',
   texto: string,
   passo: string | null,
-): Promise<MensagemConversa | 'cheio'> {
+  /** id da mensagem no WhatsApp (Evolution): a mesma mensagem nunca entra duas vezes */
+  externoId: string | null = null,
+): Promise<MensagemConversa | 'cheio' | 'repetida'> {
   const [n] = await db()`select count(*)::int as n from conversa_mensagens where conta_id = ${conta} and lead_id = ${lead}`;
   if ((n.n as number) >= MAX_MENSAGENS) return 'cheio';
   const p = passoPorId(passo) ? passo : null;
-  const [x] = await db()`
-    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo)
-    values (${conta}, ${lead}, ${autor}, ${texto}, ${p})
+  const linhas = await db()`
+    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo, externo_id)
+    values (${conta}, ${lead}, ${autor}, ${texto}, ${p}, ${externoId})
+    on conflict (conta_id, externo_id) where externo_id is not null do nothing
     returning id, criado_em
   `;
+  if (!linhas.length) return 'repetida';
+  const [x] = linhas;
   if (p && autor === 'eu') await marcarPasso(conta, lead, p, true);
   return { id: Number(x.id), autor, texto, passo: p, em: new Date(x.criado_em).toISOString() };
 }
@@ -111,4 +116,31 @@ export async function resumoDasConversas(conta: string): Promise<Map<string, Res
     else mapa.set(p.lead_id as string, { leadId: p.lead_id as string, mensagens: 0, ultimaEm: null, ultimoAutor: null, ultimoTexto: null, passos: p.n as number });
   }
   return mapa;
+}
+
+// ------------------------------------------------------ WhatsApp ligado
+
+/** a conta que usa a conversa guiada (o primeiro e-mail de CONVERSA_EMAILS) */
+export async function contaDaConversa(): Promise<string | null> {
+  const email = (process.env.CONVERSA_EMAILS || 'vertionstack@gmail.com').split(',')[0].trim();
+  const [r] = await db()`
+    select m.conta_id from membros m
+    where m.user_id = (select public.usuario_pelo_email(${email}))
+    limit 1
+  `;
+  return (r?.conta_id as string) || null;
+}
+
+/** o lead desta conta com este celular (as formas vêm de variantesDoNumero) */
+export async function leadPeloNumero(conta: string, formas: string[]): Promise<string | null> {
+  if (!formas.length) return null;
+  const [r] = await db()`
+    select id from leads
+    where conta_id = ${conta}
+      and (regexp_replace(coalesce(whatsapp, ''), '\\D', '', 'g') = any(${formas})
+        or regexp_replace(coalesce(phone, ''), '\\D', '', 'g') = any(${formas}))
+    order by updated_at desc
+    limit 1
+  `;
+  return (r?.id as string) || null;
 }

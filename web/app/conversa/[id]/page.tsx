@@ -7,6 +7,7 @@ import { numeroWhatsapp } from '@/lib/telefone';
 import { mensagensDaConversa, passosFeitos } from '@/lib/conversa';
 import { dadosDoLead, podeUsarConversa } from '@/lib/conversa-contexto';
 import { usoDaIa } from '@/lib/ia';
+import { estadoDoWhatsapp } from '@/lib/evolution';
 import ConversaGuiada from './conversa';
 import Casca from '@/app/casca';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
@@ -34,6 +35,7 @@ export default async function PaginaConversa({ params }: { params: Promise<{ id:
   const mensagens = await mensagensDaConversa(sessao.contaId, idLead);
   const passos = await passosFeitos(sessao.contaId, idLead);
   const uso = await usoDaIa(sessao.contaId);
+  const zap = await estadoDoWhatsapp().catch(() => 'desligado' as const);
   const numero = lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone));
 
   return (
@@ -67,6 +69,7 @@ export default async function PaginaConversa({ params }: { params: Promise<{ id:
           passosIniciais={passos}
           usoInicial={uso}
           statusLead={lead.status}
+          whatsappLigado={zap === 'open'}
         />
     </Casca>
   );

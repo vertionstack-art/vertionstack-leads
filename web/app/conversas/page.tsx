@@ -1,5 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
-import { MessagesSquare } from 'lucide-react';
+import Link from 'next/link';
+import { MessagesSquare, Smartphone } from 'lucide-react';
+import { estadoDoWhatsapp } from '@/lib/evolution';
 import { sessaoAtual } from '@/lib/conta';
 import { daLinha } from '@/lib/db';
 import { db } from '@/lib/sql';
@@ -32,6 +34,7 @@ export default async function PaginaConversas() {
     limit ${MAX_LEADS}
   `;
   const resumo = await resumoDasConversas(sessao.contaId);
+  const zap = await estadoDoWhatsapp().catch(() => 'inexistente' as const);
 
   const itens: ItemConversa[] = linhas.map((r) => {
     const lead = daLinha(r);
@@ -62,6 +65,17 @@ export default async function PaginaConversas() {
       icone={<MessagesSquare aria-hidden className="h-6 w-6" strokeWidth={2} />}
       titulo="Conversas"
       subtitulo="Seus leads no WhatsApp, do primeiro oi até a venda. Quem respondeu aparece primeiro."
+      acoes={
+        <Link
+          href="/conversas/whatsapp"
+          className={`inline-flex min-h-[40px] items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-colors ${
+            zap === 'open' ? 'bg-menta text-emerald-950 hover:bg-emerald-200' : 'bg-tinta text-white hover:bg-tinta-70'
+          }`}
+        >
+          <Smartphone aria-hidden className="h-4 w-4" />
+          {zap === 'open' ? 'WhatsApp conectado' : 'Conectar WhatsApp'}
+        </Link>
+      }
     >
       <ListaConversas itens={itens} totalPassos={TODOS_OS_PASSOS.length} />
     </Casca>

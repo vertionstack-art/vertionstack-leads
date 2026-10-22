@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, Sparkles, Trash2, X,
+  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, X,
 } from 'lucide-react';
 import { aplicarModelo, linkComTexto, mensagemPronta, type DadosMensagem, type Remetente } from '@/lib/mensagem';
 import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao, type Fase } from '@/lib/roteiro';
@@ -60,6 +60,7 @@ export default function ConversaGuiada({
   passosIniciais,
   usoInicial,
   statusLead,
+  whatsappLigado = false,
 }: {
   leadId: string;
   numero: string | null;
@@ -70,6 +71,8 @@ export default function ConversaGuiada({
   passosIniciais: string[];
   usoInicial: UsoIa;
   statusLead: string;
+  /** o WhatsApp da Vertion está conectado pela Evolution: envia daqui e as respostas chegam sozinhas */
+  whatsappLigado?: boolean;
 }) {
   const [aba, setAba] = useState<Aba>('conversa');
   const [mensagens, setMensagens] = useState(mensagensIniciais);
@@ -90,6 +93,50 @@ export default function ConversaGuiada({
   const [abertas, setAbertas] = useState<Set<string>>(() => new Set([faseAtual(passosIniciais)]));
 
   const base = `/api/conversa/${encodeURIComponent(leadId)}`;
+
+  // com o WhatsApp conectado, as respostas do lead chegam sozinhas: a tela confere a cada 8 segundos
+  useEffect(() => {
+    if (!whatsappLigado) return;
+    let parado = false;
+    const conferir = async () => {
+      if (document.hidden) return;
+      try {
+        const j = await fetch(base, { cache: 'no-store' }).then((x) => x.json());
+        if (!parado && j.ok) {
+          setMensagens((atual) => (j.mensagens.length !== atual.length ? j.mensagens : atual));
+          setPassos(new Set(j.passos));
+        }
+      } catch {
+        // rede caiu: tenta de novo na próxima volta
+      }
+    };
+    const relogio = setInterval(conferir, 8000);
+    return () => {
+      parado = true;
+      clearInterval(relogio);
+    };
+  }, [whatsappLigado, base]);
+
+  /** envia UMA mensagem pelo WhatsApp da Vertion: só acontece porque a pessoa clicou */
+  async function enviarPeloZap() {
+    const t = texto.trim();
+    if (!t) return;
+    setOcupado(true);
+    setErro(null);
+    try {
+      const j = await chamar(`${base}/enviar`, { method: 'POST', body: JSON.stringify({ texto: t, passo: passoDoTexto }) });
+      if (j.mensagem) setMensagens((m) => (m.some((x) => x.id === j.mensagem.id) ? m : [...m, j.mensagem]));
+      setPassos(new Set(j.passos));
+      setTexto('');
+      setPassoDoTexto(null);
+      setSugestao(null);
+      setAviso('Enviada pelo WhatsApp da Vertion.');
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setOcupado(false);
+    }
+  }
 
   /** troca os marcadores do roteiro pelos dados deste lead */
   const preencher = useMemo(() => {
@@ -552,12 +599,25 @@ export default function ConversaGuiada({
               <p className="mt-1.5 text-[12px] font-semibold text-amber-800">Troque o que está [entre colchetes] antes de enviar.</p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
+              {whatsappLigado && (
+                <button
+                  type="button"
+                  disabled={ocupado || !texto.trim() || !numero || /\[[^\]]+\]/.test(texto)}
+                  onClick={enviarPeloZap}
+                  title={numero ? 'Envia agora pelo WhatsApp da Vertion' : 'Este lead não tem WhatsApp'}
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-emerald-700 px-5 text-[13px] font-bold text-white hover:bg-emerald-800 disabled:bg-zinc-300"
+                >
+                  <SendHorizontal aria-hidden className="h-4 w-4" /> {ocupado ? 'Enviando…' : 'Enviar pelo WhatsApp'}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={ocupado || !texto.trim() || !numero}
                 onClick={() => enviarMinha(true)}
                 title={numero ? '' : 'Este lead não tem WhatsApp'}
-                className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70 disabled:bg-zinc-300"
+                className={`inline-flex min-h-[44px] items-center gap-2 rounded-full px-5 text-[13px] font-bold disabled:bg-zinc-300 ${
+                  whatsappLigado ? 'text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:ring-tinta disabled:text-white' : 'bg-tinta text-white hover:bg-tinta-70'
+                }`}
               >
                 <MessageCircle aria-hidden className="h-4 w-4" /> Abrir no WhatsApp
               </button>
