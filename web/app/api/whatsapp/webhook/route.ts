@@ -5,6 +5,7 @@ import { registrarEvento } from '@/lib/eventos';
 import { contaDaConversa, leadPeloNumero, registrarMensagem } from '@/lib/conversa';
 import { lerMensagemRecebida, segredoDoWebhookConfere, variantesDoNumero } from '@/lib/evolution';
 import { aoMandarPorContaPropria, responderSePrecisar } from '@/lib/robo';
+import { aquecerIaLocal } from '@/lib/ia-local';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
   if (typeof r === 'object' && !msg.deMim) {
     await registrarEvento(conta, lead, 'whatsapp', `Respondeu no WhatsApp: “${msg.texto.replace(/\s+/g, ' ').slice(0, 160)}”`, msg.nome);
     const gatilho = r.id;
+    // a IA do PC carrega na placa enquanto o robô espera o cliente terminar de digitar
+    after(() => aquecerIaLocal());
     after(() =>
       responderSePrecisar(conta, lead, gatilho).then((x) => {
         if (x.feito === 'erro') console.error('[robo] webhook', x.motivo);

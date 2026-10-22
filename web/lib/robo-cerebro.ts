@@ -114,7 +114,7 @@ ${empresaTexto}
 - Mandar link que não esteja em <lead>, no <portfolio> ou em <entrega_do_vendedor>.
 - Confirmar horário de chamada, brinde ou condição especial: isso é sempre com o dono.
 - Dizer espontaneamente que é robô, IA ou assistente.
-- Mentir sobre ser robô: se o cliente perguntar de forma sincera se está falando com robô, IA ou resposta automática, não negue. Diga com naturalidade que usa um assistente para responder mais rápido e que acompanha tudo e entra sempre que precisar.${cfg.proibido.trim() ? `\n- Nunca, de jeito nenhum: ${cfg.proibido.trim()}` : ''}
+- Mentir sobre ser robô: se o cliente perguntar de forma sincera se está falando com robô, IA ou resposta automática, não negue. Nunca escreva "não sou robô" nem "sou uma pessoa". Responda algo como: "Boa pergunta! Uso um assistente pra responder mais rápido, mas sou eu que acompanho tudo e entro sempre que precisar."${cfg.proibido.trim() ? `\n- Nunca, de jeito nenhum: ${cfg.proibido.trim()}` : ''}
 
 ## Quando usar cada ação
 - "responder": você consegue seguir a conversa com o que sabe.
@@ -207,7 +207,10 @@ export async function decidir(instrucoes: string, pedido: string, entrega: boole
   return { decisao: d, entrada: r.entrada, saida: r.saida, modelo: r.modelo };
 }
 
-/** a última barreira antes de enviar: link desconhecido ou [colchete] não saem; null = não enviar nada */
+const NEGA_SER_ROBO =
+  /n[ãa]o\s+sou\s+(um\s+|uma\s+|nenhum\s+)?(rob[ôo]|bot|ia\b|intelig[êe]ncia\s+artificial|m[áa]quina|assistente)|sou\s+(uma\s+)?(pessoa|gente)\s+(de\s+verdade|real)|sou\s+(um\s+)?humano|n[ãa]o\s+[ée]\s+(um\s+)?rob[ôo]/i;
+
+/** a última barreira antes de enviar: link desconhecido, [colchete] ou negar ser robô não saem; null = não enviar nada */
 export function mensagensSeguras(mensagens: string[], links: string[]): string[] | null {
   if (!mensagens.length) return null;
   const conhecidos = links.map((l) => l.replace(/[.,;!?)]+$/, ''));
@@ -215,6 +218,8 @@ export function mensagensSeguras(mensagens: string[], links: string[]): string[]
   for (const m of mensagens) {
     const t = m.trim().slice(0, 700);
     if (/\[[^\]]+\]|\{[a-z_]+\}/i.test(t)) return null;
+    // a regra que não pode falhar: o robô não nega ser robô, mesmo que a IA escreva isso
+    if (NEGA_SER_ROBO.test(t)) return null;
     const urls = t.match(/https?:\/\/[^\s)>\]]+/g) || [];
     if (urls.some((u) => !conhecidos.includes(u.replace(/[.,;!?)]+$/, '')))) return null;
     saida.push(t);
@@ -311,7 +316,7 @@ export async function gerarAbordagem(
 
 Jeito de escrever: ${TOM[cfg.formalidade]} ${EMOJI[cfg.emojis]}${cfg.expressoes.trim() ? ` Expressões que ele usa: ${cfg.expressoes.trim()}.` : ''}
 - Português do Brasil, como alguém digitando no celular. De 2 a 4 frases curtas no total (pode quebrar linha). Nada de lista, negrito ou linguagem de e-mail.
-- Apresente-se como "${quem}" (exatamente com esse artigo), da ${empresa}.
+- Apresente-se com "Aqui é ${quem}" ou "Sou ${quem}", da ${empresa} (exatamente com esse artigo).
 - Varie o cumprimento: não use "Oi, tudo bem?" e não comece igual às mensagens em <ja_usadas>. Pode usar "Olá", "Opa", "Bom dia", "E aí", "Oi, como vai?", o que combinar com o tom.
 - Termine com uma pergunta fácil de responder.
 - Use só fatos que estão em <lead>. Nunca invente número, resultado, preço, prazo, cliente ou elogio que não tenha base. Não diga que é robô ou IA.

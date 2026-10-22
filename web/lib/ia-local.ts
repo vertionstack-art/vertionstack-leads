@@ -21,6 +21,40 @@ export function modeloLocal(): string {
   return process.env.OLLAMA_MODELO || 'gemma4:12b';
 }
 
+/** o mesmo do OLLAMA_CONTEXT_LENGTH do docker-compose: pedir outro tamanho faz o Ollama recarregar o modelo */
+const CONTEXTO = 10240;
+
+function cabecalhos(): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'x-vertion-ia': (process.env.OLLAMA_SEGREDO || '').trim(),
+    // o ngrok grátis mostra uma página de aviso para navegador; servidor pula com isto
+    'ngrok-skip-browser-warning': '1',
+  };
+}
+
+/**
+ * Carrega o modelo na placa de vídeo sem pedir resposta (o Ollama aceita
+ * conversa vazia para isso). O webhook chama quando o cliente escreve: a
+ * carga, que leva uns 50 s depois de 30 min parada, acontece enquanto o robô
+ * espera o cliente terminar de digitar. Falhar aqui não importa.
+ */
+export async function aquecerIaLocal(): Promise<void> {
+  if (!iaLocalLigada()) return;
+  const base = (process.env.OLLAMA_URL || '').trim().replace(/\/$/, '');
+  try {
+    await fetch(`${base}/api/chat`, {
+      method: 'POST',
+      headers: cabecalhos(),
+      body: JSON.stringify({ model: modeloLocal(), messages: [], keep_alive: '30m', options: { num_ctx: CONTEXTO } }),
+      signal: AbortSignal.timeout(90_000),
+      cache: 'no-store',
+    });
+  } catch {
+    // sem problema: a resposta de verdade tenta de novo
+  }
+}
+
 export async function perguntarJsonLocal<T>(instrucoes: string, pedido: string, esquema: Record<string, unknown>): Promise<RespostaGemini<T>> {
   const base = (process.env.OLLAMA_URL || '').trim().replace(/\/$/, '');
   const modelo = modeloLocal();
@@ -29,12 +63,7 @@ export async function perguntarJsonLocal<T>(instrucoes: string, pedido: string, 
   try {
     r = await fetch(`${base}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-vertion-ia': (process.env.OLLAMA_SEGREDO || '').trim(),
-        // o ngrok grátis mostra uma página de aviso para navegador; servidor pula com isto
-        'ngrok-skip-browser-warning': '1',
-      },
+      headers: cabecalhos(),
       body: JSON.stringify({
         model: modelo,
         messages: [
@@ -45,8 +74,8 @@ export async function perguntarJsonLocal<T>(instrucoes: string, pedido: string, 
         // o Ollama obriga a resposta a seguir o esquema
         format: esquema,
         think: false,
-        keep_alive: '5m',
-        options: { temperature: 0.7, num_ctx: 16384, num_predict: 1024 },
+        keep_alive: '30m',
+        options: { temperature: 0.7, num_ctx: CONTEXTO, num_predict: 1024 },
       }),
       // a primeira resposta depois de um tempo parado carrega o modelo na placa (uns segundos a mais)
       signal: AbortSignal.timeout(100_000),
