@@ -82,35 +82,54 @@ export interface RespostaGemini<T> {
   modelo: string;
 }
 
+/** o Google já recusou o formato completo nesta instância: vai direto no simples */
+let formatoSimples = false;
+
 /** pede uma resposta em JSON no formato do esquema; erro vira ErroGemini com o motivo em português */
 export async function perguntarJson<T>(instrucoes: string, pedido: string, esquema: Record<string, unknown>): Promise<RespostaGemini<T>> {
   if (!geminiLigado()) throw new ErroGemini('Falta a chave do Gemini (GEMINI_API_KEY) na Vercel.', 'chave');
   const modelo = modeloGemini();
   const base = (process.env.GEMINI_URL || 'https://generativelanguage.googleapis.com').replace(/\/$/, '');
 
-  let r: Response;
-  try {
-    r = await fetch(`${base}/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, {
+  /*
+   * Primeiro o pedido completo (esquema de JSON e raciocínio curto). Se o
+   * Google recusar o formato (400 que não é de chave), repete na hora no
+   * formato simples, que todo modelo aceita: só "responda em JSON", com o
+   * esquema escrito nas instruções. Depois de uma recusa, esta instância já
+   * vai direto no simples.
+   */
+  const enviar = (simples: boolean) =>
+    fetch(`${base}/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave() },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: instrucoes }] },
-        contents: [{ role: 'user', parts: [{ text: pedido }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseJsonSchema: esquema,
-          maxOutputTokens: 2048,
-          thinkingConfig: { thinkingLevel: 'low' },
+        systemInstruction: {
+          parts: [{ text: simples ? `${instrucoes}\n\nResponda SOMENTE com um objeto JSON válido que siga este JSON Schema, sem texto antes ou depois:\n${JSON.stringify(esquema)}` : instrucoes }],
         },
+        contents: [{ role: 'user', parts: [{ text: pedido }] }],
+        generationConfig: simples
+          ? { responseMimeType: 'application/json', maxOutputTokens: 4096 }
+          : { responseMimeType: 'application/json', responseJsonSchema: esquema, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: 'low' } },
       }),
       signal: AbortSignal.timeout(45_000),
       cache: 'no-store',
     });
+
+  let r: Response;
+  let texto: string;
+  try {
+    r = await enviar(formatoSimples);
+    texto = await r.text();
+    if (r.status === 400 && !formatoSimples && !/API_KEY|API key/i.test(texto)) {
+      console.error('[gemini] formato completo recusado, tentando o simples:', texto.slice(0, 600));
+      formatoSimples = true;
+      r = await enviar(true);
+      texto = await r.text();
+    }
   } catch {
     throw new ErroGemini('O Gemini não respondeu a tempo.', 'falha');
   }
 
-  const texto = await r.text();
   if (!r.ok) {
     console.error('[gemini]', r.status, texto.slice(0, 600));
     throw erroDoGoogle(r.status, texto, modelo);
@@ -129,7 +148,10 @@ export async function perguntarJson<T>(instrucoes: string, pedido: string, esque
   const saida = (c.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
   let dados: T;
   try {
-    dados = JSON.parse(saida) as T;
+    // no formato simples o modelo às vezes embrulha o JSON em ```json ... ```
+    const ini = saida.indexOf('{');
+    const fim = saida.lastIndexOf('}');
+    dados = JSON.parse(ini >= 0 && fim > ini ? saida.slice(ini, fim + 1) : saida) as T;
   } catch {
     throw new ErroGemini(c.finishReason === 'MAX_TOKENS' ? 'A resposta do Gemini veio cortada.' : 'O Gemini respondeu num formato errado.', 'falha');
   }
