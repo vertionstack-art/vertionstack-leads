@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Bot, BellRing } from 'lucide-react';
+import { ArrowRight, Bot, BellRing, GraduationCap } from 'lucide-react';
 import { ROTULO_AGUARDANDO, type AvisoRobo } from '@/lib/robo-tipos';
 
 /**
@@ -99,6 +99,14 @@ export default function RoboGeral({
               : 'Ligado, ele responde os leads que responderem às mensagens que você mandou pela ferramenta.'}
         </p>
         {erro && <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">{erro}</p>}
+        <Link
+          href="/conversas/robo"
+          className={`mt-4 inline-flex min-h-[40px] w-fit items-center gap-1.5 rounded-full px-4 text-[12.5px] font-extrabold transition ${
+            ativo && pronto ? 'bg-white text-roxo-800 hover:bg-roxo-100' : 'bg-tinta text-white hover:bg-tinta-70'
+          }`}
+        >
+          <GraduationCap aria-hidden className="h-4 w-4" /> Treinar e testar o robô
+        </Link>
       </div>
 
       <div className="rounded-[24px] bg-manteiga p-5">

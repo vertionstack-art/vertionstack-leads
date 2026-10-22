@@ -149,6 +149,15 @@ export async function enviarTexto(numero: string, texto: string, digitando = 0):
   return { id: j?.key?.id || null };
 }
 
+/** marca as mensagens do cliente como lidas (os dois tiques azuis), antes de o robô responder */
+export async function marcarComoLida(numero: string, ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const remoteJid = numero.replace(/\D/g, '') + '@s.whatsapp.net';
+  await chamar('POST', `/chat/markMessageAsRead/${instancia()}`, {
+    readMessages: ids.slice(-10).map((id) => ({ id, fromMe: false, remoteJid })),
+  });
+}
+
 // ------------------------------------------------------- mensagens recebidas
 
 export interface MensagemRecebida {
