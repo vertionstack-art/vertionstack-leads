@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarClock, Store, UserRound, X } from 'lucide-react';
+import { CalendarClock, Check, ClipboardPaste, Copy, FileDown, FileUp, Store, UserRound, X } from 'lucide-react';
 import { INTERESSES } from '@/lib/interesses';
+import { lerCamposDoPdf, lerTexto, temAlgo, type Preenchido } from '@/lib/formulario-cadastro';
 
 /**
  * Cadastro de um lead à mão: um comércio ou uma pessoa.
@@ -15,7 +16,23 @@ import { INTERESSES } from '@/lib/interesses';
  *
  * Só o nome é obrigatório: exigir mais faria a pessoa desistir de cadastrar
  * no meio da rua, que é quando isso costuma acontecer.
+ *
+ * Opcional: o próprio cliente preenche. A ficha sai como texto para o
+ * WhatsApp ou como PDF com campos de digitar (lib/formulario-cadastro); a
+ * resposta colada, ou o PDF devolvido, preenche os campos daqui.
  */
+
+/** os campos de um PDF preenchido, lidos no navegador (a biblioteca só carrega quando usada) */
+async function lerPdf(arquivo: File): Promise<Preenchido> {
+  const { PDFDocument, PDFCheckBox, PDFTextField } = await import('pdf-lib');
+  const doc = await PDFDocument.load(await arquivo.arrayBuffer(), { ignoreEncryption: true });
+  const valores: Record<string, string | boolean> = {};
+  for (const campo of doc.getForm().getFields()) {
+    if (campo instanceof PDFTextField) valores[campo.getName()] = campo.getText() || '';
+    else if (campo instanceof PDFCheckBox) valores[campo.getName()] = campo.isChecked();
+  }
+  return lerCamposDoPdf(valores);
+}
 
 type Tipo = 'comercio' | 'pessoa';
 
@@ -71,6 +88,10 @@ export default function CadastroModal({
   const [interesse, setInteresse] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [copiada, setCopiada] = useState(false);
+  const [trazendo, setTrazendo] = useState(false);
+  const [resposta, setResposta] = useState('');
+  const [lida, setLida] = useState<string | null>(null);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar();
@@ -82,6 +103,69 @@ export default function CadastroModal({
     setC((a) => ({ ...a, [campo]: e.target.value }));
 
   const pessoa = tipo === 'pessoa';
+
+  async function copiarFicha() {
+    setErro(null);
+    try {
+      const r = await fetch('/api/leads/formulario?formato=texto');
+      const d = await r.json();
+      if (!d.ok) throw new Error();
+      await navigator.clipboard.writeText(d.texto);
+      setCopiada(true);
+      setTimeout(() => setCopiada(false), 2200);
+    } catch {
+      setErro('Não consegui copiar a ficha. Tente de novo.');
+    }
+  }
+
+  /** o que o cliente mandou vira os campos do cadastro; nada é salvo antes de conferir */
+  function preencherCom(p: Preenchido, origem: 'texto' | 'pdf') {
+    if (!temAlgo(p)) {
+      setErro(origem === 'pdf'
+        ? 'Esse PDF não tem a ficha preenchida. Confira se é o arquivo que o cliente devolveu.'
+        : 'Não achei nada preenchido nessa mensagem. Cole a resposta inteira do cliente.');
+      return;
+    }
+    const comercio = p.tipo !== 'pessoa' && Boolean(p.empresa);
+    const notas = [
+      comercio && p.nome ? `Contato: ${p.nome}` : '',
+      p.reuniao ? `Melhor horário para conversar: ${p.reuniao}` : '',
+    ].filter(Boolean);
+    setTipo(comercio ? 'comercio' : p.tipo || 'pessoa');
+    setC((a) => ({
+      ...a,
+      name: (comercio ? p.empresa : p.nome || p.empresa) || a.name,
+      category: p.ramo || a.category,
+      phone: p.telefone || a.phone,
+      email: p.email || a.email,
+      city: p.cidade || a.city,
+      address: p.endereco || a.address,
+      instagram: p.instagram || a.instagram,
+      website: p.site || a.website,
+      ideia: [p.ideia, p.outro && `Outro: ${p.outro}`].filter(Boolean).join('\n') || a.ideia,
+      notes: [a.notes, ...notas].filter(Boolean).join('\n'),
+    }));
+    setInteresse((a) => [...new Set([...a, ...p.interesse])]);
+    setErro(null);
+    setTrazendo(false);
+    setResposta('');
+    setLida('Ficha do cliente lida. Confira os campos abaixo e clique em Cadastrar lead.');
+  }
+
+  async function aoEscolherPdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!arquivo) return;
+    if (arquivo.size > 10 * 1024 * 1024) {
+      setErro('Esse arquivo é grande demais para ser a ficha (mais de 10 MB).');
+      return;
+    }
+    try {
+      preencherCom(await lerPdf(arquivo), 'pdf');
+    } catch {
+      setErro('Não consegui abrir esse PDF. Peça para o cliente salvar de novo depois de preencher.');
+    }
+  }
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
@@ -161,6 +245,79 @@ export default function CadastroModal({
           {erro && (
             <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[12.5px] text-red-800">
               {erro}
+            </div>
+          )}
+
+          {/* ------------------------------------------- o cliente preenche (opcional) */}
+          <div className="mb-5 rounded-[18px] bg-chao p-4">
+            <p className="text-[13px] font-extrabold">Prefere que o cliente preencha?</p>
+            <p className="mt-0.5 text-[12px] font-medium text-zinc-700">
+              Mande a ficha, ele devolve preenchida e você traz para cá. Os campos se completam sozinhos.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={copiarFicha}
+                className="flex min-h-[40px] items-center gap-1.5 rounded-full bg-white px-3.5 text-[12.5px] font-bold text-tinta transition hover:bg-roxo-100"
+              >
+                {copiada ? <Check aria-hidden className="h-4 w-4" /> : <Copy aria-hidden className="h-4 w-4" />}
+                {copiada ? 'Copiada: cole no WhatsApp' : 'Copiar ficha para o WhatsApp'}
+              </button>
+              <a
+                href="/api/leads/formulario"
+                download="ficha-de-cadastro.pdf"
+                className="flex min-h-[40px] items-center gap-1.5 rounded-full bg-white px-3.5 text-[12.5px] font-bold text-tinta transition hover:bg-roxo-100"
+              >
+                <FileDown aria-hidden className="h-4 w-4" />
+                Baixar ficha em PDF
+              </a>
+              <button
+                type="button"
+                aria-expanded={trazendo}
+                onClick={() => setTrazendo((v) => !v)}
+                className={`flex min-h-[40px] items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold transition ${
+                  trazendo ? 'bg-tinta text-white' : 'bg-white text-tinta hover:bg-roxo-100'
+                }`}
+              >
+                <ClipboardPaste aria-hidden className="h-4 w-4" />
+                Trazer ficha preenchida
+              </button>
+            </div>
+
+            {trazendo && (
+              <div className="mt-3 rounded-[14px] bg-white p-3">
+                <label className={rotulo} htmlFor="c-resposta">Cole a resposta do cliente</label>
+                <textarea
+                  id="c-resposta"
+                  value={resposta}
+                  onChange={(e) => setResposta(e.target.value)}
+                  rows={5}
+                  className={caixa}
+                  placeholder="Cole aqui a mensagem que ele devolveu no WhatsApp"
+                />
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!resposta.trim()}
+                    onClick={() => preencherCom(lerTexto(resposta), 'texto')}
+                    className="min-h-[40px] rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white transition hover:bg-tinta-70 disabled:bg-zinc-300"
+                  >
+                    Preencher com a resposta
+                  </button>
+                  <span className="text-[12px] font-semibold text-zinc-600">ou</span>
+                  <label className="flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-full bg-zinc-100 px-4 text-[12.5px] font-bold text-tinta transition hover:bg-zinc-200 focus-within:ring-2 focus-within:ring-roxo-200">
+                    <FileUp aria-hidden className="h-4 w-4" />
+                    Enviar o PDF preenchido
+                    <input type="file" accept="application/pdf,.pdf" onChange={aoEscolherPdf} className="sr-only" />
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {lida && (
+            <div role="status" className="mb-4 rounded-2xl bg-menta px-3.5 py-2.5 text-[12.5px] font-semibold text-emerald-950">
+              {lida}
             </div>
           )}
 
