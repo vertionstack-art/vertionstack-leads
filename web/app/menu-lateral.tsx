@@ -3,6 +3,7 @@
 import {
   Crown, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Logo from './logo';
 
@@ -42,11 +43,19 @@ function Item({
       </span>
     </>
   );
-  if (href) {
+  // arquivo para baixar (CSV) é link comum; tela da ferramenta troca sem recarregar a página inteira
+  if (href?.startsWith('/api/')) {
     return (
-      <a href={href} className={classe} aria-current={ativo ? 'page' : undefined} title={rotulo}>
+      <a href={href} className={classe} title={rotulo}>
         {conteudo}
       </a>
+    );
+  }
+  if (href) {
+    return (
+      <Link href={href} className={classe} aria-current={ativo ? 'page' : undefined} title={rotulo}>
+        {conteudo}
+      </Link>
     );
   }
   return (
@@ -69,21 +78,35 @@ export default function MenuLateral({
   extras = [],
 }: {
   ativo: Tela;
-  /** a conversa guiada do WhatsApp (por enquanto só a conta da Vertion) */
-  conversas: boolean;
+  /**
+   * a conversa guiada do WhatsApp (por enquanto só a conta da Vertion).
+   * 'lembrar' é a tela de carregando, que ainda não sabe quem é: usa o que
+   * a última tela completa deixou guardado, para o item não piscar.
+   */
+  conversas: boolean | 'lembrar';
   /** no painel, abre o cadastro ali mesmo */
   aoCadastrar?: () => void;
   /** no painel, volta ao topo em vez de recarregar */
   aoPainel?: () => void;
   extras?: ItemExtra[];
 }) {
+  const [verConversas, setVerConversas] = useState(conversas === true);
+  useEffect(() => {
+    try {
+      if (conversas === 'lembrar') setVerConversas(localStorage.getItem('vl_conversas') === '1');
+      else if (conversas) localStorage.setItem('vl_conversas', '1');
+      else localStorage.removeItem('vl_conversas');
+    } catch {
+      // sem armazenamento no navegador: o item só aparece nas telas completas
+    }
+  }, [conversas]);
   const i = 'h-5 w-5';
   const doca = [
     { tela: 'painel' as const, rotulo: 'Painel', href: '/', Icone: LayoutGrid },
     { tela: 'buscar' as const, rotulo: 'Buscar', href: '/buscar', Icone: Radar },
-    ...(conversas ? [{ tela: 'conversas' as const, rotulo: 'Conversas', href: '/conversas', Icone: MessagesSquare }] : []),
+    ...(verConversas ? [{ tela: 'conversas' as const, rotulo: 'Conversas', href: '/conversas', Icone: MessagesSquare }] : []),
     { tela: 'crm' as const, rotulo: 'CRM', href: '/crm', Icone: Kanban },
-    ...(conversas ? [] : [{ tela: 'financeiro' as const, rotulo: 'Financeiro', href: '/financeiro', Icone: Wallet }]),
+    ...(verConversas ? [] : [{ tela: 'financeiro' as const, rotulo: 'Financeiro', href: '/financeiro', Icone: Wallet }]),
     { tela: 'perfil' as const, rotulo: 'Perfil', href: '/perfil', Icone: UserRound },
   ];
 
@@ -107,7 +130,7 @@ export default function MenuLateral({
           <Item rotulo="Buscar leads" ativo={ativo === 'buscar'} href="/buscar">
             <Radar className={i} strokeWidth={1.8} />
           </Item>
-          {conversas && (
+          {verConversas && (
             <Item rotulo="Conversas (WhatsApp)" ativo={ativo === 'conversas'} href="/conversas">
               <MessagesSquare className={i} strokeWidth={1.8} />
             </Item>
@@ -162,10 +185,10 @@ export default function MenuLateral({
               {rotulo}
             </button>
           ) : (
-            <a key={tela} href={href} className={classe} aria-current={atual ? 'page' : undefined}>
+            <Link key={tela} href={href} className={classe} aria-current={atual ? 'page' : undefined}>
               <Icone className="h-5 w-5" strokeWidth={1.8} />
               {rotulo}
-            </a>
+            </Link>
           );
         })}
       </nav>
