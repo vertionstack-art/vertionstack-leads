@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
-import { buscaLigada, buscasDaConta } from '@/lib/google-places';
+import { buscaLigada, buscasDaConta, resumoDeBuscas } from '@/lib/google-places';
 import { LIMITES } from '@/lib/planos';
 import BuscaGoogle from './busca';
 import EscolhaOferta from './oferta';
@@ -19,6 +19,7 @@ export default async function PaginaBuscar() {
     cotaDaConta(sessao.contaId, sessao.plano),
     buscasDaConta(sessao.contaId, sessao.plano, sessao.pagoAte),
   ]);
+  const resumoBuscas = await resumoDeBuscas(sessao.contaId);
   const [c] = await db()`
     select oferta, oferta_texto, oferta_publico, empresa_nome,
       (oferta = 'sites' and cardinality(oferta_publico) = 0 and oferta_texto is null) as nova
@@ -48,6 +49,7 @@ export default async function PaginaBuscar() {
           ligada={buscaLigada()}
           cotaInicial={cotaParaJson(cota)}
           buscasIniciais={{ usadas, limite: LIMITES[sessao.plano].buscas, periodo, ilimitado: sessao.plano === 'cortesia' }}
+          resumoInicial={resumoBuscas}
         />
     </Casca>
   );

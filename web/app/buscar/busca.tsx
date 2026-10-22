@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Check, Loader2, Play, Plus, Square } from 'lucide-react';
+import type { ResumoBuscas } from '@/lib/google-places';
 
 const NICHOS_PADRAO = [
   'Barbearia', 'Clínica', 'Restaurante', 'Academia', 'Imobiliária', 'Oficina mecânica', 'Serralheria', 'Pizzaria',
@@ -68,11 +69,15 @@ export default function BuscaGoogle({
   ligada,
   cotaInicial,
   buscasIniciais,
+  resumoInicial,
 }: {
   ligada: boolean;
   cotaInicial: CotaJson;
   buscasIniciais: Buscas;
+  /** buscas feitas hoje, na semana, no mês e desde o começo (lib/google-places) */
+  resumoInicial: ResumoBuscas;
 }) {
+  const [resumo, setResumo] = useState<ResumoBuscas>(resumoInicial);
   const [cota, setCota] = useState<CotaJson>(cotaInicial);
   const [buscas, setBuscas] = useState<Buscas>(buscasIniciais);
   const [nichos, setNichos] = useState<Set<string>>(new Set());
@@ -154,6 +159,11 @@ export default function BuscaGoogle({
             break fora;
           }
           if (r.cota) setCota(r.cota);
+          // cada resposta boa que não foi pulada é uma chamada ao Google a mais no contador
+          if (r.ok && !r.jaFeita) {
+            const novos = Number(r.novos) || 0;
+            setResumo((x) => ({ ...x, hoje: x.hoje + 1, semana: x.semana + 1, mes: x.mes + 1, total: x.total + 1, leadsMes: x.leadsMes + novos, leadsTotal: x.leadsTotal + novos }));
+          }
           if (r.buscas) setBuscas((b) => ({ ...b, usadas: r.buscas.usadas, limite: r.buscas.limite }));
           if (!r.ok) {
             setAviso({ texto: r.erro || 'A busca falhou.', fim: r.fim });
@@ -179,20 +189,27 @@ export default function BuscaGoogle({
     setTerminou(true);
   }
 
+  const quadro = <QuadroBuscas resumo={resumo} />;
+
   if (!ligada) {
     return (
-      <div className="mt-9 rounded-[24px] bg-manteiga p-7">
+      <>
+      {quadro}
+      <div className="mt-6 rounded-[24px] bg-manteiga p-7">
         <h2 className="text-[19px] font-extrabold">A busca está fora do ar agora</h2>
         <p className="mt-2 max-w-xl text-[13.5px] leading-relaxed text-zinc-700">
           Não consegui falar com o Google neste momento. Seus leads, o CRM e as propostas continuam funcionando normalmente.
           Tente de novo em alguns minutos; se continuar, responda qualquer e-mail nosso que a gente resolve.
         </p>
       </div>
+      </>
     );
   }
 
   return (
-    <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <>
+    {quadro}
+    <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       {/* ------------------------------------------------- formulário */}
       <form
         className="space-y-6 rounded-[24px] border border-zinc-200 p-6"
@@ -311,7 +328,7 @@ export default function BuscaGoogle({
             />
             <p className="text-[12.5px] text-zinc-500">
               {cota.ilimitado
-                ? 'Sua conta não tem limite.'
+                ? `Sua conta não tem limite. Buscas no Google este mês: ${resumo.mes}.`
                 : cota.teste
                   ? `Restam ${cota.restantes ?? 0} do seu teste grátis.`
                   : `Restam ${cota.restantes ?? 0} nesta semana.`}
@@ -466,5 +483,37 @@ export default function BuscaGoogle({
         )}
       </section>
     </div>
+    </>
+  );
+}
+
+const num = (n: number) => n.toLocaleString('pt-BR');
+
+/** "Suas buscas no Google": hoje, 7 dias, mês e desde o começo, com os leads que renderam */
+function QuadroBuscas({ resumo }: { resumo: ResumoBuscas }) {
+  const blocos = [
+    { rotulo: 'Hoje', valor: resumo.hoje, detalhe: null, fundo: 'bg-ceu' },
+    { rotulo: 'Últimos 7 dias', valor: resumo.semana, detalhe: null, fundo: 'bg-manteiga' },
+    { rotulo: 'Este mês', valor: resumo.mes, detalhe: `${num(resumo.leadsMes)} leads novos`, fundo: 'bg-lavanda' },
+    { rotulo: 'Desde o começo', valor: resumo.total, detalhe: `${num(resumo.leadsTotal)} leads novos`, fundo: 'bg-menta' },
+  ];
+  return (
+    <section aria-labelledby="t-suas-buscas" className="mt-8">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="t-suas-buscas" className="text-[17px] font-extrabold tracking-[-0.01em]">Suas buscas no Google</h2>
+        <p className="text-[12px] font-medium text-zinc-500">Cada página de resultados do Google conta como uma busca.</p>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {blocos.map((b) => (
+          <div key={b.rotulo} className={`rounded-[22px] ${b.fundo} px-5 py-4`}>
+            <p className="text-[12.5px] font-bold text-tinta/70">{b.rotulo}</p>
+            <p className="mt-1.5 text-[30px] font-extrabold leading-none tracking-[-0.03em] tabular-nums">{num(b.valor)}</p>
+            <p className="mt-1.5 text-[12px] font-semibold text-tinta/60">
+              {b.detalhe ?? (b.valor === 1 ? 'busca' : 'buscas')}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

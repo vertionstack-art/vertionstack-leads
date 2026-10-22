@@ -270,6 +270,42 @@ export async function buscasDaConta(conta: string, plano: Plano, pagoAte: string
   return r[0].n as number;
 }
 
+export interface ResumoBuscas {
+  hoje: number;
+  semana: number;
+  mes: number;
+  total: number;
+  leadsMes: number;
+  leadsTotal: number;
+}
+
+/**
+ * Quantas buscas no Google a conta já fez (cada página de resultados é uma
+ * chamada, que é o que o Google cobra e o que os limites contam), e quantos
+ * leads novos elas trouxeram. Vale para qualquer plano, inclusive sem limite.
+ */
+export async function resumoDeBuscas(conta: string): Promise<ResumoBuscas> {
+  const [r] = await db()`
+    with hoje as (select (now() at time zone 'America/Sao_Paulo')::date as d)
+    select
+      coalesce(sum(chamadas) filter (where dia = (select d from hoje)), 0)::int as hoje,
+      coalesce(sum(chamadas) filter (where dia > (select d from hoje) - 7), 0)::int as semana,
+      coalesce(sum(chamadas) filter (where date_trunc('month', dia) = date_trunc('month', (select d from hoje))), 0)::int as mes,
+      coalesce(sum(chamadas), 0)::int as total,
+      coalesce(sum(leads) filter (where date_trunc('month', dia) = date_trunc('month', (select d from hoje))), 0)::int as leads_mes,
+      coalesce(sum(leads), 0)::int as leads_total
+    from busca_google where conta_id = ${conta}
+  `;
+  return {
+    hoje: r.hoje as number,
+    semana: r.semana as number,
+    mes: r.mes as number,
+    total: r.total as number,
+    leadsMes: r.leads_mes as number,
+    leadsTotal: r.leads_total as number,
+  };
+}
+
 /** buscas feitas neste mês por contas que estão só no teste grátis */
 export async function buscasDosTestesNoMes(): Promise<number> {
   const [r] = await db()`
