@@ -15,8 +15,54 @@
  *   GEMINI_URL       opcional; só para teste local com um servidor falso
  */
 
+/** a chave como foi colada na Vercel, sem espaço, quebra de linha ou aspas em volta (o erro mais comum ao colar) */
+function chave(): string {
+  return (process.env.GEMINI_API_KEY || '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+}
+
 export function geminiLigado(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY);
+  return Boolean(chave());
+}
+
+/**
+ * Traduz a recusa do Google no motivo e no que fazer. O motivo vem no corpo
+ * do erro (error.status e error.details[].reason); a chave nunca aparece.
+ */
+function erroDoGoogle(status: number, corpo: string, modelo: string): ErroGemini {
+  let motivo = '';
+  let mensagem = '';
+  try {
+    const e = (JSON.parse(corpo) as { error?: { status?: string; message?: string; details?: { reason?: string }[] } }).error || {};
+    motivo = [e.status, ...(e.details || []).map((d) => d.reason)].filter(Boolean).join(' ');
+    mensagem = e.message || '';
+  } catch {
+    mensagem = corpo;
+  }
+  const tudo = `${motivo} ${mensagem}`;
+  const comCodigo = (t: string) => `${t} (Google: ${motivo || status})`;
+
+  if (/API_KEY_INVALID|API key not valid|API key expired/i.test(tudo)) {
+    return new ErroGemini(comCodigo('O Google diz que a chave não é válida: ela foi copiada errada, pela metade ou foi apagada. Copie de novo em aistudio.google.com (Get API key), cole na GEMINI_API_KEY da Vercel e publique de novo.'), 'chave');
+  }
+  if (/SERVICE_DISABLED|has not been used in project|is disabled/i.test(tudo)) {
+    return new ErroGemini(comCodigo('A chave é de um projeto do Google em que o Gemini não está ativado. Crie a chave pelo aistudio.google.com (ele já ativa tudo) em vez do Google Cloud.'), 'chave');
+  }
+  if (/API_KEY_SERVICE_BLOCKED|API_KEY_HTTP_REFERRER_BLOCKED|API_KEY_IP_ADDRESS_BLOCKED|blocked/i.test(tudo)) {
+    return new ErroGemini(comCodigo('A chave tem uma restrição que bloqueia o Gemini (site, IP ou serviço). Crie uma chave nova no aistudio.google.com, sem restrições.'), 'chave');
+  }
+  if (/location is not supported|FAILED_PRECONDITION/i.test(tudo)) {
+    return new ErroGemini(comCodigo('O Google não liberou o Gemini grátis para a região de onde o pedido saiu.'), 'chave');
+  }
+  if (status === 404 || /NOT_FOUND|is not found/i.test(tudo)) {
+    return new ErroGemini(comCodigo(`O modelo ${modelo} não está disponível para esta chave.`), 'falha');
+  }
+  if (status === 429 || /RESOURCE_EXHAUSTED/i.test(tudo)) {
+    return new ErroGemini(comCodigo('O Gemini atingiu o limite de uso da faixa grátis (por minuto ou por dia). Espere um pouco.'), 'limite');
+  }
+  if (status === 401 || status === 403 || /PERMISSION_DENIED|UNAUTHENTICATED/i.test(tudo)) {
+    return new ErroGemini(comCodigo('O Google recusou a chave.'), 'chave');
+  }
+  return new ErroGemini(comCodigo(`O Gemini recusou o pedido${mensagem ? `: ${mensagem.slice(0, 160)}` : ''}.`), 'falha');
 }
 
 export function modeloGemini(): string {
@@ -46,7 +92,7 @@ export async function perguntarJson<T>(instrucoes: string, pedido: string, esque
   try {
     r = await fetch(`${base}/v1beta/models/${encodeURIComponent(modelo)}:generateContent`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY || '' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': chave() },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: instrucoes }] },
         contents: [{ role: 'user', parts: [{ text: pedido }] }],
@@ -66,11 +112,8 @@ export async function perguntarJson<T>(instrucoes: string, pedido: string, esque
 
   const texto = await r.text();
   if (!r.ok) {
-    console.error('[gemini]', r.status, texto.slice(0, 400));
-    if (r.status === 400 && /API key/i.test(texto)) throw new ErroGemini('A chave do Gemini foi recusada. Confira a GEMINI_API_KEY na Vercel.', 'chave');
-    if (r.status === 401 || r.status === 403) throw new ErroGemini('A chave do Gemini foi recusada. Confira a GEMINI_API_KEY na Vercel.', 'chave');
-    if (r.status === 429) throw new ErroGemini('O Gemini atingiu o limite de uso (da faixa grátis, por minuto ou por dia).', 'limite');
-    throw new ErroGemini('O Gemini recusou o pedido.', 'falha');
+    console.error('[gemini]', r.status, texto.slice(0, 600));
+    throw erroDoGoogle(r.status, texto, modelo);
   }
 
   const j = JSON.parse(texto) as {
