@@ -10,10 +10,19 @@ import { usoDaIa } from '@/lib/ia';
 import { estadoDoWhatsapp } from '@/lib/evolution';
 import { estadoDoRobo } from '@/lib/robo';
 import ConversaGuiada from './conversa';
+import EditarBotao from './editar-botao';
 import Casca from '@/app/casca';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+/** "5521967743570" → "(21) 96774-3570" */
+function mostrarNumero(n: string): string {
+  const d = n.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return n;
+}
 
 /**
  * Conversa guiada do WhatsApp com um lead: o roteiro do primeiro "oi" até a
@@ -49,15 +58,18 @@ export default async function PaginaConversa({ params }: { params: Promise<{ id:
       subtitulo={
         <>
           {[lead.category, lead.city].filter(Boolean).join(' · ')}
-          {lead.phone ? ` · ${lead.phone}` : ''}
+          {numero ? ` · WhatsApp ${mostrarNumero(numero)}` : lead.phone ? ` · ${lead.phone} (sem WhatsApp)` : ''}
           {' · '}
           <span className="font-semibold text-tinta">{d.problema}</span>
         </>
       }
       acoes={
-        <Link href="/conversas" className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400">
-          <ArrowLeft aria-hidden className="h-4 w-4" /> Todas as conversas
-        </Link>
+        <>
+          <EditarBotao leadId={idLead} />
+          <Link href="/conversas" className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400">
+            <ArrowLeft aria-hidden className="h-4 w-4" /> Todas as conversas
+          </Link>
+        </>
       }
     >
         <ConversaGuiada

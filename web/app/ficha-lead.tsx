@@ -7,6 +7,7 @@ import {
 import { baixarIcs, linkGoogleAgenda, type EventoAgenda } from '@/lib/agenda';
 import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
 import { rotuloDoInteresse } from '@/lib/interesses';
+import EditarLeadModal from './editar-lead-modal';
 
 /**
  * A ficha do lead: a mensagem do WhatsApp já escrita, o lembrete ("ligar dia
@@ -121,6 +122,7 @@ export default function FichaLead({
   const [modelo, setModelo] = useState('auto');
   const [nomeModelo, setNomeModelo] = useState<string | null>(null);
   const [emailRascunho, setEmailRascunho] = useState<string | null>(null);
+  const [editando, setEditando] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -145,10 +147,11 @@ export default function FichaLead({
   }, [carregar]);
 
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && aoFechar();
+    // com o "Editar lead" aberto, o Esc fecha só ele
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && !editando && aoFechar();
     document.addEventListener('keydown', esc);
     return () => document.removeEventListener('keydown', esc);
-  }, [aoFechar]);
+  }, [aoFechar, editando]);
 
   async function abrirWhatsApp() {
     if (!dados?.numero) return;
@@ -278,6 +281,7 @@ export default function FichaLead({
   );
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-tinta/40 p-0 sm:items-center sm:p-4" onClick={aoFechar}>
       <div
         role="dialog"
@@ -288,7 +292,18 @@ export default function FichaLead({
       >
         <div className="flex items-start justify-between gap-4 px-6 pb-3 pt-5">
           <div className="min-w-0">
-            <h2 className="truncate text-[18px] font-extrabold tracking-[-0.02em]">{lead?.name || 'Carregando…'}</h2>
+            <div className="flex min-w-0 items-center gap-2">
+              <h2 className="truncate text-[18px] font-extrabold tracking-[-0.02em]">{lead?.name || 'Carregando…'}</h2>
+              {lead && (
+                <button
+                  type="button"
+                  onClick={() => setEditando(true)}
+                  className="inline-flex min-h-[32px] shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-3 text-[12px] font-bold text-tinta transition hover:bg-zinc-200"
+                >
+                  <PencilLine aria-hidden className="h-3.5 w-3.5" /> Editar
+                </button>
+              )}
+            </div>
             {lead && (
               <p className="mt-0.5 truncate text-[12.5px] font-medium text-zinc-500">
                 {[lead.category, lead.city].filter(Boolean).join(' · ')}
@@ -596,5 +611,17 @@ export default function FichaLead({
         </div>
       </div>
     </div>
+    {editando && (
+      <EditarLeadModal
+        leadId={leadId}
+        aoFechar={() => setEditando(false)}
+        aoSalvar={async () => {
+          await carregar();
+          aoMudar?.();
+          setAviso('Dados do lead atualizados.');
+        }}
+      />
+    )}
+    </>
   );
 }

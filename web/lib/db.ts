@@ -567,6 +567,79 @@ export async function buscarLead(conta: string, id: string): Promise<Lead | null
   return linhas.length ? daLinha(linhas[0]) : null;
 }
 
+/** o que dá para corrigir à mão num lead (tela "Editar lead") */
+export interface EdicaoLead {
+  name: string;
+  category: string;
+  phone: string;
+  /** WhatsApp de verdade, quando é diferente do telefone (ou o telefone é fixo) */
+  whatsapp: string;
+  email: string;
+  city: string;
+  address: string;
+  website: string;
+  instagram: string;
+  mapsUrl: string;
+  tipo: 'comercio' | 'pessoa';
+  interesse: string[];
+  ideia: string;
+}
+
+const ROTULO_CAMPO: Record<string, string> = {
+  name: 'nome', category: 'ramo', phone: 'telefone', whatsapp: 'WhatsApp', email: 'e-mail', city: 'cidade',
+  address: 'endereço', website: 'site', instagram: 'Instagram', mapsUrl: 'link do Maps', tipo: 'tipo', interesse: 'o que ele quer', ideia: 'ideia',
+};
+
+/**
+ * Corrige os dados de um lead. O que depende deles é recalculado do mesmo
+ * jeito que na busca: WhatsApp (o digitado vale mais que o telefone; sem ele,
+ * o celular vira WhatsApp), tipo de telefone e o tipo de site. Site trocado
+ * apaga a verificação antiga, que era do endereço anterior. O id não muda
+ * (conversas, propostas e histórico continuam ligados). Fica no histórico o
+ * que mudou e quem mudou.
+ */
+export async function editarLead(conta: string, id: string, e: EdicaoLead, quem: string | null): Promise<Lead | null> {
+  const antes = await buscarLead(conta, id);
+  if (!antes) return null;
+  const novo = normalizarLead(
+    { placeKey: id, name: e.name, category: e.category, phone: e.phone, whatsapp: e.whatsapp, email: e.email, city: e.city, address: e.address, website: e.website, instagram: e.instagram, mapsUrl: e.mapsUrl },
+    quem,
+    antes.origem,
+  );
+  if (!novo) return null;
+
+  const siteMudou = (novo.website || null) !== (antes.website || null);
+  const interesse = Array.isArray(e.interesse) ? e.interesse : [];
+  const ideia = e.ideia.trim() ? e.ideia.trim().slice(0, 3000) : null;
+  await db()`
+    update leads set
+      name = ${novo.name}, category = ${novo.category}, phone = ${novo.phone},
+      whatsapp = ${novo.whatsapp}, whatsapp_fonte = ${novo.whatsappFonte}, telefone_tipo = ${novo.telefoneTipo},
+      email = ${novo.email}, city = ${novo.city}, address = ${novo.address},
+      website = ${novo.website}, website_kind = ${novo.websiteKind}, website_label = ${novo.websiteLabel}, is_lead = ${novo.isLead},
+      instagram = ${novo.instagram}, maps_url = ${novo.mapsUrl},
+      tipo = ${e.tipo === 'pessoa' ? 'pessoa' : 'comercio'}, interesse = ${interesse}, ideia = ${ideia},
+      site_status = case when ${siteMudou} then null else site_status end,
+      site_detalhe = case when ${siteMudou} then null else site_detalhe end,
+      site_verificado_em = case when ${siteMudou} then null else site_verificado_em end,
+      updated_at = now()
+    where conta_id = ${conta} and id = ${id}
+  `;
+  const depois = await buscarLead(conta, id);
+  if (!depois) return null;
+
+  const mudou = (Object.keys(ROTULO_CAMPO) as (keyof typeof ROTULO_CAMPO)[]).filter((k) => {
+    const a = (antes as unknown as Record<string, unknown>)[k];
+    const b = (depois as unknown as Record<string, unknown>)[k];
+    return JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
+  });
+  if (mudou.length) {
+    const detalhe = mudou.includes('whatsapp') && depois.whatsapp ? ` (WhatsApp agora ${depois.whatsapp})` : '';
+    await registrarEvento(conta, id, 'nota', `Dados editados: ${mudou.map((k) => ROTULO_CAMPO[k]).join(', ')}${detalhe}`, quem);
+  }
+  return depois;
+}
+
 export async function apagarLead(conta: string, id: string): Promise<boolean> {
   const r = await db()`delete from leads where conta_id = ${conta} and id = ${id} returning id`;
   return r.length > 0;
