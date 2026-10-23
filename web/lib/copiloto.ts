@@ -130,6 +130,7 @@ export function instrucoesCopiloto(e: EntradaCopiloto): string {
 - Proibido: "prezado", "solução", "agregar valor", "alavancar", "não hesite", "sem compromisso", "estamos à disposição", "fico no aguardo".
 - Use o nome da pessoa só se ela mesma disse na conversa (o nome da empresa não é o nome dela: "Barbearia do Zé" não autoriza chamar de Zé).
 - Se o vendedor já mandou mensagem antes, não se apresente de novo.
+- Quem procurou quem (ficha): se fomos nós, nunca pergunte "como posso ajudar"; se perguntarem "no que posso ajudar?", retome o motivo do primeiro contato e pergunte com quem falar.
 - Nunca use lista com hífen ou tópicos no WhatsApp: escreva em frases. "Mais informações" é 2 ou 3 frases sobre o que serve PARA ELE, mais uma pergunta.
 ${cfg.expressoes.trim() ? `- Expressões que ${cfg.nome} usa: ${cfg.expressoes.trim().slice(0, 300)}\n` : ''}${cfg.exemplosDeEscrita.trim() ? `- Mensagens reais dele, para copiar o jeito (não o conteúdo):\n${cfg.exemplosDeEscrita.trim().slice(0, 700)}\n` : ''}
 ## Objeções (o que costuma estar por trás)

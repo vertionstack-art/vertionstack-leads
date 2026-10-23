@@ -64,6 +64,13 @@ export interface Oportunidade {
 
 export interface FichaComercial {
   estagio: IdEstagio;
+  /**
+   * Quem começou a conversa. Na prospecção fomos NÓS que procuramos o lead:
+   * quando a atendente pergunta "no que posso te ajudar?", a resposta é o
+   * motivo do nosso contato, nunca "como posso ajudar vocês?" (caso real da
+   * Casa Magenta, 23/10/2026). motivo = a nossa primeira mensagem.
+   */
+  contato: { quemProcurou: 'nos' | 'ele' | null; motivo: string | null; perguntouAssunto: boolean };
   fatos: string[];
   oportunidades: Oportunidade[];
   naoSabemos: string[];
@@ -226,10 +233,32 @@ function followUpDe(conversa: FalaComercial[], estagio: IdEstagio, agora = Date.
   return { diasDesdeNossa, semResposta, podeMandar: true, recomendacao: `Sem resposta há ${diasDesdeNossa} dias (${semResposta} ${semResposta === 1 ? 'mensagem nossa' : 'mensagens nossas'} seguidas). Dá para retomar com um motivo novo.` };
 }
 
+/** "no que posso te ajudar?", "pois não?", "do que se trata?", "quem fala?" */
+export const PERGUNTOU_ASSUNTO = /(n[oa] que|em que|como) (eu )?(posso|podemos|poderia|poder[íi]amos) (te |lhe |o |a )?(ajudar|ser [úu]til)|pois n[ãa]o|do que se trata|qual (seria |é )?o assunto|quem (fala|[ée] voc[êe]|est[áa] falando)|sobre o que (seria|[ée])|pode (me )?(dizer|falar) do que se trata|em que posso ser [úu]til/i;
+
+function contatoDe(l: LeadComercial, conversa: FalaComercial[]): FichaComercial['contato'] {
+  const primeira = conversa[0];
+  const quemProcurou = l.chamouPrimeiro ? 'ele' : primeira ? (primeira.autor === 'eu' ? 'nos' : 'ele') : null;
+  const nossaPrimeira = conversa.find((m) => m.autor === 'eu');
+  // a última fala de gente (não automática) do cliente, depois da nossa última
+  let perguntouAssunto = false;
+  for (let i = conversa.length - 1; i >= 0; i--) {
+    const m = conversa[i];
+    if (m.autor === 'eu') break;
+    if (!m.automatica && PERGUNTOU_ASSUNTO.test(m.texto)) perguntouAssunto = true;
+  }
+  return {
+    quemProcurou,
+    motivo: quemProcurou === 'nos' && nossaPrimeira ? nossaPrimeira.texto.replace(/\s+/g, ' ').slice(0, 400) : null,
+    perguntouAssunto: quemProcurou === 'nos' && perguntouAssunto,
+  };
+}
+
 export function fichaComercial(l: LeadComercial, s: LeituraSite | null, conversa: FalaComercial[], agora = Date.now()): FichaComercial {
   const estagio = estagioDoLead(l, conversa, agora);
   return {
     estagio,
+    contato: contatoDe(l, conversa),
     fatos: fatosDe(l, s, conversa),
     oportunidades: oportunidadesDe(l, s),
     naoSabemos: naoSabemosDe(l, s, conversa),
@@ -243,6 +272,14 @@ export function fichaEmTexto(f: FichaComercial): string {
   return [
     '<ficha_comercial>',
     `Estágio: ${e.rotulo}. Objetivo deste estágio: ${e.objetivo}`,
+    f.contato.quemProcurou === 'nos'
+      ? `Quem procurou quem: FOMOS NÓS que procuramos este lead (prospecção). Ele não pediu nada. Motivo do nosso contato, na primeira mensagem: "${f.contato.motivo || ''}"`
+      : f.contato.quemProcurou === 'ele'
+        ? 'Quem procurou quem: foi ELE quem nos procurou.'
+        : null,
+    f.contato.perguntouAssunto
+      ? 'ATENÇÃO: a pessoa perguntou do que se trata ("no que posso ajudar?" ou parecido). Ela NÃO é cliente pedindo serviço: responda retomando o motivo do nosso contato em 1 frase (o mesmo da primeira mensagem) e pergunte se é ela quem cuida do site/divulgação ou com quem você pode falar sobre isso. Proibido responder "como posso ajudar" ou oferecer lista de serviços.'
+      : null,
     'Fatos (observados, pode usar):',
     ...(f.fatos.length ? f.fatos.map((x) => `- ${x}`) : ['- quase nada além do nome']),
     'Oportunidades possíveis (HIPÓTESES: pergunte ou confirme antes de afirmar; escolha no máximo uma por mensagem):',

@@ -105,6 +105,7 @@ const CENARIOS: Cenario[] = [
   { id: 'f3', titulo: 'Follow-up: mandou ontem', tarefa: 'followup', lead: { nome: 'Barbearia do Zé', ramo: 'Barbearia', status: 'contatado' }, conversa: [eu(ABERTURA, 0, 20)], esperar: { acoes: ['aguardar'] } },
   { id: 'v1', titulo: 'Áudio: abordagem para barbearia sem site', tarefa: 'audio', lead: { nome: 'Barbearia do Zé', ramo: 'Barbearia', rating: 4.8, reviews: 132 }, esperar: { proibido: [/https?:\/\/|[\u{1F300}-\u{1FAFF}]/u], max: 700 } },
   { id: 'e1', titulo: 'E-mail: abordagem para contabilidade com site bom', tarefa: 'email', lead: { nome: 'Tech RJ - Contabilidade', ramo: 'Contabilidade', websiteKind: 'site', siteStatus: 'ok' }, site: SITE_TECHRJ, esperar: { assunto: true, max: 1100, proibido: [/constru[çc][ãa]o|inacabad/i] } },
+  { id: 'r10', titulo: 'Resposta: atendente pergunta "No que posso te ajudar?" (fomos nós que procuramos)', tarefa: 'resposta', lead: { nome: 'Casa Magenta Arquitetura Afetiva', ramo: 'Arquiteto', status: 'contatado', websiteKind: 'site', siteStatus: 'em_construcao' }, site: SITE_MAGENTA, conversa: [eu('Opa, beleza?\n\nSou o Lucas, da Vertion Stack. Vi que o site da Casa Magenta tá em construção e ainda não tem nada pronto por lá.\n\nVocês já têm alguma data pra colocar o site no ar?', 1, 2), eu('Quero falar com uma atendente', 1, 1), ele('Boa tarde Lucas! Tudo bem?', 0, 1), ele('No que posso te ajudar?', 0, 1)], esperar: { proibido: [/como (eu )?posso (te |lhe )?ajudar|precisam de (um )?site novo|landing page ou|maior dor/i], obrigatorio: [/site|constru/i], max: 400 } },
   { id: 'p1', titulo: 'Próximo passo: cliente pediu exemplo e já existe prévia', tarefa: 'proximo_passo', lead: { nome: 'Barbearia do Zé', ramo: 'Barbearia', status: 'contatado', temPrevia: true }, previa: 'https://barbearia-do-ze.vertionstack.com', conversa: [eu(ABERTURA, 1), ele('Tem algum exemplo pra eu ver como ficaria?', 0, 1)], esperar: { obrigatorio: [/barbearia-do-ze\.vertionstack\.com/] } },
 ];
 
@@ -144,7 +145,14 @@ const tempos: number[] = [];
 const PAUSA_MS = Number(process.env.PAUSA_MS ?? 9000);
 const pausa = () => new Promise((r) => setTimeout(r, PAUSA_MS));
 
+// SO=a1,r10 roda só esses cenários (a cota grátis do Groq é dividida com o site de verdade)
+const SO = (process.env.SO || '').split(',').map((x) => x.trim()).filter(Boolean);
+const escolhido = (id: string) => !SO.length || SO.includes(id);
+let rodados = 0;
+
 for (const c of CENARIOS) {
+  if (!escolhido(c.id)) continue;
+  rodados++;
   await pausa();
   const lead = { ...LEAD_BASE, ...c.lead } as LeadComercial;
   const conversa = c.conversa || [];
@@ -193,12 +201,23 @@ const ROBO: { id: string; titulo: string; lead: Partial<LeadComercial>; conversa
       ...(/\bZ[ée]\b/.test(d.mensagens.join(' ')) ? ['chamou pelo nome da empresa ("Zé")'] : []),
     ],
   },
+  {
+    id: 'b4', titulo: 'Robô: atendente pergunta "No que posso te ajudar?" (caso Casa Magenta)', lead: { nome: 'Casa Magenta Arquitetura Afetiva', ramo: 'Arquiteto', status: 'contatado', websiteKind: 'site', siteStatus: 'em_construcao' },
+    conversa: [eu('Opa, beleza?\n\nSou o Lucas, da Vertion Stack. Vi que o site da Casa Magenta tá em construção e ainda não tem nada pronto por lá.\n\nVocês já têm alguma data pra colocar o site no ar?', 1, 2), eu('Quero falar com uma atendente', 1, 1), ele('Boa tarde Lucas! Tudo bem?', 0, 1), ele('No que posso te ajudar?', 0, 1)],
+    esperar: (d) => {
+      const t = d.mensagens.join(' ');
+      const comoCliente = t.match(/como (eu )?posso (te |lhe )?ajudar|precisam de (um )?site novo|landing page ou|maior dor/i)?.[0];
+      return [...(comoCliente ? [`respondeu como se ela fosse cliente: "${comoCliente}"`] : []), ...(/site|constru/i.test(t) ? [] : ['não retomou o motivo (site)'])];
+    },
+  },
   { id: 'b2', titulo: 'Robô: "não tenho interesse"', lead: { nome: 'Padaria Pão Quente', ramo: 'Padaria', status: 'contatado' }, conversa: [eu(ABERTURA, 1), ele('não tenho interesse não, obrigado', 0, 1)], esperar: (d) => (d.acao === 'encerrar' ? [] : [`ação ${d.acao} (esperado encerrar)`]) },
   { id: 'b3', titulo: 'Robô: quem chamou primeiro pelo Instagram', lead: { nome: 'Diogo', tipo: 'pessoa', chamouPrimeiro: true, status: 'contatado' }, conversa: [ele('Oi, vi vocês no Instagram, vocês fazem site?', 0, 1)], esperar: (d) => (/(vi|achei|encontrei) (a sua|sua|o seu|seu) (empresa|site|perfil|neg[óo]cio)/i.test(d.mensagens.join(' ')) ? ['disse que achou o negócio dele'] : []) },
 ];
 const instrucoesRobo = montarInstrucoes(treino.cfg, treino.empresa, treino.oferta, []);
 linhas.push('# Robô do WhatsApp (com a ficha comercial)\n');
 for (const c of ROBO) {
+  if (!escolhido(c.id)) continue;
+  rodados++;
   await pausa();
   const lead = { ...LEAD_BASE, ...c.lead } as LeadComercial;
   const ficha = fichaComercial(lead, null, c.conversa, agora);
@@ -231,7 +250,7 @@ for (const c of ROBO) {
   linhas.push(`## ${c.id}. ${c.titulo}\n\n- Resultado: ${falhas.length ? `**falhou** (${falhas.join('; ')})` : 'passou nas regras'} · ${(ms / 1000).toFixed(1)} s\n- Leitura: ${d?.leitura || ''} · Ação: \`${d?.acao || ''}\`\n\n> ${(d?.mensagens || []).join('\n>\n> ') || '(nada)'}\n`);
 }
 
-const total = CENARIOS.length + ROBO.length;
+const total = rodados;
 const media = tempos.length ? tempos.reduce((a, b) => a + b, 0) / tempos.length / 1000 : 0;
 linhas.splice(1, 0, `**${passou} de ${total} cenários passaram nas regras automáticas.** Tempo médio por pedido: ${media.toFixed(1)} s.\n`);
 writeFileSync(saida, linhas.join('\n'));
