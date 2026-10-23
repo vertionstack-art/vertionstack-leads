@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, X,
+  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, UserX, X,
 } from 'lucide-react';
 import { aplicarModelo, linkComTexto, mensagemPronta, problemaCurto, type DadosMensagem, type Remetente } from '@/lib/mensagem';
 import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao, type Fase } from '@/lib/roteiro';
@@ -1039,6 +1039,25 @@ function PainelRobo({
               Resolvi eu mesmo
             </button>
           </div>
+        </div>
+      )}
+
+      {robo.chamouPrimeiro && robo.pausadoMotivo !== 'você marcou para ignorar este número' && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-[16px] bg-white/70 px-3.5 py-2.5">
+          <p className="min-w-0 flex-1 text-[12.5px] font-medium leading-snug text-zinc-700">
+            Este contato chamou o WhatsApp da Vertion por conta própria. É amigo, família ou não é cliente?
+          </p>
+          <button
+            type="button"
+            disabled={Boolean(ocupado)}
+            onClick={() => {
+              if (window.confirm('Ignorar este número? O robô para de responder e, se ele mandar mensagem de novo, não vira lead.')) acao('ignorar', { acao: 'ignorar' });
+            }}
+            className={`${botao} bg-white text-tinta ring-1 ring-inset ring-zinc-300 hover:ring-zinc-500`}
+          >
+            <UserX aria-hidden className="h-4 w-4" />
+            {ocupado === 'ignorar' ? 'Ignorando…' : 'Ignorar este número'}
+          </button>
         </div>
       )}
 

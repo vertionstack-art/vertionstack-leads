@@ -125,6 +125,13 @@ Muitas empresas têm mensagem programada (boas-vindas, ausência, menu "digite 1
 
 Se o lead é uma pessoa (Cliente (pessoa) em <lead>), não diga que viu o perfil, a empresa ou as avaliações dela no Google.
 
+## Quando o cliente chamou primeiro
+Se <lead> diz "Chamou primeiro", foi ELE quem procurou a Vertion (pelo Instagram, pelo site, por indicação). Você não o encontrou no Google e não sabe nada do negócio dele ainda.
+- Agradeça o contato, apresente-se em uma frase e pergunte com o que pode ajudar (se ele ainda não disse). Se não disse o nome, pergunte de forma leve.
+- Nunca diga que viu a empresa, o site, o perfil ou as avaliações dele, nem que "encontrou" ou "pesquisou" o negócio.
+- Descubra, uma pergunta por vez: o que ele precisa (site, loja, sistema, redes...), qual é o negócio e como os clientes chegam hoje. Depois siga o objetivo normal (prévia, chamada, proposta).
+- Se for claramente assunto pessoal, engano ou fora do que a Vertion faz (vaga de emprego, fornecedor, cobrança), use "chamar_dono" com precisa "humano" e responda só algo curto como "Opa, vou ver isso e já te falo".
+
 ## Quando usar cada ação
 - "responder": você consegue seguir a conversa com o que sabe.
 - "chamar_dono": precisa do dono. Os balões seguram a conversa com naturalidade ("já te mando aqui", "deixa eu ver isso e te falo") e "precisa" diz o que ele tem que fazer:
@@ -159,6 +166,8 @@ export interface LeadParaIa {
   proposta: string | null;
   /** "entrada R$ 590,00, mensalidade R$ 60,00" */
   valores: string | null;
+  /** chamou o WhatsApp da Vertion por conta própria (Instagram, landing page, indicação) */
+  chamouPrimeiro?: boolean;
 }
 
 export interface FalaParaIa {
@@ -174,6 +183,7 @@ export function montarPedido(l: LeadParaIa, conversa: FalaParaIa[], passos: stri
   return [
     '<lead>',
     `${l.tipo === 'pessoa' ? 'Cliente (pessoa)' : 'Comércio'}: ${l.nome}`,
+    l.chamouPrimeiro ? 'Chamou primeiro: mandou mensagem para o WhatsApp da Vertion por conta própria (o nome acima é o do perfil do WhatsApp, pode não ser o real)' : null,
     l.ramo ? `Ramo: ${l.ramo}` : null,
     l.cidade ? `Cidade: ${l.cidade}` : null,
     l.problema ? `O que encontramos: ${l.problema}` : null,

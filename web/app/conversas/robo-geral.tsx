@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Bot, BellRing, GraduationCap } from 'lucide-react';
+import { ArrowRight, Bot, BellRing, GraduationCap, UserPlus } from 'lucide-react';
 import { ROTULO_AGUARDANDO, type AvisoRobo } from '@/lib/robo-tipos';
 
 /**
@@ -23,15 +23,19 @@ export default function RoboGeral({
   pronto,
   falta,
   ativoInicial,
+  novosInicial,
   avisosIniciais,
 }: {
   pronto: boolean;
   /** o que falta configurar, quando não está pronto */
   falta: string | null;
   ativoInicial: boolean;
+  /** "Atender quem chamar primeiro": número desconhecido vira lead e o robô atende */
+  novosInicial: boolean;
   avisosIniciais: AvisoRobo[];
 }) {
   const [ativo, setAtivo] = useState(ativoInicial);
+  const [novos, setNovos] = useState(novosInicial);
   const [avisos, setAvisos] = useState(avisosIniciais);
   const [mudando, setMudando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -44,6 +48,7 @@ export default function RoboGeral({
         if (j.ok) {
           setAvisos(j.avisos);
           setAtivo(j.ativo);
+          setNovos(j.atendeNovos);
         }
       } catch {
         // rede caiu: tenta na próxima volta
@@ -53,17 +58,18 @@ export default function RoboGeral({
     return () => clearInterval(relogio);
   }, []);
 
-  async function alternar() {
+  async function alternar(qual: 'ativo' | 'atendeNovos') {
     setMudando(true);
     setErro(null);
     try {
       const j = await fetch('/api/robo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ativo: !ativo }),
+        body: JSON.stringify(qual === 'ativo' ? { ativo: !ativo } : { atendeNovos: !novos }),
       }).then((r) => r.json());
       if (!j.ok) throw new Error();
-      setAtivo(j.ativo);
+      if (qual === 'ativo') setAtivo(j.ativo);
+      else setNovos(j.atendeNovos);
     } catch {
       setErro('Não consegui mudar agora. Tente de novo.');
     } finally {
@@ -84,7 +90,7 @@ export default function RoboGeral({
             aria-checked={ativo}
             aria-label="Robô de vendas ligado"
             disabled={mudando || !pronto}
-            onClick={alternar}
+            onClick={() => alternar('ativo')}
             className={`relative h-8 w-14 shrink-0 rounded-full transition-colors disabled:opacity-50 ${ativo ? 'bg-white' : 'bg-zinc-300'}`}
           >
             <span className={`absolute top-1 h-6 w-6 rounded-full transition-[left] ${ativo ? 'left-7 bg-roxo-800' : 'left-1 bg-white'}`} />
@@ -98,6 +104,28 @@ export default function RoboGeral({
               ? 'Você manda a primeira mensagem. Quando o lead responde, o robô continua a conversa e te chama quando precisar.'
               : 'Ligado, ele responde os leads que responderem às mensagens que você mandou pela ferramenta.'}
         </p>
+        <div className={`mt-4 flex items-start gap-3 rounded-[16px] p-3 ${ativo && pronto ? 'bg-white/10' : 'bg-white'}`}>
+          <UserPlus aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-extrabold">Atender quem chamar primeiro</span>
+            <span className={`mt-0.5 block text-[12px] font-medium leading-snug ${ativo && pronto ? 'text-white/75' : 'text-zinc-600'}`}>
+              {novos
+                ? 'Número que não está na ferramenta (Instagram, site, indicação) vira lead e o robô atende. Amigo ou família? Abra a conversa e toque em "Ignorar este número".'
+                : 'Desligado: mensagem de número que não está na ferramenta é ignorada.'}
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={novos}
+            aria-label="Atender quem chamar primeiro"
+            disabled={mudando}
+            onClick={() => alternar('atendeNovos')}
+            className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${novos ? (ativo && pronto ? 'bg-white' : 'bg-roxo-800') : 'bg-zinc-300'}`}
+          >
+            <span className={`absolute top-1 h-5 w-5 rounded-full transition-[left] ${novos ? 'left-6' : 'left-1'} ${novos && ativo && pronto ? 'bg-roxo-800' : 'bg-white'}`} />
+          </button>
+        </div>
         {erro && <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">{erro}</p>}
         <Link
           href="/conversas/robo"

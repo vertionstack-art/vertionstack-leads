@@ -4,6 +4,7 @@ import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { mensagensDaConversa, passosFeitos } from '@/lib/conversa';
+import { ignorarNumero } from '@/lib/entrada';
 import { entregarAoRobo, estadoDoRobo, ligarRoboNaConversa, resolverEspera, responderSePrecisar } from '@/lib/robo';
 
 export const runtime = 'nodejs';
@@ -18,6 +19,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * { acao: 'entregar', texto }    você preparou o que ele esperava (link, valor, resposta): ele manda ao cliente
  * { acao: 'resolver' }           você mesmo resolveu: ele para de esperar
  * { acao: 'responder' }          responde agora a última mensagem do cliente
+ * { acao: 'ignorar' }            amigo, família: o robô para e o número nunca mais vira lead
  */
 export async function POST(req: Request, ctx: Ctx) {
   if (!origemConfere(req)) return recusarOrigem();
@@ -45,6 +47,8 @@ export async function POST(req: Request, ctx: Ctx) {
     const r = await entregarAoRobo(contaId, lead, texto, nome);
     if (r.feito === 'erro') erro = r.motivo;
     else if (r.feito !== 'respondeu') erro = 'O robô não mandou: ele achou um trecho que não pode usar. Veja o aviso e mande você.';
+  } else if (corpo.acao === 'ignorar') {
+    await ignorarNumero(contaId, lead, nome);
   } else if (corpo.acao === 'responder') {
     const r = await responderSePrecisar(contaId, lead, undefined, true);
     if (r.feito === 'erro') erro = r.motivo;

@@ -13,6 +13,7 @@ import { TODOS_OS_PASSOS } from '@/lib/roteiro';
 import Casca from '@/app/casca';
 import ListaConversas, { type ItemConversa } from './lista';
 import RoboGeral from './robo-geral';
+import { atendeNovos } from '@/lib/entrada';
 import { FALTA_CABECA, cabecaLigada } from '@/lib/cabeca';
 import { avisosAbertos, roboAtivoNaConta } from '@/lib/robo';
 
@@ -84,6 +85,7 @@ export default async function PaginaConversas() {
         pronto={cabecaLigada() && zap === 'open'}
         falta={!cabecaLigada() ? FALTA_CABECA : zap !== 'open' ? 'Conecte o WhatsApp para ligar o robô.' : null}
         ativoInicial={await roboAtivoNaConta(sessao.contaId)}
+        novosInicial={await atendeNovos(sessao.contaId)}
         avisosIniciais={await avisosAbertos(sessao.contaId)}
       />
       <ListaConversas itens={itens} totalPassos={TODOS_OS_PASSOS.length} />

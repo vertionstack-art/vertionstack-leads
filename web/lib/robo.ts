@@ -73,9 +73,11 @@ export async function ligarRoboNaConta(conta: string, ativo: boolean): Promise<v
 export async function estadoDoRobo(conta: string, lead: string): Promise<EstadoRobo> {
   const [r] = await sql()`
     select c.robo_ativo, rc.ligado, rc.aguardando, rc.aguardando_motivo, rc.aguardando_desde, rc.pausado_motivo,
-      case when rc.respostas_dia = ${hojeEmBrasilia()}::date then rc.respostas_no_dia else 0 end as hoje
+      case when rc.respostas_dia = ${hojeEmBrasilia()}::date then rc.respostas_no_dia else 0 end as hoje,
+      l.origem
     from contas c
     left join robo_conversas rc on rc.conta_id = c.id and rc.lead_id = ${lead}
+    left join leads l on l.conta_id = c.id and l.id = ${lead}
     where c.id = ${conta}
   `;
   return {
@@ -87,6 +89,7 @@ export async function estadoDoRobo(conta: string, lead: string): Promise<EstadoR
     aguardandoDesde: r?.aguardando_desde ? new Date(r.aguardando_desde).toISOString() : null,
     pausadoMotivo: (r?.pausado_motivo as string) || null,
     respostasHoje: Number(r?.hoje) || 0,
+    chamouPrimeiro: r?.origem === 'whatsapp',
   };
 }
 
@@ -237,18 +240,20 @@ async function montarContexto(conta: string, leadId: string, entrega: string | n
     nome: lead.name,
     ramo: lead.category,
     cidade: lead.city,
-    problema: lead.tipo === 'pessoa' ? null : d.problema,
+    problema: lead.tipo === 'pessoa' || lead.origem === 'whatsapp' ? null : d.problema,
     avaliacoes: d.avaliacoes,
     interesse: lead.interesse.map(rotuloDoInteresse),
     ideia: lead.ideia,
     previa: d.previa,
     proposta: d.proposta,
     valores: v && (v.entrada || v.mensalidade) ? `entrada ${brl(v.entrada)}${v.mensalidade ? `, mensalidade ${brl(v.mensalidade)}` : ', sem mensalidade'}` : null,
+    chamouPrimeiro: lead.origem === 'whatsapp',
   };
   // resposta automática do WhatsApp Business (boas-vindas, menu, ausência): o robô não responde o conteúdo
   let nossaAnterior: string | null = null;
   const conversa = mensagens.map((m) => {
-    const automatica = m.autor === 'cliente' && ehAutomatica(m.texto, segundosDepois(m.em, nossaAnterior));
+    // quem chamou primeiro escreveu antes de nós: isso é gente, não mensagem programada
+    const automatica = m.autor === 'cliente' && !(paraIa.chamouPrimeiro && !nossaAnterior) && ehAutomatica(m.texto, segundosDepois(m.em, nossaAnterior));
     if (m.autor === 'eu') nossaAnterior = m.em;
     return {
       autor: m.autor,

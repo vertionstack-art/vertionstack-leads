@@ -24,6 +24,8 @@ export interface EstadoRobo {
   aguardandoDesde: string | null;
   pausadoMotivo: string | null;
   respostasHoje: number;
+  /** o lead chamou o WhatsApp da Vertion por conta própria (lib/entrada) */
+  chamouPrimeiro: boolean;
 }
 
 export interface AvisoRobo {

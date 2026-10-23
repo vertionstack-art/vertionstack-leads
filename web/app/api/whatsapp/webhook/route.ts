@@ -6,6 +6,7 @@ import { contaDaConversa, leadPeloNumero, registrarMensagem } from '@/lib/conver
 import { lerMensagemRecebida, segredoDoWebhookConfere, variantesDoNumero } from '@/lib/evolution';
 import { aoMandarPorContaPropria, responderSePrecisar } from '@/lib/robo';
 import { aquecerIaLocal } from '@/lib/ia-local';
+import { leadDeQuemChamou } from '@/lib/entrada';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,9 +17,11 @@ export const maxDuration = 180;
  * O servidor da Evolution API avisa aqui cada mensagem nova do WhatsApp da
  * Vertion. Só entra quem traz o segredo (cabeçalho x-vertion-segredo).
  *
- * A mensagem só é guardada quando o número é de um lead da conta: conversa
- * com amigo, cliente antigo ou grupo é ignorada e não fica salva em lugar
- * nenhum. As enviadas pelo próprio celular também entram (autor "eu"), e as
+ * A mensagem só é guardada quando o número é de um lead da conta. Número
+ * desconhecido que chama primeiro (veio do Instagram, da landing page) vira
+ * lead na hora se "Atender quem chamar primeiro" estiver ligado (lib/entrada);
+ * sem isso, ou se o número foi marcado como ignorado, a conversa não fica
+ * salva em lugar nenhum. Grupo nunca entra. As enviadas pelo próprio celular também entram (autor "eu"), e as
  * enviadas pela ferramenta não duplicam (mesmo id do WhatsApp).
  *
  * Mensagem nova do cliente acorda o robô de vendas (lib/robo), que responde
@@ -38,7 +41,8 @@ export async function POST(req: Request) {
 
   const conta = await contaDaConversa();
   if (!conta) return NextResponse.json({ ok: true, ignorada: true });
-  const lead = await leadPeloNumero(conta, variantesDoNumero(msg.numero));
+  const formas = variantesDoNumero(msg.numero);
+  const lead = (await leadPeloNumero(conta, formas)) ?? (await leadDeQuemChamou(conta, msg, formas));
   if (!lead) return NextResponse.json({ ok: true, ignorada: true });
 
   const r = await registrarMensagem(conta, lead, msg.deMim ? 'eu' : 'cliente', msg.texto, null, msg.id);
