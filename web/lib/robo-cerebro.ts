@@ -360,7 +360,8 @@ Jeito de escrever: ${TOM[cfg.formalidade]} ${EMOJI[cfg.emojis]}${cfg.expressoes.
 - Nada de frases de telemarketing ("prezado", "solução", "agregar valor", "sem compromisso", "não hesite").
 
 ${pedidoDoDono.trim()
-    ? `Ângulo desta vez, pedido pelo ${cfg.nome} (siga exatamente esta ideia; o que ele diz que viu ou sabe do lead pode ser usado como fato): "${pedidoDoDono.trim().slice(0, 500)}"`
+    ? `Ângulo desta vez, pedido pelo ${cfg.nome} (siga exatamente esta ideia; o que ele diz que viu ou sabe do lead pode ser usado como fato): "${pedidoDoDono.trim().slice(0, 500)}"
+A ideia dele vale mais que <lead>. Se ela contradiz "O que encontramos" ou "Verificação do site" (por exemplo, ele diz que o site está bom e <lead> fala de problema), siga a ideia dele e não mencione o problema. Não acrescente nenhum defeito ou elogio que ele não escreveu.`
     : `Ângulo desta vez: ${angulo.instrucao}`}`;
 
   const pedido = [

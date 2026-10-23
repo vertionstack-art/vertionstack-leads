@@ -47,8 +47,27 @@ const CABECALHOS = {
  * Sinais de página sem conteúdo real. Conservador de propósito: marcar um
  * site bom como "em construção" faria você deixar de lado um lead que não
  * era lead, mas também sujaria a lista com falso positivo.
+ *
+ * Os fortes valem sempre (domínio à venda, conta suspensa, página padrão do
+ * servidor). Os fracos aparecem também em site bom ("em breve entraremos em
+ * contato" no formulário, "registro.br" no rodapé: caso real da TechRJ), então
+ * só contam em página com pouco texto.
  */
-const SINAIS_PARADO = [
+const SINAIS_FORTES = [
+  'this domain is for sale',
+  'domínio à venda',
+  'domain for sale',
+  'buy this domain',
+  'parked domain',
+  'default web page',
+  'apache2 ubuntu default page',
+  'welcome to nginx',
+  'index of /',
+  'account suspended',
+  'conta suspensa',
+  'esta conta foi suspensa',
+];
+const SINAIS_FRACOS = [
   'em construção',
   'em construcao',
   'under construction',
@@ -56,23 +75,13 @@ const SINAIS_PARADO = [
   'coming soon',
   'em breve',
   'página não encontrada',
-  'this domain is for sale',
-  'domínio à venda',
-  'domain for sale',
-  'buy this domain',
-  'parked domain',
   'domínio registrado',
   'registro.br',
   'hospedagem de sites',
-  'default web page',
-  'apache2 ubuntu default page',
-  'welcome to nginx',
   'it works!',
-  'index of /',
-  'account suspended',
-  'conta suspensa',
-  'esta conta foi suspensa',
 ];
+/** acima disso a página tem conteúdo de verdade (a TechRJ tem ~5.500) */
+const TEXTO_DE_SITE_DE_VERDADE = 1500;
 
 function textoVisivel(html: string): string {
   return html
@@ -263,7 +272,9 @@ export async function verificarSite(urlBruta: string | null): Promise<Verificaca
   const html = (await resp.text().catch(() => '')).slice(0, 200_000);
   const texto = textoVisivel(html).toLowerCase();
 
-  const sinal = SINAIS_PARADO.find((s) => texto.includes(s));
+  const sinal =
+    SINAIS_FORTES.find((s) => texto.includes(s)) ||
+    (texto.length < TEXTO_DE_SITE_DE_VERDADE ? SINAIS_FRACOS.find((s) => texto.includes(s)) : undefined);
   if (sinal) {
     return {
       status: 'em_construcao',
