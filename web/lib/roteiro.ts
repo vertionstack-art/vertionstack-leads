@@ -382,8 +382,8 @@ export const OBJECOES: Objecao[] = [
   {
     id: 'ja_tem_site',
     frase: 'Já tenho site',
-    dica: 'Use o problema que a ferramenta achou no site.',
-    resposta: 'Que bom! Dei uma olhada e vi que {problema}. Se quiser, te mostro o que dá para melhorar sem começar do zero.',
+    dica: 'Reconheça o site que existe. Só fale de problema se a ferramenta comprovou; se o site está bom, pergunte se o contato pelo site funciona (captação, agendamento, orçamento) ou deixe a porta aberta.',
+    resposta: 'Que bom, vi o site de vocês! Hoje o pessoal costuma chamar mais pelo site ou pelo WhatsApp? Às vezes dá para melhorar só a parte de contato, sem mexer no resto.',
   },
   {
     id: 'sem_tempo',
@@ -463,3 +463,15 @@ export function roteiroEmTexto(): string {
   const obj = OBJECOES.map((o) => `- objeção "${o.id}": "${o.frase}". Como lidar: ${o.dica} Exemplo: ${o.resposta}`).join('\n');
   return `${fases}\n\n## Objeções comuns\n${obj}`;
 }
+
+/**
+ * O roteiro curto, para o robô: os ids, o objetivo de cada passo e como
+ * lidar com cada objeção, sem as mensagens de exemplo. Cabe no limite por
+ * minuto da IA grátis (Groq); o robô escreve no jeito dele mesmo.
+ */
+export function roteiroCompacto(): string {
+  const fases = FASES.map((f) => `${f.titulo} (${f.quando}): ` + f.passos.map((p) => `"${p.id}" ${p.objetivo}`).join(' | ')).join('\n');
+  const obj = OBJECOES.map((o) => `- "${o.id}" (${o.frase}): ${o.dica}`).join('\n');
+  return `${fases}\n\nObjeções:\n${obj}`;
+}
+

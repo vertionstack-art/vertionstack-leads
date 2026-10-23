@@ -34,6 +34,9 @@ import { ajustarParaAutomatica, decidir, linksPermitidos, mensagensSeguras, mont
 import { normalizarConfig, type ConfigRobo } from './robo-config';
 import type { Aguardando, AvisoRobo, EstadoRobo } from './robo-tipos';
 import { ehAutomatica, segundosDepois } from './automatica';
+import { fichaDoLead } from './copiloto-dados';
+import { fichaEmTexto } from './comercial';
+import { numerosInventados } from './copiloto';
 
 /** quanto esperar o cliente terminar de digitar antes de responder */
 const ESPERA_MS = 25_000;
@@ -198,7 +201,8 @@ export async function escritaDoDono(conta: string): Promise<string[]> {
   `;
   return r
     .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
-    .slice(0, 12)
+    // 6 bastam para pegar o jeito; mais que isso estoura o limite por minuto da IA grátis
+    .slice(0, 6)
     .map((x) => String(x.texto).replace(/\s+/g, ' '));
 }
 
@@ -229,6 +233,8 @@ async function montarContexto(conta: string, leadId: string, entrega: string | n
   const mensagens = (await mensagensDaConversa(conta, leadId)).slice(-40);
   const passos = await passosFeitos(conta, leadId);
   const ultimoCliente = [...mensagens].reverse().find((m) => m.autor === 'cliente');
+  // a ficha comercial (estágio, fatos do site, oportunidades); sem ela o robô segue como antes
+  const ficha = await fichaDoLead(conta, lead).then((f) => fichaEmTexto(f.ficha)).catch(() => null);
   const [respondido] = await sql()`select respondido_ate from robo_conversas where conta_id = ${conta} and lead_id = ${leadId}`;
   const naoLidas = await sql()`
     select externo_id from conversa_mensagens
@@ -248,6 +254,7 @@ async function montarContexto(conta: string, leadId: string, entrega: string | n
     proposta: d.proposta,
     valores: v && (v.entrada || v.mensalidade) ? `entrada ${brl(v.entrada)}${v.mensalidade ? `, mensalidade ${brl(v.mensalidade)}` : ', sem mensalidade'}` : null,
     chamouPrimeiro: lead.origem === 'whatsapp',
+    ficha,
   };
   // resposta automática do WhatsApp Business (boas-vindas, menu, ausência): o robô não responde o conteúdo
   let nossaAnterior: string | null = null;
@@ -393,10 +400,15 @@ export async function entregarAoRobo(conta: string, leadId: string, entrega: str
 }
 
 /** grava o uso no medidor (a IA do PC e o Gemini grátis não custam nada, mas contam para o limite do dia) */
-export async function registrarUso(conta: string, leadId: string, r: { modelo: string; entrada: number; saida: number }): Promise<void> {
+export async function registrarUso(
+  conta: string,
+  leadId: string,
+  r: { modelo: string; entrada: number; saida: number; ms?: number },
+  tarefa: string | null = null,
+): Promise<void> {
   await sql()`
-    insert into uso_ia (conta_id, lead_id, modelo, entrada, saida, cache_lida, cache_gravada, custo_usd)
-    values (${conta}, ${leadId}, ${r.modelo}, ${r.entrada}, ${r.saida}, 0, 0, 0)
+    insert into uso_ia (conta_id, lead_id, modelo, entrada, saida, cache_lida, cache_gravada, custo_usd, tarefa, ms)
+    values (${conta}, ${leadId}, ${r.modelo}, ${r.entrada}, ${r.saida}, 0, 0, 0, ${tarefa}, ${r.ms ?? null})
   `;
 }
 
@@ -404,9 +416,10 @@ async function decidirEEnviar(conta: string, ctx: Contexto, entrega: string | nu
   const leadId = ctx.lead.id;
   let d: Decisao;
   try {
+    const inicio = Date.now();
     const r = await decidir(ctx.instrucoes, ctx.pedido, Boolean(entrega));
     d = ajustarParaAutomatica(r.decisao, ctx.conversa);
-    await registrarUso(conta, leadId, r);
+    await registrarUso(conta, leadId, { ...r, ms: Date.now() - inicio }, 'robo');
   } catch (e) {
     const motivo = e instanceof ErroIa ? e.message : 'A IA falhou.';
     await pararParaVoce(conta, leadId, ctx.ultimoClienteId, 'humano', `O robô não conseguiu responder: ${motivo} Responda você ou clique em "Responder agora".`);
@@ -427,6 +440,12 @@ async function decidirEEnviar(conta: string, ctx: Contexto, entrega: string | nu
   if (!baloes) {
     // a IA escreveu algo que não pode sair (link inventado, marcador): a pessoa decide
     await pararParaVoce(conta, leadId, ctx.ultimoClienteId, 'humano', `O robô não mandou a resposta porque ela tinha um link ou trecho que ele não pode usar. ${d.motivo || d.leitura}`.trim());
+    return { feito: 'chamou', mensagem: null };
+  }
+  // número que não está em lugar nenhum dos dados (ex.: somou entrada com mensalidade): o robô não envia sozinho
+  const inventados = numerosInventados(baloes.join(' '), `${ctx.instrucoes} ${ctx.pedido}`);
+  if (inventados.length) {
+    await pararParaVoce(conta, leadId, ctx.ultimoClienteId, 'humano', `O robô não mandou a resposta porque citou ${inventados.join(', ')}, que não está nos dados. Responda você: "${baloes.join(' ').slice(0, 160)}"`);
     return { feito: 'chamou', mensagem: null };
   }
 

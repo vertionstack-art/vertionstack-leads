@@ -3,7 +3,7 @@ import { buscarLead } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
-import { apagarMensagem, marcarPasso, mensagensDaConversa, passosFeitos, registrarMensagem } from '@/lib/conversa';
+import { apagarMensagem, marcarPasso, mensagensDaConversa, origemIaValida, passosFeitos, registrarMensagem } from '@/lib/conversa';
 import { estadoDoRobo } from '@/lib/robo';
 
 export const runtime = 'nodejs';
@@ -46,7 +46,7 @@ export async function GET(_req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   const e = await entrar(req, ctx);
   if (e.erro) return e.erro;
-  const corpo = (await req.json().catch(() => ({}))) as { acao?: string; autor?: string; texto?: string; passo?: string; feito?: boolean };
+  const corpo = (await req.json().catch(() => ({}))) as { acao?: string; autor?: string; texto?: string; passo?: string; feito?: boolean; origemIa?: string };
 
   if (corpo.acao === 'passo') {
     await marcarPasso(e.conta, e.lead, String(corpo.passo || '').slice(0, 40), corpo.feito !== false);
@@ -57,7 +57,7 @@ export async function POST(req: Request, ctx: Ctx) {
     const autor = corpo.autor === 'cliente' ? 'cliente' : 'eu';
     const texto = String(corpo.texto || '').trim().slice(0, 2000);
     if (!texto) return NextResponse.json({ ok: false, erro: 'A mensagem está vazia.' }, { status: 400 });
-    const m = await registrarMensagem(e.conta, e.lead, autor, texto, corpo.passo ? String(corpo.passo).slice(0, 40) : null);
+    const m = await registrarMensagem(e.conta, e.lead, autor, texto, corpo.passo ? String(corpo.passo).slice(0, 40) : null, null, false, autor === 'eu' ? origemIaValida(corpo.origemIa) : null);
     if (m === 'cheio') return NextResponse.json({ ok: false, erro: 'Esta conversa chegou ao limite de mensagens guardadas.' }, { status: 400 });
     return NextResponse.json({ ok: true, mensagem: m, passos: await passosFeitos(e.conta, e.lead) });
   }

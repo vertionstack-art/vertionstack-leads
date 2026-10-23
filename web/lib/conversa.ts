@@ -6,6 +6,12 @@
 import { db } from './sql';
 import { passoPorId } from './roteiro';
 
+/** origem_ia aceita: "copiloto:<tarefa>" */
+export function origemIaValida(v: unknown): string | null {
+  const x = String(v ?? '');
+  return /^copiloto:(abordagem|resposta|followup|audio|email|proximo_passo)$/.test(x) ? x : null;
+}
+
 export interface MensagemConversa {
   id: number;
   autor: 'eu' | 'cliente';
@@ -49,19 +55,22 @@ export async function registrarMensagem(
   /** id da mensagem no WhatsApp (Evolution): a mesma mensagem nunca entra duas vezes */
   externoId: string | null = null,
   robo = false,
+  /** saiu de qual tarefa do copiloto ("copiloto:abordagem"); null = escrita à mão ou do roteiro */
+  origemIa: string | null = null,
 ): Promise<MensagemConversa | 'cheio' | 'repetida'> {
   const [n] = await db()`select count(*)::int as n from conversa_mensagens where conta_id = ${conta} and lead_id = ${lead}`;
   if ((n.n as number) >= MAX_MENSAGENS) return 'cheio';
   const p = passoPorId(passo) ? passo : null;
   const linhas = await db()`
-    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo, externo_id, robo)
-    values (${conta}, ${lead}, ${autor}, ${texto}, ${p}, ${externoId}, ${robo})
+    insert into conversa_mensagens (conta_id, lead_id, autor, texto, passo, externo_id, robo, origem_ia)
+    values (${conta}, ${lead}, ${autor}, ${texto}, ${p}, ${externoId}, ${robo}, ${origemIa})
     on conflict (conta_id, externo_id) where externo_id is not null do nothing
     returning id, criado_em
   `;
   if (!linhas.length) {
     // o webhook do WhatsApp gravou a mesma mensagem antes: só marca que foi do robô
     if (robo && externoId) await db()`update conversa_mensagens set robo = true where conta_id = ${conta} and externo_id = ${externoId}`;
+    if (origemIa && externoId) await db()`update conversa_mensagens set origem_ia = ${origemIa} where conta_id = ${conta} and externo_id = ${externoId}`;
     return 'repetida';
   }
   const [x] = linhas;

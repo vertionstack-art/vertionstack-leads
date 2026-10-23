@@ -8,6 +8,9 @@ import { cabecaLigada } from '@/lib/cabeca';
 import { escritaDoDono, treinoDoRobo } from '@/lib/robo';
 import Casca from '@/app/casca';
 import TreinoRobo from './treino';
+import ResultadosCopiloto from './resultados';
+import TestarIas from './testar-ias';
+import { resultadosDoCopiloto } from '@/lib/copiloto-resultados';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +26,7 @@ export default async function PaginaTreino() {
 
   const t = await treinoDoRobo(sessao.contaId);
   const escrita = await escritaDoDono(sessao.contaId);
+  const resultados = await resultadosDoCopiloto(sessao.contaId);
 
   return (
     <Casca
@@ -46,6 +50,8 @@ export default async function PaginaTreino() {
         catalogo={CATALOGO.filter((s) => s.familia !== 'cortesia').map((s) => s.nome)}
         iaLigada={cabecaLigada()}
       />
+      <TestarIas />
+      <ResultadosCopiloto envios={resultados.envios} uso={resultados.uso} />
     </Casca>
   );
 }

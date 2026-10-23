@@ -6,7 +6,7 @@ import { registrarEvento } from '@/lib/eventos';
 import { db } from '@/lib/sql';
 import { numeroWhatsapp } from '@/lib/telefone';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
-import { passosFeitos, registrarMensagem } from '@/lib/conversa';
+import { origemIaValida, passosFeitos, registrarMensagem } from '@/lib/conversa';
 import { enviarTexto, ErroEvolution } from '@/lib/evolution';
 import { aoMandarPorContaPropria } from '@/lib/robo';
 
@@ -35,7 +35,7 @@ export async function POST(req: Request, ctx: Ctx) {
   const lead = await buscarLead(contaId, idLead);
   if (!lead) return NextResponse.json({ ok: false, erro: 'Lead não encontrado.' }, { status: 404 });
 
-  const corpo = (await req.json().catch(() => ({}))) as { texto?: string; passo?: string };
+  const corpo = (await req.json().catch(() => ({}))) as { texto?: string; passo?: string; origemIa?: string };
   const texto = String(corpo.texto || '').trim().slice(0, 2000);
   if (!texto) return NextResponse.json({ ok: false, erro: 'A mensagem está vazia.' }, { status: 400 });
   if (/\[[^\]]+\]/.test(texto)) {
@@ -52,7 +52,7 @@ export async function POST(req: Request, ctx: Ctx) {
     return NextResponse.json({ ok: false, erro: e instanceof Error ? e.message : 'Não consegui enviar.' }, { status });
   }
 
-  const m = await registrarMensagem(contaId, idLead, 'eu', texto, corpo.passo ? String(corpo.passo).slice(0, 40) : null, enviado.id);
+  const m = await registrarMensagem(contaId, idLead, 'eu', texto, corpo.passo ? String(corpo.passo).slice(0, 40) : null, enviado.id, false, origemIaValida(corpo.origemIa));
   await registrarEvento(contaId, idLead, 'whatsapp', `WhatsApp enviado pela ferramenta: “${texto.replace(/\s+/g, ' ').slice(0, 160)}${texto.length > 160 ? '…' : ''}”`, quem);
   await db()`update leads set contatado_em = coalesce(contatado_em, now()) where conta_id = ${contaId} and id = ${idLead}`;
   // primeira mensagem: o robô fica de prontidão; depois de ele já ter falado, você assumiu e ele pausa

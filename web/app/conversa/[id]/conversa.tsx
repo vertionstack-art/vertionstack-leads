@@ -2,23 +2,26 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, UserX, X,
+  AlertTriangle, ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, Lightbulb, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, UserX, X,
 } from 'lucide-react';
-import { aplicarModelo, linkComTexto, mensagemPronta, problemaCurto, type DadosMensagem, type Remetente } from '@/lib/mensagem';
+import { aplicarModelo, linkComTexto, mensagemPronta, type DadosMensagem, type Remetente } from '@/lib/mensagem';
 import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao, type Fase } from '@/lib/roteiro';
 import type { MensagemConversa } from '@/lib/conversa';
 import type { UsoIa } from '@/lib/ia';
 import { lerRespostaColada, type Sugestao } from '@/lib/sugestao';
 import { ROTULO_AGUARDANDO, type EstadoRobo } from '@/lib/robo-tipos';
 import { ehAutomatica, segundosDepois } from '@/lib/automatica';
+import { ROTULO_ACAO, ROTULO_TAREFA, ROTULO_TOM, TONS, type RespostaCopiloto, type Tarefa, type Tom } from '@/lib/copiloto-tipos';
 
 /**
  * A tela da conversa guiada. Três colunas no computador (roteiro, conversa,
  * objeções e medidor da IA) e três abas no celular.
  *
- * A IA tem dois modos. Com a chave do Claude na Vercel, a sugestão vem
- * direto. Sem ela, a tela monta o pedido, a pessoa cola no chat do claude.ai
- * (o plano dela) e cola a resposta de volta.
+ * O copiloto comercial (lib/copiloto, IA do PC) escreve abordagem,
+ * resposta, follow-up, áudio, e-mail ou recomenda o próximo passo, a partir
+ * da ficha comercial do lead e da conversa. Com a chave do Claude na Vercel,
+ * "sugerir resposta" usa o Claude; sem ela, usa o copiloto, e o modo antigo
+ * (montar o pedido para colar no claude.ai) continua disponível.
  *
  * Nada sai daqui sozinho: "Abrir no WhatsApp" abre o WhatsApp da pessoa com o
  * texto preenchido, e quem aperta enviar é ela. A resposta do cliente é
@@ -51,6 +54,27 @@ const hora = (iso: string) =>
   new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 type Aba = 'roteiro' | 'conversa' | 'objecoes';
+
+/** o que o copiloto devolveu, como a tela mostra */
+interface ResultadoCopiloto {
+  tarefa: Tarefa;
+  resposta: RespostaCopiloto;
+  avisos: string[];
+  estagio: { id: string; rotulo: string };
+  variacao: { id: string; rotulo: string } | null;
+}
+
+/** a ficha comercial (GET /copiloto), mostrada no painel da abordagem */
+interface FichaUi {
+  estagio: { rotulo: string; objetivo: string };
+  fatos: string[];
+  oportunidades: { servico: string; nome: string; motivo: string }[];
+  naoSabemos: string[];
+  followUp: { recomendacao: string; podeMandar: boolean };
+}
+
+/** as tarefas do copiloto na ordem dos botões */
+const TAREFAS_BOTOES: Tarefa[] = ['resposta', 'followup', 'abordagem', 'audio', 'email', 'proximo_passo'];
 
 export default function ConversaGuiada({
   leadId,
@@ -97,6 +121,13 @@ export default function ConversaGuiada({
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [abertas, setAbertas] = useState<Set<string>>(() => new Set([faseAtual(passosIniciais)]));
+  // copiloto comercial: o último resultado, o tom e o pedido escritos, e de qual tarefa saiu o texto do editor
+  const [copiloto, setCopiloto] = useState<ResultadoCopiloto | null>(null);
+  const [gerandoCopiloto, setGerandoCopiloto] = useState<Tarefa | null>(null);
+  const [tom, setTom] = useState<Tom>('padrao');
+  const [pedidoCopiloto, setPedidoCopiloto] = useState('');
+  const [origemIa, setOrigemIa] = useState<string | null>(null);
+  const [ficha, setFicha] = useState<FichaUi | null>(null);
 
   const base = `/api/conversa/${encodeURIComponent(leadId)}`;
 
@@ -131,11 +162,12 @@ export default function ConversaGuiada({
     setOcupado(true);
     setErro(null);
     try {
-      const j = await chamar(`${base}/enviar`, { method: 'POST', body: JSON.stringify({ texto: t, passo: passoDoTexto }) });
+      const j = await chamar(`${base}/enviar`, { method: 'POST', body: JSON.stringify({ texto: t, passo: passoDoTexto, origemIa }) });
       if (j.mensagem) setMensagens((m) => (m.some((x) => x.id === j.mensagem.id) ? m : [...m, j.mensagem]));
       setPassos(new Set(j.passos));
       setTexto('');
       setPassoDoTexto(null);
+      setOrigemIa(null);
       setSugestao(null);
       setAviso('Enviada pelo WhatsApp da Vertion.');
     } catch (e) {
@@ -145,31 +177,56 @@ export default function ConversaGuiada({
     }
   }
 
-  // "Gerar nova abordagem": as que já saíram (para a IA não repetir) e o último ângulo sorteado
+  // abordagens que já saíram (para a IA não repetir) e o último jeito sorteado
   const [abordagens, setAbordagens] = useState<string[]>([]);
-  const [anguloAnterior, setAnguloAnterior] = useState<string | null>(null);
-  const [gerando, setGerando] = useState(false);
-  // o painel da abordagem com IA: os dados do lead e a ideia que você escreve
+  const [variacaoAnterior, setVariacaoAnterior] = useState<string | null>(null);
+  // o painel da abordagem com IA: a ficha do lead e a ideia que você escreve
   const [painelAbordagem, setPainelAbordagem] = useState(false);
   const [ideiaAbordagem, setIdeiaAbordagem] = useState('');
 
-  async function novaAbordagem() {
-    setGerando(true);
+  // a ficha comercial (o que a IA sabe) carrega quando o painel abre
+  useEffect(() => {
+    if (!painelAbordagem || ficha) return;
+    fetch(`${base}/copiloto`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => j.ok && setFicha(j))
+      .catch(() => {});
+  }, [painelAbordagem, ficha, base]);
+
+  /**
+   * Pede ao copiloto. Só escreve: o texto vai para o cartão (e, na
+   * abordagem, direto para o editor), e quem envia é você.
+   */
+  async function pedirCopiloto(tarefa: Tarefa, pedidoTexto: string) {
+    setGerandoCopiloto(tarefa);
     setErro(null);
+    setAviso(null);
     try {
-      const j = await chamar(`${base}/abordagem`, {
+      const j = await chamar(`${base}/copiloto`, {
         method: 'POST',
-        body: JSON.stringify({ anteriores: abordagens, anguloAnterior, pedido: ideiaAbordagem }),
+        body: JSON.stringify({ tarefa, tom, pedido: pedidoTexto, anteriores: abordagens, variacaoAnterior }),
       });
-      setAbordagens((a) => [...a, j.mensagem].slice(-6));
-      setAnguloAnterior(j.angulo);
-      usarTexto(j.mensagem, 'primeira');
-      setAviso(`Abordagem nova (${j.rotulo}). Revise antes de enviar; clique de novo para outra.`);
+      const r: ResultadoCopiloto = { tarefa: j.tarefa, resposta: j.resposta, avisos: j.avisos || [], estagio: j.estagio, variacao: j.variacao };
+      setCopiloto(r);
+      setSugestao(null);
+      setPedidoPlano(null);
+      if (j.variacao) setVariacaoAnterior(j.variacao.id);
+      if (tarefa === 'abordagem' && r.resposta.mensagem) {
+        setAbordagens((a) => [...a, r.resposta.mensagem].slice(-6));
+        if (r.resposta.acao === 'escrever') usarCopiloto(r.resposta.mensagem, r);
+      }
+      requestAnimationFrame(() => document.getElementById('cartao-copiloto')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
     } catch (e) {
       setErro((e as Error).message);
     } finally {
-      setGerando(false);
+      setGerandoCopiloto(null);
     }
+  }
+
+  /** leva um texto do copiloto para o editor, lembrando de qual tarefa saiu */
+  function usarCopiloto(t: string, r: ResultadoCopiloto) {
+    usarTexto(t, r.tarefa === 'abordagem' ? 'primeira' : null);
+    setOrigemIa(`copiloto:${r.tarefa}`);
   }
 
   /** troca os marcadores do roteiro pelos dados deste lead */
@@ -195,6 +252,7 @@ export default function ConversaGuiada({
   function usarTexto(t: string, passo: string | null) {
     setTexto(t);
     setPassoDoTexto(passo);
+    setOrigemIa(null);
     setAba('conversa');
     setAviso(null);
     setErro(null);
@@ -202,7 +260,7 @@ export default function ConversaGuiada({
   }
 
   async function registrar(autor: 'eu' | 'cliente', t: string, passo: string | null) {
-    const j = await chamar(base, { method: 'POST', body: JSON.stringify({ acao: 'mensagem', autor, texto: t, passo }) });
+    const j = await chamar(base, { method: 'POST', body: JSON.stringify({ acao: 'mensagem', autor, texto: t, passo, origemIa: autor === 'eu' ? origemIa : null }) });
     setMensagens((m) => [...m, j.mensagem]);
     setPassos(new Set(j.passos));
     return j.mensagem as MensagemConversa;
@@ -226,6 +284,7 @@ export default function ConversaGuiada({
       await registrar('eu', t, passoDoTexto);
       setTexto('');
       setPassoDoTexto(null);
+      setOrigemIa(null);
       setSugestao(null);
       setAviso(abrir ? 'WhatsApp aberto. Aperte enviar por lá; a mensagem já ficou registrada aqui.' : 'Registrada.');
     } catch (e) {
@@ -251,7 +310,12 @@ export default function ConversaGuiada({
       }
       setOcupado(false);
     }
-    if (pedirSugestao) await (uso.ligada ? sugerir() : montarPedido());
+    if (!pedirSugestao) return;
+    if (uso.ligada) await sugerir();
+    else {
+      await pedirCopiloto('resposta', pedido);
+      setPedido('');
+    }
   }
 
   /** modo "seu plano": monta o pedido e copia para colar no claude.ai */
@@ -435,33 +499,49 @@ export default function ConversaGuiada({
                             {p.id === 'primeira' && painelAbordagem && (
                               <div className="mt-2.5 rounded-[14px] bg-lavanda p-3 sm:ml-6">
                                 <p className="text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-roxo-800">O que a IA sabe deste lead</p>
-                                <ul className="mt-1.5 space-y-0.5 text-[12px] leading-snug text-zinc-800">
-                                  <li><b>{dados.nome}</b>{[dados.category, dados.city].filter(Boolean).length ? ` · ${[dados.category, dados.city].filter(Boolean).join(' · ')}` : ''}</li>
-                                  <li>Encontramos: {problemaCurto(dados)}</li>
-                                  {dados.rating && dados.reviews ? <li>Google: {dados.rating.toFixed(1).replace('.', ',')} estrelas, {dados.reviews} avaliações</li> : null}
-                                  <li>{dados.instagram ? 'Tem Instagram' : 'Sem Instagram cadastrado'} · {dados.previaUrl ? 'Prévia pronta' : 'Sem prévia ainda'}</li>
-                                </ul>
+                                {!ficha ? (
+                                  <p className="mt-1.5 text-[12px] text-zinc-700">Lendo os dados e o site…</p>
+                                ) : (
+                                  <div className="mt-1.5 space-y-2 text-[12px] leading-snug text-zinc-800">
+                                    <p><b>{ficha.estagio.rotulo}.</b> {ficha.estagio.objetivo}</p>
+                                    {ficha.fatos.length > 0 && (
+                                      <ul className="space-y-0.5">
+                                        {ficha.fatos.slice(0, 6).map((f) => <li key={f}>· {f}</li>)}
+                                      </ul>
+                                    )}
+                                    <div>
+                                      <p className="font-bold">Oportunidades possíveis</p>
+                                      {ficha.oportunidades.length ? (
+                                        <ul className="mt-0.5 space-y-0.5">
+                                          {ficha.oportunidades.map((o) => <li key={o.servico}><b>{o.nome}:</b> {o.motivo}</li>)}
+                                        </ul>
+                                      ) : (
+                                        <p className="mt-0.5 text-zinc-700">Nenhuma evidente: a IA vai puxar conversa, sem diagnosticar.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                                 <label htmlFor="ideia-abordagem" className="mt-2.5 block text-[12px] font-bold">Como quer abordar? (opcional)</label>
                                 <textarea
                                   id="ideia-abordagem"
                                   value={ideiaAbordagem}
                                   onChange={(e) => setIdeiaAbordagem(e.target.value.slice(0, 500))}
                                   rows={3}
-                                  placeholder="Ex.: vi que o site deles está em construção, quero oferecer terminar e deixar pronto para o Google"
+                                  placeholder="Ex.: tem site e está bom, quero oferecer agendamento pelo WhatsApp"
                                   className="mt-1 w-full resize-y rounded-xl border border-zinc-300 bg-white px-2.5 py-2 text-[12.5px] leading-relaxed outline-none focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
                                 />
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={novaAbordagem}
-                                    disabled={gerando}
+                                    onClick={() => pedirCopiloto('abordagem', ideiaAbordagem)}
+                                    disabled={Boolean(gerandoCopiloto)}
                                     className="inline-flex min-h-[34px] items-center gap-1.5 rounded-full bg-roxo-800 px-3.5 text-[12px] font-bold text-white transition hover:bg-roxo-700 disabled:opacity-60"
                                   >
                                     <Sparkles aria-hidden className="h-3.5 w-3.5" />
-                                    {gerando ? 'Gerando…' : abordagens.length ? 'Gerar outra' : 'Gerar abordagem'}
+                                    {gerandoCopiloto === 'abordagem' ? 'Pensando…' : abordagens.length ? 'Gerar outra' : 'Gerar abordagem'}
                                   </button>
                                   <span className="text-[11px] leading-snug text-zinc-600">
-                                    {ideiaAbordagem.trim() ? 'A IA segue a sua ideia, no seu jeito de escrever.' : 'Em branco, a IA escolhe um jeito diferente a cada clique.'}
+                                    {ideiaAbordagem.trim() ? 'A IA segue a sua ideia; o que você diz vale mais que a ficha.' : 'Em branco, a IA escolhe um jeito diferente a cada clique.'}
                                   </span>
                                 </div>
                               </div>
@@ -547,21 +627,19 @@ export default function ConversaGuiada({
               <input
                 value={pedido}
                 onChange={(e) => setPedido(e.target.value.slice(0, 300))}
-                placeholder="Pedido para a IA (opcional): mais curto, ele pediu preço…"
+                placeholder="Pedido para a IA (opcional): ele achou caro, quero puxar para chamada…"
                 className="min-h-[40px] min-w-0 basis-full rounded-full bg-zinc-100 px-3.5 text-[12.5px] sm:basis-0 sm:flex-1 outline-none placeholder:text-zinc-500 focus:bg-white focus:ring-2 focus:ring-roxo-200"
               />
               <button
                 type="button"
-                disabled={pensando || ocupado}
+                disabled={pensando || ocupado || Boolean(gerandoCopiloto)}
                 onClick={() => registrarResposta(true)}
                 className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-roxo-600 px-4 text-[12.5px] font-bold text-white hover:bg-roxo-700 disabled:bg-zinc-300"
               >
                 <Sparkles aria-hidden className="h-4 w-4" />
-                {pensando
-                  ? uso.ligada ? 'Pensando…' : 'Montando…'
-                  : uso.ligada
-                    ? resposta.trim() ? 'Registrar e sugerir resposta' : 'Sugerir próxima mensagem'
-                    : resposta.trim() ? 'Registrar e montar pedido para o Claude' : 'Montar pedido para o Claude'}
+                {pensando || gerandoCopiloto === 'resposta'
+                  ? 'Pensando…'
+                  : resposta.trim() ? 'Registrar e sugerir resposta' : 'Sugerir próxima mensagem'}
               </button>
               <button
                 type="button"
@@ -572,7 +650,122 @@ export default function ConversaGuiada({
                 Só registrar
               </button>
             </div>
+            {!uso.ligada && (
+              <button
+                type="button"
+                disabled={pensando}
+                onClick={montarPedido}
+                className="mt-2 text-[11.5px] font-semibold text-zinc-500 underline underline-offset-2 hover:text-tinta"
+              >
+                {pensando ? 'Montando…' : 'Prefere o Claude? Montar pedido para colar no claude.ai'}
+              </button>
+            )}
           </div>
+
+          {/* copiloto comercial: pedir o que precisa agora */}
+          <div className="mt-4 rounded-[24px] bg-zinc-50 p-4 ring-1 ring-inset ring-zinc-200">
+            <p className="flex items-center gap-2 text-[13px] font-extrabold">
+              <Lightbulb aria-hidden className="h-4 w-4 text-roxo-700" /> Copiloto comercial
+            </p>
+            <p className="mt-0.5 text-[12px] leading-snug text-zinc-600">Lê a ficha do lead e a conversa, decide o melhor caminho e escreve. Quem envia é você.</p>
+            <input
+              value={pedidoCopiloto}
+              onChange={(e) => setPedidoCopiloto(e.target.value.slice(0, 500))}
+              placeholder="O que você quer? (opcional) Ex.: quero vender automação, não quero oferecer site novo"
+              aria-label="Pedido para o copiloto"
+              className="mt-2.5 min-h-[40px] w-full rounded-full bg-white px-3.5 text-[12.5px] outline-none ring-1 ring-inset ring-zinc-200 placeholder:text-zinc-500 focus:ring-2 focus:ring-roxo-200"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Tom">
+              {TONS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={tom === t}
+                  onClick={() => setTom(t)}
+                  className={`min-h-[30px] rounded-full px-2.5 text-[11.5px] font-bold transition ${tom === t ? 'bg-tinta text-white' : 'bg-white text-zinc-600 ring-1 ring-inset ring-zinc-200 hover:ring-zinc-400'}`}
+                >
+                  {ROTULO_TOM[t]}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {TAREFAS_BOTOES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={Boolean(gerandoCopiloto) || pensando}
+                  onClick={() => pedirCopiloto(t, pedidoCopiloto)}
+                  className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-roxo-800 px-3.5 text-[12px] font-bold text-white transition hover:bg-roxo-700 disabled:opacity-50"
+                >
+                  {gerandoCopiloto === t ? 'Pensando…' : ROTULO_TAREFA[t]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* o que o copiloto devolveu */}
+          {copiloto && (
+            <div id="cartao-copiloto" className="mt-4 rounded-[24px] bg-lavanda p-4">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11.5px] font-bold">
+                  <Lightbulb aria-hidden className="h-3.5 w-3.5" /> {ROTULO_TAREFA[copiloto.tarefa]}{copiloto.variacao ? ` · ${copiloto.variacao.rotulo}` : ''}
+                </span>
+                <span className="rounded-full bg-white/70 px-2.5 py-1 text-[11.5px] font-bold">{copiloto.estagio.rotulo}</span>
+                <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${copiloto.resposta.acao === 'escrever' ? 'bg-white/70' : 'bg-manteiga text-amber-950'}`}>
+                  {ROTULO_ACAO[copiloto.resposta.acao]}
+                </span>
+                <button type="button" onClick={() => setCopiloto(null)} className="ml-auto rounded-full p-1 hover:bg-white/60" title="Fechar">
+                  <X aria-hidden className="h-4 w-4" />
+                  <span className="sr-only">Fechar</span>
+                </button>
+              </div>
+              {copiloto.resposta.leitura && <p className="mt-2.5 text-[12.5px] leading-snug text-zinc-800"><b>Leitura:</b> {copiloto.resposta.leitura}</p>}
+              {copiloto.resposta.por_que && <p className="mt-1 text-[12.5px] leading-snug text-zinc-800"><b>Por quê:</b> {copiloto.resposta.por_que}</p>}
+              {copiloto.resposta.precisa_confirmar && (
+                <p className="mt-2 flex gap-1.5 rounded-[14px] bg-manteiga px-3 py-2 text-[12.5px] font-semibold leading-snug text-amber-950">
+                  <AlertTriangle aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Confirme antes: {copiloto.resposta.precisa_confirmar}
+                </p>
+              )}
+              {copiloto.avisos.map((a) => (
+                <p key={a} role="alert" className="mt-2 flex gap-1.5 rounded-[14px] bg-red-50 px-3 py-2 text-[12.5px] font-semibold leading-snug text-red-800">
+                  <AlertTriangle aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {a}
+                </p>
+              ))}
+              {copiloto.resposta.assunto && (
+                <p className="mt-2.5 rounded-[16px] bg-white px-3 py-2 text-[13px]"><span className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500">Assunto</span><br />{copiloto.resposta.assunto}</p>
+              )}
+              {[copiloto.resposta.mensagem, copiloto.resposta.alternativa].filter(Boolean).map((t, i) => (
+                <div key={i} className="mt-2.5 rounded-[16px] bg-white p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-zinc-500">
+                    {i === 0 ? (copiloto.tarefa === 'audio' ? 'Roteiro para gravar' : copiloto.tarefa === 'email' ? 'Texto do e-mail' : 'Mensagem sugerida') : 'Outra opção'}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap text-[13.5px] leading-relaxed">{t}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {copiloto.tarefa !== 'audio' && copiloto.tarefa !== 'email' && (
+                      <button
+                        type="button"
+                        onClick={() => usarCopiloto(t, copiloto)}
+                        className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-tinta px-3.5 text-[12px] font-bold text-white hover:bg-tinta-70"
+                      >
+                        <Check aria-hidden className="h-3.5 w-3.5" /> Usar esta
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(copiloto.resposta.assunto && i === 0 ? `${copiloto.resposta.assunto}\n\n${t}` : t); setAviso('Copiado.'); }}
+                      className="inline-flex min-h-[34px] items-center gap-1 rounded-full px-3 text-[12px] font-bold text-zinc-700 ring-1 ring-inset ring-zinc-300 hover:ring-tinta"
+                    >
+                      <Copy aria-hidden className="h-3.5 w-3.5" /> Copiar
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {!copiloto.resposta.mensagem && !copiloto.resposta.alternativa && (
+                <p className="mt-2.5 rounded-[16px] bg-white p-3 text-[13px] leading-snug text-zinc-700">Sem mensagem desta vez: a recomendação é {copiloto.resposta.acao === 'encerrar' ? 'não mandar mais nada de venda' : 'esperar'}.</p>
+              )}
+              {copiloto.resposta.proximo_passo && <p className="mt-2.5 text-[12.5px] leading-snug text-zinc-700"><b>Depois:</b> {copiloto.resposta.proximo_passo}</p>}
+            </div>
+          )}
 
           {/* modo "seu plano": colar no claude.ai e trazer a resposta de volta */}
           {pedidoPlano && (

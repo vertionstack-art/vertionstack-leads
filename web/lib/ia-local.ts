@@ -12,6 +12,7 @@
  */
 
 import { ErroGemini, type RespostaGemini } from './gemini';
+import { groqLigado } from './groq';
 
 export function iaLocalLigada(): boolean {
   return Boolean(process.env.OLLAMA_URL && process.env.OLLAMA_SEGREDO);
@@ -40,7 +41,8 @@ function cabecalhos(): Record<string, string> {
  * espera o cliente terminar de digitar. Falhar aqui não importa.
  */
 export async function aquecerIaLocal(): Promise<void> {
-  if (!iaLocalLigada()) return;
+  // com o Groq ligado a IA do PC não é usada: não carrega a placa à toa
+  if (!iaLocalLigada() || groqLigado()) return;
   const base = (process.env.OLLAMA_URL || '').trim().replace(/\/$/, '');
   try {
     await fetch(`${base}/api/chat`, {
