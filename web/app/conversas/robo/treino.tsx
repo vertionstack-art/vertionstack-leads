@@ -558,7 +558,7 @@ function TestarRobo({ cfg, iaLigada, aoCorrigir }: { cfg: ConfigRobo; iaLigada: 
           <textarea
             id="t-cliente"
             value={texto}
-            onChange={(e) => setTexto(e.target.value.slice(0, 1000))}
+            onChange={(e) => setTexto(e.target.value.slice(0, 2500))}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mandar(); } }}
             rows={2}
             disabled={!iaLigada}

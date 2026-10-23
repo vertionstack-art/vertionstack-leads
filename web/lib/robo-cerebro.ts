@@ -116,6 +116,15 @@ ${empresaTexto}
 - Dizer espontaneamente que é robô, IA ou assistente.
 - Mentir sobre ser robô: se o cliente perguntar de forma sincera se está falando com robô, IA ou resposta automática, não negue. Nunca escreva "não sou robô" nem "sou uma pessoa". Responda algo como: "Boa pergunta! Uso um assistente pra responder mais rápido, mas sou eu que acompanho tudo e entro sempre que precisar."${cfg.proibido.trim() ? `\n- Nunca, de jeito nenhum: ${cfg.proibido.trim()}` : ''}
 
+## Resposta automática do WhatsApp Business
+Muitas empresas têm mensagem programada (boas-vindas, ausência, menu "digite 1 para..."). Na conversa ela vem marcada como RESPOSTA AUTOMÁTICA. Não é uma pessoa: não responda o conteúdo dela. Nunca agende, nunca peça orçamento do serviço deles, nunca use os links dela.
+- Responda (acao "responder") curto e educado, deixando claro que não é para usar o serviço deles (adapte ao ramo: não é para agendar consulta, fazer pedido, pedir orçamento...), e peça para falar com quem cuida da parte digital (site, redes, divulgação) ou com o dono/responsável. Exemplo para um consultório: "Oi! Na verdade não é para agendar 😊 Queria falar com quem cuida da parte digital daí, ou com o(a) responsável. Consegue me passar?" Use passo "quem_decide".
+- Se a mensagem automática for um menu com uma opção para falar com atendente, uma pessoa, "outros assuntos" ou parecido, o primeiro balão é só o número dessa opção (por exemplo "3") e o segundo faz o pedido. Se não tiver opção assim, não escolha número nenhum.
+- Só fique calado (acao "nada") se você JÁ respondeu depois de uma automática e chegou outra automática igual.
+- Quando uma pessoa de verdade responder depois, siga a conversa normalmente.
+
+Se o lead é uma pessoa (Cliente (pessoa) em <lead>), não diga que viu o perfil, a empresa ou as avaliações dela no Google.
+
 ## Quando usar cada ação
 - "responder": você consegue seguir a conversa com o que sabe.
 - "chamar_dono": precisa do dono. Os balões seguram a conversa com naturalidade ("já te mando aqui", "deixa eu ver isso e te falo") e "precisa" diz o que ele tem que fazer:
@@ -156,6 +165,8 @@ export interface FalaParaIa {
   autor: 'eu' | 'cliente';
   texto: string;
   em?: string;
+  /** resposta automática do WhatsApp Business do cliente (lib/automatica) */
+  automatica?: boolean;
 }
 
 /** o pedido de cada vez: nada de telefone ou e-mail (a faixa grátis não pode receber dado pessoal) */
@@ -176,7 +187,7 @@ export function montarPedido(l: LeadParaIa, conversa: FalaParaIa[], passos: stri
     `<passos_ja_feitos>${passos.join(', ') || 'nenhum'}</passos_ja_feitos>`,
     '<conversa>',
     ...(conversa.length
-      ? conversa.map((m) => `${m.em ? `[${m.em}] ` : ''}${m.autor === 'cliente' ? 'CLIENTE' : 'VOCÊ'}: ${m.texto}`)
+      ? conversa.map((m) => `${m.em ? `[${m.em}] ` : ''}${m.autor === 'cliente' ? (m.automatica ? 'CLIENTE (RESPOSTA AUTOMÁTICA do WhatsApp Business, não é uma pessoa)' : 'CLIENTE') : 'VOCÊ'}: ${m.texto}`)
       : ['(nenhuma mensagem ainda)']),
     '</conversa>',
     ...(entrega
@@ -188,6 +199,19 @@ export function montarPedido(l: LeadParaIa, conversa: FalaParaIa[], passos: stri
   ]
     .filter((x) => x !== null)
     .join('\n');
+}
+
+/**
+ * Trava para a resposta automática do WhatsApp Business: se a última fala é
+ * automática e ainda não respondemos a nenhuma automática nesta conversa, o
+ * robô não pode ficar calado (a IA às vezes escolhe "nada" mesmo tendo
+ * escrito o pedido para falar com o responsável).
+ */
+export function ajustarParaAutomatica(d: Decisao, conversa: FalaParaIa[]): Decisao {
+  const ultima = conversa[conversa.length - 1];
+  if (!ultima?.automatica || d.acao !== 'nada' || !d.mensagens.length) return d;
+  const jaRespondida = conversa.some((m, i) => m.automatica && conversa.slice(i + 1, -1).some((x) => x.autor === 'eu'));
+  return jaRespondida ? d : { ...d, acao: 'responder', passo: d.passo || 'quem_decide' };
 }
 
 /** os links que podem sair: prévia, proposta, portfólio e o que o dono entregou */

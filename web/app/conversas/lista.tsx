@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Hourglass, MessageCircleReply, Search, Sparkles, Users } from 'lucide-react';
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
+import { ehAutomatica } from '@/lib/automatica';
 
 /**
  * A lista das conversas. Os quatro blocos de cima são filtros: quem respondeu
@@ -48,7 +49,8 @@ function haQuanto(iso: string): string {
 
 function filtroDo(i: ItemConversa): Exclude<Filtro, 'todos'> {
   if (!i.mensagens) return 'novos';
-  return i.ultimoAutor === 'cliente' ? 'responderam' : 'esperando';
+  // resposta automática do WhatsApp Business não é o cliente respondendo
+  return i.ultimoAutor === 'cliente' && !ehAutomatica(i.ultimoTexto || '') ? 'responderam' : 'esperando';
 }
 
 export default function ListaConversas({ itens, totalPassos }: { itens: ItemConversa[]; totalPassos: number }) {

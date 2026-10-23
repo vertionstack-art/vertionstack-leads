@@ -30,9 +30,10 @@ import { numeroWhatsapp } from './telefone';
 import { valores, type CfgProposta } from './financeiro';
 import { rotuloDoInteresse } from './interesses';
 import { ErroIa, cabecaLigada } from './cabeca';
-import { decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type Decisao, type LeadParaIa } from './robo-cerebro';
+import { ajustarParaAutomatica, decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type Decisao, type FalaParaIa, type LeadParaIa } from './robo-cerebro';
 import { normalizarConfig, type ConfigRobo } from './robo-config';
 import type { Aguardando, AvisoRobo, EstadoRobo } from './robo-tipos';
+import { ehAutomatica, segundosDepois } from './automatica';
 
 /** quanto esperar o cliente terminar de digitar antes de responder */
 const ESPERA_MS = 25_000;
@@ -208,6 +209,8 @@ interface Contexto {
   lead: Lead;
   instrucoes: string;
   pedido: string;
+  /** a conversa como foi para a IA (com as respostas automáticas marcadas) */
+  conversa: FalaParaIa[];
   links: string[];
   ultimoClienteId: number;
   /** ids do WhatsApp das mensagens do cliente ainda sem resposta, para marcar como lidas */
@@ -242,16 +245,24 @@ async function montarContexto(conta: string, leadId: string, entrega: string | n
     proposta: d.proposta,
     valores: v && (v.entrada || v.mensalidade) ? `entrada ${brl(v.entrada)}${v.mensalidade ? `, mensalidade ${brl(v.mensalidade)}` : ', sem mensalidade'}` : null,
   };
-  const conversa = mensagens.map((m) => ({
-    autor: m.autor,
-    texto: m.texto,
-    em: new Date(m.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-  }));
+  // resposta automática do WhatsApp Business (boas-vindas, menu, ausência): o robô não responde o conteúdo
+  let nossaAnterior: string | null = null;
+  const conversa = mensagens.map((m) => {
+    const automatica = m.autor === 'cliente' && ehAutomatica(m.texto, segundosDepois(m.em, nossaAnterior));
+    if (m.autor === 'eu') nossaAnterior = m.em;
+    return {
+      autor: m.autor,
+      texto: m.texto,
+      automatica,
+      em: new Date(m.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
+    };
+  });
 
   return {
     lead,
     instrucoes: montarInstrucoes(treino.cfg, treino.empresa, treino.oferta, await escritaDoDono(conta)),
     pedido: montarPedido(paraIa, conversa, passos, entrega),
+    conversa,
     links: linksPermitidos(paraIa, treino.cfg, entrega),
     ultimoClienteId: ultimoCliente?.id || 0,
     naoLidas: naoLidas.map((x) => x.externo_id as string),
@@ -389,7 +400,7 @@ async function decidirEEnviar(conta: string, ctx: Contexto, entrega: string | nu
   let d: Decisao;
   try {
     const r = await decidir(ctx.instrucoes, ctx.pedido, Boolean(entrega));
-    d = r.decisao;
+    d = ajustarParaAutomatica(r.decisao, ctx.conversa);
     await registrarUso(conta, leadId, r);
   } catch (e) {
     const motivo = e instanceof ErroIa ? e.message : 'A IA falhou.';

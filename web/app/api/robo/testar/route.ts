@@ -3,9 +3,10 @@ import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { normalizarConfig } from '@/lib/robo-config';
-import { decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type FalaParaIa, type LeadParaIa } from '@/lib/robo-cerebro';
+import { ajustarParaAutomatica, decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type FalaParaIa, type LeadParaIa } from '@/lib/robo-cerebro';
 import { escritaDoDono, LIMITE_POR_DIA, pedidosHoje, registrarUso, treinoDoRobo } from '@/lib/robo';
 import { ErroIa, FALTA_CABECA, cabecaLigada } from '@/lib/cabeca';
+import { ehAutomatica } from '@/lib/automatica';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -54,7 +55,12 @@ export async function POST(req: Request) {
   };
   const conversa: FalaParaIa[] = (Array.isArray(corpo.conversa) ? corpo.conversa : [])
     .slice(-30)
-    .map((m) => ({ autor: m?.autor === 'cliente' ? ('cliente' as const) : ('eu' as const), texto: String(m?.texto || '').slice(0, 1000) }))
+    .map((m) => {
+      const autor = m?.autor === 'cliente' ? ('cliente' as const) : ('eu' as const);
+      const texto = String(m?.texto || '').slice(0, 2500);
+      // no teste não há horário: reconhece a automática só pelo texto (cole a boas-vindas do cliente para testar)
+      return { autor, texto, automatica: autor === 'cliente' && ehAutomatica(texto, null) };
+    })
     .filter((m) => m.texto.trim());
   if (!conversa.length || conversa[conversa.length - 1].autor !== 'cliente') {
     return NextResponse.json({ ok: false, erro: 'Escreva a mensagem do cliente para o robô responder.' }, { status: 400 });
@@ -62,6 +68,7 @@ export async function POST(req: Request) {
 
   try {
     const r = await decidir(montarInstrucoes(cfg, salvo.empresa, salvo.oferta, await escritaDoDono(conta)), montarPedido(lead, conversa, [], null), false);
+    r.decisao = ajustarParaAutomatica(r.decisao, conversa);
     await registrarUso(conta, 'teste', r);
     const seguras = r.decisao.acao === 'nada' ? [] : mensagensSeguras(r.decisao.mensagens, linksPermitidos(lead, cfg, null));
     return NextResponse.json({ ok: true, decisao: r.decisao, bloqueada: seguras === null });

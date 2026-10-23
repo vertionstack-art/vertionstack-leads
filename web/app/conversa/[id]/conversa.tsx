@@ -10,6 +10,7 @@ import type { MensagemConversa } from '@/lib/conversa';
 import type { UsoIa } from '@/lib/ia';
 import { lerRespostaColada, type Sugestao } from '@/lib/sugestao';
 import { ROTULO_AGUARDANDO, type EstadoRobo } from '@/lib/robo-tipos';
+import { ehAutomatica, segundosDepois } from '@/lib/automatica';
 
 /**
  * A tela da conversa guiada. Três colunas no computador (roteiro, conversa,
@@ -462,16 +463,18 @@ export default function ConversaGuiada({
               </p>
             ) : (
               <ol className="flex max-h-[46vh] flex-col gap-2 overflow-y-auto pr-1">
-                {mensagens.map((m) => {
+                {mensagens.map((m, i) => {
                   const eu = m.autor === 'eu';
                   const p = passoPorId(m.passo);
+                  const nossaAnterior = eu ? null : [...mensagens.slice(0, i)].reverse().find((x) => x.autor === 'eu')?.em;
+                  const automatica = !eu && ehAutomatica(m.texto, segundosDepois(m.em, nossaAnterior));
                   return (
                     <li key={m.id} className={`group flex ${eu ? 'justify-end' : 'justify-start'}`}>
                       <div className={`relative max-w-[85%] rounded-[18px] px-3.5 py-2.5 ${m.robo ? 'bg-roxo-800 text-white' : eu ? 'bg-tinta text-white' : 'bg-white ring-1 ring-inset ring-zinc-200'}`}>
                         <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed">{m.texto}</p>
                         <p className={`mt-1 flex items-center gap-1 text-[10.5px] font-medium ${eu ? 'text-white/70' : 'text-zinc-500'}`}>
                           {m.robo && <Bot aria-hidden className="h-3 w-3" />}
-                          {m.robo ? 'Robô' : eu ? 'Você' : 'Cliente'} · {hora(m.em)}{p ? ` · ${p.titulo}` : ''}
+                          {m.robo ? 'Robô' : eu ? 'Você' : automatica ? 'Cliente · resposta automática' : 'Cliente'} · {hora(m.em)}{p ? ` · ${p.titulo}` : ''}
                         </p>
                         <button
                           type="button"
