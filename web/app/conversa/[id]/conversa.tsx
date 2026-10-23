@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight, Bot, Check, ChevronDown, Circle, CircleCheck, ClipboardPaste, Copy, Gauge, MessageCircle, Send, SendHorizontal, Sparkles, Trash2, X,
 } from 'lucide-react';
-import { aplicarModelo, linkComTexto, mensagemPronta, type DadosMensagem, type Remetente } from '@/lib/mensagem';
+import { aplicarModelo, linkComTexto, mensagemPronta, problemaCurto, type DadosMensagem, type Remetente } from '@/lib/mensagem';
 import { FASES, MENSAGEM_AUTOMATICA, OBJECOES, faseDoPasso, passoPorId, saudacao, type Fase } from '@/lib/roteiro';
 import type { MensagemConversa } from '@/lib/conversa';
 import type { UsoIa } from '@/lib/ia';
@@ -149,6 +149,9 @@ export default function ConversaGuiada({
   const [abordagens, setAbordagens] = useState<string[]>([]);
   const [anguloAnterior, setAnguloAnterior] = useState<string | null>(null);
   const [gerando, setGerando] = useState(false);
+  // o painel da abordagem com IA: os dados do lead e a ideia que você escreve
+  const [painelAbordagem, setPainelAbordagem] = useState(false);
+  const [ideiaAbordagem, setIdeiaAbordagem] = useState('');
 
   async function novaAbordagem() {
     setGerando(true);
@@ -156,7 +159,7 @@ export default function ConversaGuiada({
     try {
       const j = await chamar(`${base}/abordagem`, {
         method: 'POST',
-        body: JSON.stringify({ anteriores: abordagens, anguloAnterior }),
+        body: JSON.stringify({ anteriores: abordagens, anguloAnterior, pedido: ideiaAbordagem }),
       });
       setAbordagens((a) => [...a, j.mensagem].slice(-6));
       setAnguloAnterior(j.angulo);
@@ -418,15 +421,51 @@ export default function ConversaGuiada({
                               {p.id === 'primeira' && (
                                 <button
                                   type="button"
-                                  onClick={novaAbordagem}
-                                  disabled={gerando}
-                                  className="inline-flex items-center gap-1 rounded-full bg-roxo-800 px-2.5 py-1 text-[11.5px] font-bold text-white transition hover:bg-roxo-700 disabled:opacity-60"
+                                  aria-expanded={painelAbordagem}
+                                  onClick={() => setPainelAbordagem((v) => !v)}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-bold transition ${
+                                    painelAbordagem ? 'bg-roxo-100 text-roxo-800' : 'bg-roxo-800 text-white hover:bg-roxo-700'
+                                  }`}
                                 >
                                   <Sparkles aria-hidden className="h-3.5 w-3.5" />
-                                  {gerando ? 'Gerando…' : abordagens.length ? 'Gerar outra abordagem' : 'Gerar nova abordagem (IA)'}
+                                  Abordagem com IA
                                 </button>
                               )}
                             </div>
+                            {p.id === 'primeira' && painelAbordagem && (
+                              <div className="mt-2.5 rounded-[14px] bg-lavanda p-3 sm:ml-6">
+                                <p className="text-[11.5px] font-extrabold uppercase tracking-[0.06em] text-roxo-800">O que a IA sabe deste lead</p>
+                                <ul className="mt-1.5 space-y-0.5 text-[12px] leading-snug text-zinc-800">
+                                  <li><b>{dados.nome}</b>{[dados.category, dados.city].filter(Boolean).length ? ` · ${[dados.category, dados.city].filter(Boolean).join(' · ')}` : ''}</li>
+                                  <li>Encontramos: {problemaCurto(dados)}</li>
+                                  {dados.rating && dados.reviews ? <li>Google: {dados.rating.toFixed(1).replace('.', ',')} estrelas, {dados.reviews} avaliações</li> : null}
+                                  <li>{dados.instagram ? 'Tem Instagram' : 'Sem Instagram cadastrado'} · {dados.previaUrl ? 'Prévia pronta' : 'Sem prévia ainda'}</li>
+                                </ul>
+                                <label htmlFor="ideia-abordagem" className="mt-2.5 block text-[12px] font-bold">Como quer abordar? (opcional)</label>
+                                <textarea
+                                  id="ideia-abordagem"
+                                  value={ideiaAbordagem}
+                                  onChange={(e) => setIdeiaAbordagem(e.target.value.slice(0, 500))}
+                                  rows={3}
+                                  placeholder="Ex.: vi que o site deles está em construção, quero oferecer terminar e deixar pronto para o Google"
+                                  className="mt-1 w-full resize-y rounded-xl border border-zinc-300 bg-white px-2.5 py-2 text-[12.5px] leading-relaxed outline-none focus:border-roxo-500 focus:ring-2 focus:ring-roxo-100"
+                                />
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={novaAbordagem}
+                                    disabled={gerando}
+                                    className="inline-flex min-h-[34px] items-center gap-1.5 rounded-full bg-roxo-800 px-3.5 text-[12px] font-bold text-white transition hover:bg-roxo-700 disabled:opacity-60"
+                                  >
+                                    <Sparkles aria-hidden className="h-3.5 w-3.5" />
+                                    {gerando ? 'Gerando…' : abordagens.length ? 'Gerar outra' : 'Gerar abordagem'}
+                                  </button>
+                                  <span className="text-[11px] leading-snug text-zinc-600">
+                                    {ideiaAbordagem.trim() ? 'A IA segue a sua ideia, no seu jeito de escrever.' : 'Em branco, a IA escolhe um jeito diferente a cada clique.'}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </li>
                         );
                       })}

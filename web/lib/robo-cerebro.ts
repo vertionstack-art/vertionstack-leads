@@ -335,6 +335,8 @@ export async function gerarAbordagem(
   l: DadosAbordagem,
   angulo: (typeof ANGULOS)[number],
   anteriores: string[],
+  /** a ideia que o dono escreveu ("vi que o site está em construção"); vazio = ângulo sorteado */
+  pedidoDoDono = '',
 ) {
   const instrucoes = `Você escreve a PRIMEIRA mensagem de WhatsApp de ${quem}, de ${empresa} (vende: ${oferta}), para um possível cliente que ainda não conhece ninguém da empresa. Quem vai enviar é o próprio ${cfg.nome}, depois de revisar.
 
@@ -347,7 +349,9 @@ Jeito de escrever: ${TOM[cfg.formalidade]} ${EMOJI[cfg.emojis]}${cfg.expressoes.
 - Link, só o da prévia que estiver em <lead>. Nada de [colchetes] ou marcadores.
 - Nada de frases de telemarketing ("prezado", "solução", "agregar valor", "sem compromisso", "não hesite").
 
-Ângulo desta vez: ${angulo.instrucao}`;
+${pedidoDoDono.trim()
+    ? `Ângulo desta vez, pedido pelo ${cfg.nome} (siga exatamente esta ideia; o que ele diz que viu ou sabe do lead pode ser usado como fato): "${pedidoDoDono.trim().slice(0, 500)}"`
+    : `Ângulo desta vez: ${angulo.instrucao}`}`;
 
   const pedido = [
     '<lead>',

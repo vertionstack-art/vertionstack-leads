@@ -20,8 +20,8 @@ const QUEBRADOS = ['fora_do_ar', 'nao_encontrado', 'em_construcao', 'virou_socia
 /**
  * "Gerar nova abordagem": uma primeira mensagem nova para este lead, escrita
  * pela IA no seu jeito (treino do robô), por um ângulo sorteado a cada
- * clique. Só preenche o editor: quem envia é você.
- * { anteriores: string[], anguloAnterior?: string }
+ * clique, ou pela ideia que você escreveu (pedido). Só preenche o editor:
+ * quem envia é você. { anteriores: string[], anguloAnterior?: string, pedido?: string }
  */
 export async function POST(req: Request, ctx: Ctx) {
   if (!origemConfere(req)) return recusarOrigem();
@@ -40,7 +40,9 @@ export async function POST(req: Request, ctx: Ctx) {
   const { id } = await ctx.params;
   const lead = await buscarLead(contaId, decodeURIComponent(id).slice(0, 300));
   if (!lead) return NextResponse.json({ ok: false, erro: 'Lead não encontrado.' }, { status: 404 });
-  const corpo = (await req.json().catch(() => ({}))) as { anteriores?: unknown; anguloAnterior?: unknown };
+  const corpo = (await req.json().catch(() => ({}))) as { anteriores?: unknown; anguloAnterior?: unknown; pedido?: unknown };
+  // a ideia que você escreveu para esta abordagem; sem ela, o ângulo é sorteado
+  const pedido = String(corpo.pedido ?? '').trim().slice(0, 500);
   const anteriores = (Array.isArray(corpo.anteriores) ? corpo.anteriores : []).map((x) => String(x).slice(0, 600)).slice(-6);
 
   const site = (process.env.SITE_URL || new URL(req.url).origin).replace(/\/$/, '');
@@ -64,11 +66,11 @@ export async function POST(req: Request, ctx: Ctx) {
   const angulo = sortearAngulo(dados, typeof corpo.anguloAnterior === 'string' ? corpo.anguloAnterior : null);
 
   try {
-    const r = await gerarAbordagem(t.cfg, t.empresa, t.oferta, eu(d.remetente), dados, angulo, anteriores);
+    const r = await gerarAbordagem(t.cfg, t.empresa, t.oferta, eu(d.remetente), dados, angulo, anteriores, pedido);
     await registrarUso(contaId, lead.id, r);
     const segura = mensagensSeguras([r.mensagem], d.previa ? [d.previa] : []);
     if (!segura) return NextResponse.json({ ok: false, erro: 'A IA escreveu algo que não pode sair (link ou trecho inventado). Clique de novo.' }, { status: 422 });
-    return NextResponse.json({ ok: true, mensagem: segura[0], angulo: angulo.id, rotulo: angulo.rotulo });
+    return NextResponse.json({ ok: true, mensagem: segura[0], angulo: pedido ? null : angulo.id, rotulo: pedido ? 'do seu jeito' : angulo.rotulo });
   } catch (e) {
     const erro = e instanceof ErroIa ? e.message : 'A IA não respondeu agora. Tente de novo.';
     return NextResponse.json({ ok: false, erro }, { status: 502 });
