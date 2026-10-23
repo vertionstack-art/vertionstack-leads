@@ -62,6 +62,10 @@ async function chamar<T>(metodo: 'GET' | 'POST' | 'DELETE', caminho: string, cor
     const msg = (j as { response?: { message?: unknown }; message?: unknown } | null)?.response?.message ?? (j as { message?: unknown } | null)?.message ?? texto;
     console.error('[evolution]', metodo, caminho, r.status, String(msg).slice(0, 300));
     if (r.status === 401 || r.status === 403) throw new ErroEvolution('A chave da Evolution API foi recusada. Confira EVOLUTION_API_KEY.', 503);
+    // o túnel (ngrok) responde 502/503/504 quando o Docker do PC está fechado
+    if (r.status >= 502 && r.status <= 504) {
+      throw new ErroEvolution('O WhatsApp do seu PC está desligado. Confira se o PC está ligado e o Docker Desktop aberto, espere 1 minuto e tente de novo.', 503);
+    }
     throw new ErroEvolution('O WhatsApp recusou o pedido. Tente de novo.', 502);
   }
   return j as T;
