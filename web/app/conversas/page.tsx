@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { MessagesSquare, Smartphone } from 'lucide-react';
+import { ListOrdered, MessagesSquare, Smartphone } from 'lucide-react';
 import { estadoDoWhatsapp } from '@/lib/evolution';
 import { sessaoAtual } from '@/lib/conta';
 import { daLinha } from '@/lib/db';
@@ -70,6 +70,14 @@ export default async function PaginaConversas() {
       titulo="Conversas"
       subtitulo="Seus leads no WhatsApp, do primeiro oi até a venda. Quem respondeu aparece primeiro."
       acoes={
+        <>
+        <Link
+          href="/conversas/fila"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-ceu px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-sky-200"
+        >
+          <ListOrdered aria-hidden className="h-4 w-4" />
+          Fila de abordagem
+        </Link>
         <Link
           href="/conversas/whatsapp"
           className={`inline-flex min-h-[40px] items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-colors ${
@@ -79,6 +87,7 @@ export default async function PaginaConversas() {
           <Smartphone aria-hidden className="h-4 w-4" />
           {zap === 'open' ? 'WhatsApp conectado' : 'Conectar WhatsApp'}
         </Link>
+        </>
       }
     >
       <RoboGeral

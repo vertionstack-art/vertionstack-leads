@@ -9,6 +9,7 @@ import { podeUsarConversa } from '@/lib/conversa-contexto';
 import { origemIaValida, passosFeitos, registrarMensagem } from '@/lib/conversa';
 import { enviarTexto, ErroEvolution } from '@/lib/evolution';
 import { aoMandarPorContaPropria } from '@/lib/robo';
+import { LIMITE_PRIMEIRAS_POR_DIA, primeirasHoje, semConversa } from '@/lib/fila';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,14 @@ export async function POST(req: Request, ctx: Ctx) {
   }
   const numero = lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone));
   if (!numero) return NextResponse.json({ ok: false, erro: 'Este lead não tem celular com WhatsApp.' }, { status: 400 });
+
+  // primeira mensagem para quem nunca falou com você: teto por dia, valendo aqui no servidor
+  if ((await semConversa(contaId, idLead)) && (await primeirasHoje(contaId)) >= LIMITE_PRIMEIRAS_POR_DIA) {
+    return NextResponse.json(
+      { ok: false, erro: `Você já abriu ${LIMITE_PRIMEIRAS_POR_DIA} conversas hoje. Esse é o limite para proteger o número; amanhã libera de novo.` },
+      { status: 429 },
+    );
+  }
 
   let enviado;
   try {
