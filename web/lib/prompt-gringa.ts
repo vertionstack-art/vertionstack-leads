@@ -72,6 +72,14 @@ function diagnostico(lead: Lead): Diagnostico {
           'Never criticise the social account — it is working for them. Position the site as the missing piece, not the replacement.',
       };
 
+    case 'encurtador':
+      return {
+        situacao: `What Google lists as their website (${site}) is just a shortened link, not a site of their own.`,
+        custo:
+          'A short link carries no brand, does not rank on Google and makes people hesitate before clicking.',
+        cuidado: 'Do not claim where the link leads (it could not be confirmed). Talk about what is missing: an address with their name on it.',
+      };
+
     case 'sem_https':
       return {
         situacao: `Their site (${site}) works, but has no HTTPS.`,

@@ -72,6 +72,7 @@ const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean
   nao_encontrado: { rotulo: 'site com erro',classe: 'text-emerald-800 font-semibold',        bom: false },
   fora_do_ar:     { rotulo: 'FORA DO AR',   classe: 'text-emerald-800 font-bold',            bom: false },
   virou_social:   { rotulo: 'vai p/ social',classe: 'text-emerald-800 font-semibold',        bom: false },
+  encurtador:     { rotulo: 'link encurtado',classe: 'text-emerald-800 font-semibold',       bom: false },
   certificado_vencido: { rotulo: 'certificado vencido', classe: 'text-emerald-800 font-semibold', bom: false },
 };
 

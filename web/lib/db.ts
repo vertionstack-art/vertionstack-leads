@@ -800,7 +800,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
   };
 }
 
-const SITE_QUEBRADO = ['fora_do_ar', 'nao_encontrado', 'em_construcao', 'virou_social', 'certificado_vencido', 'sem_https'];
+const SITE_QUEBRADO = ['fora_do_ar', 'nao_encontrado', 'em_construcao', 'virou_social', 'encurtador', 'certificado_vencido', 'sem_https'];
 
 export async function todosOsLeads(conta: string, f: Filtros): Promise<Lead[]> {
   const p = await listarLeads(conta, { ...f, limit: 2000, offset: 0 });

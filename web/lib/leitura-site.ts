@@ -91,7 +91,7 @@ export async function lerSite(url: string): Promise<LeituraSite> {
 }
 
 /** sites que a ferramenta já sabe que não abrem: não adianta ler */
-const NAO_LER = ['fora_do_ar', 'nao_encontrado', 'certificado_vencido', 'virou_social'];
+const NAO_LER = ['fora_do_ar', 'nao_encontrado', 'certificado_vencido', 'virou_social', 'encurtador'];
 
 /**
  * A leitura do site deste lead: a guardada, se tem menos de 14 dias, ou uma

@@ -53,6 +53,8 @@ function pesoPresenca(lead: Lead): { pontos: number; motivo: string | null } {
       return { pontos: 16, motivo: 'O site aparece como "não seguro" na barra do navegador.' };
     case 'virou_social':
       return { pontos: 25, motivo: 'O que está no Google como site leva para uma rede social.' };
+    case 'encurtador':
+      return { pontos: 24, motivo: 'O que está no Google como site é só um link encurtado, não um site próprio.' };
   }
 
   switch (lead.websiteKind) {

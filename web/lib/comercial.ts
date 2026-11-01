@@ -158,6 +158,7 @@ function oportunidadesDe(l: LeadComercial, s: LeituraSite | null): Oportunidade[
   const st = l.siteStatus || '';
   if (ks === 'none') o.push({ servico: 'site', motivo: 'Não tem site cadastrado no Google: quem pesquisa só acha o endereço e o telefone.' });
   else if (ks === 'social' || st === 'virou_social') o.push({ servico: 'site', motivo: 'O "site" no Google leva para rede social ou página de links, não para um site próprio.' });
+  else if (st === 'encurtador') o.push({ servico: 'site', motivo: 'O "site" no Google é só um link encurtado, não um site próprio.' });
   else if (['fora_do_ar', 'nao_encontrado', 'certificado_vencido'].includes(st)) o.push({ servico: 'site', motivo: `O site cadastrado no Google tem problema: ${l.siteDetalhe || 'não abre'}.` });
   else if (st === 'em_construcao') o.push({ servico: 'melhoria', motivo: 'O site está inacabado ou vazio (página de "em breve"/em construção).' });
   else if (st === 'sem_https') o.push({ servico: 'melhoria', motivo: 'O site abre sem HTTPS: o navegador mostra "não seguro".' });

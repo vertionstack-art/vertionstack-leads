@@ -9,7 +9,8 @@ import {
 import { estourou } from '@/lib/limite';
 import { LIMITES } from '@/lib/planos';
 import { usarBuscaBonus } from '@/lib/indicacao';
-import { verificarSite } from '@/lib/verificar-site';
+import { DETALHE_ENCURTADOR, verificarSite } from '@/lib/verificar-site';
+import { ehEncurtador } from '@/lib/classify';
 import { ehRede } from '@/lib/enriquecer';
 import { db } from '@/lib/sql';
 import { OFERTAS, servePara, type Oferta } from '@/lib/ofertas';
@@ -200,7 +201,9 @@ export async function POST(req: Request) {
         ),
     );
     let sitesQuebrados = 0;
-    for (const { l, v } of conferencias) {
+    for (const { l, v: conferido } of conferencias) {
+      // encurtador que não respondeu a tempo também não é site próprio
+      const v = conferido ?? (ehEncurtador(l.website) ? { status: 'encurtador' as const, viraLead: true, detalhe: DETALHE_ENCURTADOR } : null);
       if (!v || !v.viraLead) continue;
       sitesQuebrados++;
       leads.unshift({ ...l, isLead: true, siteStatus: v.status, siteDetalhe: v.detalhe, siteVerificadoEm: new Date().toISOString() });

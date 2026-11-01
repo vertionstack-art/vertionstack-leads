@@ -61,6 +61,15 @@ function anguloDoLead(lead: Lead): Angulo {
         cuidado: 'Não critique a rede social — ela funciona para eles. Posicione o site como o que falta, não como substituto.',
       };
 
+    case 'encurtador':
+      return {
+        resumo: `O que está cadastrado como site (${lead.website}) é só um link encurtado, não um site próprio.`,
+        porQueDoi:
+          'Link encurtado não tem o nome do negócio, não aparece nas buscas do Google e passa desconfiança para quem clica ' +
+          'sem saber para onde vai.',
+        cuidado: 'Não afirme para onde o link leva (a ferramenta não conseguiu confirmar). Fale do que falta: um endereço com o nome deles.',
+      };
+
     case 'sem_https':
       return {
         resumo: `O site (${lead.website}) funciona, mas sem HTTPS.`,

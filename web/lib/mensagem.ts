@@ -123,6 +123,9 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
     case 'virou_social':
       gancho = `Vi que o link de site da ${d.nome} no Google leva direto para uma rede social. Um site próprio passa muito mais confiança.`;
       break;
+    case 'encurtador':
+      gancho = `Vi que no Google o site da ${d.nome} é só um link encurtado. Um site próprio, com o nome de vocês no endereço, passa muito mais confiança.`;
+      break;
     default:
       if (d.websiteKind === 'social') {
         gancho = `Vi o Instagram da ${d.nome} e o trabalho de vocês é muito bom${rep ? ` (${rep}!)` : ''}. Só que quem procura ${ramo}${onde} no Google não encontra um site de vocês.`;
@@ -224,6 +227,8 @@ export function problemaCurto(d: DadosMensagem): string {
       return 'o site de vocês aparece como "não seguro"';
     case 'virou_social':
       return 'o link de site no Google leva para uma rede social';
+    case 'encurtador':
+      return 'o site de vocês no Google é só um link encurtado';
   }
   if (d.websiteKind === 'social') return 'vocês só têm rede social, sem site próprio';
   if (d.websiteKind === 'marketplace') return `vocês dependem do ${plataforma(d.website)}`;

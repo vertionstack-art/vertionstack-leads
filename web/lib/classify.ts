@@ -22,6 +22,25 @@ const SOCIAL = [
   'youtube.com', 'youtu.be', 'tiktok.com', 'twitter.com', 'x.com',
   'threads.net', 'threads.com', 'linkedin.com', 'pinterest.com',
   'kwai.com', 'telegram.me', 't.me', 'twitch.tv',
+  // geradores de link de WhatsApp: não são site, só abrem a conversa
+  'wa.link', 'walink.co', 'zapzap.link', 'linkdozap.com', 'zap.ly', 'zapr.link',
+  // páginas de links ("link na bio")
+  'linkin.bio', 'linklist.bio', 'msha.ke', 'allmylinks.com', 'hoo.be', 'linkr.bio',
+  'direct.me', 'linkfly.to', 'linke.to', 'bento.me', 'koji.to', 'shor.by', 'urlgeni.us',
+];
+
+/**
+ * Encurtadores e geradores de QR: o endereço não diz nada, quem decide é o
+ * destino. A busca segue o link (lib/verificar-site); se não der para saber
+ * para onde vai, o comércio entra como "link encurtado", não como site.
+ */
+const ENCURTADORES = [
+  'bit.ly', 'bitly.com', 'bitly.ws', 'bit.do', 'tinyurl.com', 'tiny.cc', 'tiny.one', 'cutt.ly',
+  'is.gd', 'v.gd', 'rebrand.ly', 'rb.gy', 'ow.ly', 't.co', 'goo.gl', 'shorturl.at', 's.id',
+  'encurtador.com.br', 'abre.ai', 'l.ead.me', 'migre.me', '1url.com.br', 'encr.pw', 'chilp.it',
+  'short.io', 'shorte.st', 'buff.ly', 'lnkd.in', 'adf.ly', 'u.to', 'clck.ru', 'surl.li',
+  'qrco.de', 'qr.page', 'me-qr.com', 'qrcodechimp.com', 'qr-code-generator.com', 'qrfy.io',
+  'beacons.page', 'linktw.in', 'kutt.it', 'gg.gg', 'tr.ee', 'sl.run',
 ];
 
 const MARKETPLACE = [
@@ -70,6 +89,14 @@ function matches(host: string, url: string, list: string[]): boolean {
   return list.some((d) => host === d || host.endsWith('.' + d) || full.includes(d));
 }
 
+/** o endereço é de um encurtador (bit.ly, encurtador.com.br, QR code...) */
+export function ehEncurtador(url?: string | null): boolean {
+  if (!url) return false;
+  const clean = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+  const host = hostOf(clean);
+  return Boolean(host) && ENCURTADORES.some((d) => host === d || host.endsWith('.' + d));
+}
+
 export function classifyWebsite(url?: string | null): Veredito {
   const bruto = (url || '').trim().replace(/[\u0000-\u001f\u007f\s]+/g, '');
   // só http(s) ou um domínio puro ("barbearia.com.br") vira link; "javascript:..." e afins não
@@ -91,6 +118,10 @@ export function classifyWebsite(url?: string | null): Veredito {
   }
   if (matches(host, clean, WEAK_BUILDERS)) {
     return { kind: 'weak', label: 'Site fraco / gratuito', isLead: true, host, url: clean };
+  }
+  // ainda não dá para saber: a verificação segue o link e decide pelo destino
+  if (ehEncurtador(clean)) {
+    return { kind: 'site', label: 'Link encurtado', isLead: false, host, url: clean };
   }
   return { kind: 'site', label: 'Tem site próprio', isLead: false, host, url: clean };
 }

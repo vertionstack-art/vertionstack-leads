@@ -12,7 +12,7 @@
 
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { classifyWebsite } from './classify';
+import { classifyWebsite, ehEncurtador } from './classify';
 
 export type SiteStatus =
   | 'ok'
@@ -22,6 +22,7 @@ export type SiteStatus =
   | 'em_construcao'
   | 'virou_social'
   | 'certificado_vencido'
+  | 'encurtador'
   | 'bloqueado';
 
 export interface Verificacao {
@@ -208,7 +209,53 @@ function classificarFalha(err: Error): Verificacao {
   };
 }
 
+/**
+ * Destino escondido no HTML: página que responde 200 mas manda o navegador
+ * para outro lugar por meta refresh, por JavaScript ou por uma moldura que
+ * ocupa a tela toda (o "redirecionamento mascarado" das hospedagens e a
+ * página intermediária de muitos encurtadores).
+ */
+export function destinoNoHtml(html: string, base: string): string | null {
+  const trecho = html.slice(0, 60_000);
+  const candidatos = [
+    trecho.match(/<meta[^>]+http-equiv=["']?refresh["']?[^>]*content=["'][^"']*url=([^"'>\s;]+)/i)?.[1],
+    trecho.match(/<meta[^>]+content=["'][^"']*url=([^"'>\s;]+)[^>]*http-equiv=["']?refresh/i)?.[1],
+    trecho.match(/(?:window\.|document\.|top\.)?location(?:\.href)?\s*=\s*["']([^"']+)["']/i)?.[1],
+    trecho.match(/location\.(?:replace|assign)\(\s*["']([^"']+)["']/i)?.[1],
+    /<frameset/i.test(trecho) ? trecho.match(/<frame[^>]+src=["']([^"']+)["']/i)?.[1] : undefined,
+    textoVisivel(trecho).length < 300 ? trecho.match(/<iframe[^>]+src=["'](https?:[^"']+)["']/i)?.[1] : undefined,
+  ];
+  for (const c of candidatos) {
+    if (!c) continue;
+    try {
+      const u = new URL(c.replace(/&amp;/g, '&'), base);
+      if (/^https?:$/.test(u.protocol)) return u.toString();
+    } catch {
+      // endereço quebrado: tenta o próximo
+    }
+  }
+  return null;
+}
+
+export const DETALHE_ENCURTADOR = 'O site cadastrado no Google é só um link encurtado, não um site próprio.';
+
 export async function verificarSite(urlBruta: string | null): Promise<Verificacao | null> {
+  const v = await verificarSiteBruto(urlBruta);
+  /*
+   * Encurtador que não chegou a um site de verdade (página intermediária,
+   * bloqueio de robô, destino que não abre): não é site próprio, é lead.
+   * Se o destino for um site que funciona, vale o resultado normal.
+   */
+  if (urlBruta && v && ehEncurtador(urlBruta) && v.status !== 'virou_social') {
+    const ficou = !v.urlFinal || ehEncurtador(v.urlFinal);
+    if (v.status === 'bloqueado' || ficou) {
+      return { status: 'encurtador', viraLead: true, detalhe: DETALHE_ENCURTADOR, urlFinal: v.urlFinal || urlBruta, httpStatus: v.httpStatus };
+    }
+  }
+  return v;
+}
+
+async function verificarSiteBruto(urlBruta: string | null): Promise<Verificacao | null> {
   if (!urlBruta) return null;
 
   const url = urlBruta.startsWith('http') ? urlBruta : 'https://' + urlBruta;
@@ -272,6 +319,21 @@ export async function verificarSite(urlBruta: string | null): Promise<Verificaca
   const html = (await resp.text().catch(() => '')).slice(0, 200_000);
   const texto = textoVisivel(html).toLowerCase();
 
+  // página que só repassa para rede social (meta refresh, JavaScript, moldura)
+  const escondido = destinoNoHtml(html, resp.url);
+  if (escondido) {
+    const d = classifyWebsite(escondido);
+    if (d.kind !== 'site' && d.kind !== 'weak') {
+      return {
+        status: 'virou_social',
+        viraLead: true,
+        detalhe: `O endereço leva para ${d.host} — não é um site próprio.`,
+        urlFinal: escondido,
+        httpStatus: resp.status,
+      };
+    }
+  }
+
   const sinal =
     SINAIS_FORTES.find((s) => texto.includes(s)) ||
     (texto.length < TEXTO_DE_SITE_DE_VERDADE ? SINAIS_FRACOS.find((s) => texto.includes(s)) : undefined);
@@ -332,6 +394,7 @@ export const ROTULO_SITE: Record<SiteStatus, string> = {
   em_construcao: 'Site vazio',
   virou_social: 'Vai para rede social',
   certificado_vencido: 'Certificado vencido',
+  encurtador: 'Link encurtado',
   bloqueado: 'Não deu para checar',
 };
 
