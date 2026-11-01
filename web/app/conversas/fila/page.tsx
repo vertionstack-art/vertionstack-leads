@@ -34,7 +34,7 @@ export default async function PaginaFila() {
       cor="ceu"
       icone={<ListOrdered aria-hidden className="h-6 w-6" strokeWidth={2} />}
       titulo="Fila de abordagem"
-      subtitulo="A IA escreve a primeira mensagem de cada lead. Você confere e envia com um clique, e o próximo já aparece pronto."
+      subtitulo="Marque os leads, gere as abordagens de uma vez e vá clicando em Enviar. Nada sai sem o seu clique."
       acoes={
         <Link href="/conversas" className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-zinc-200 px-4 text-[13px] font-bold transition-colors hover:border-zinc-400">
           <ArrowLeft aria-hidden className="h-4 w-4" /> Conversas
