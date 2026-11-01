@@ -373,7 +373,7 @@ export default function BuscaGoogle({
             <span>
               <span className="block text-[13px] font-bold">Trazer quem tem site fraco (nota até 6)</span>
               <span className="block text-[12px] leading-relaxed text-zinc-600">
-                Quem tem site no ar ganha uma nota de 0 a 10 (velocidade no celular pelo teste do Google, botão de WhatsApp, formulário…). Até 6 vira lead, com os problemas anotados. A busca fica um pouco mais lenta.
+                Quem tem site no ar ganha uma nota de 0 a 10 (botão de WhatsApp, telefone clicável, formulário, celular, cadeado…). Até 6 vira lead, com os problemas anotados.
               </span>
             </span>
           </label>

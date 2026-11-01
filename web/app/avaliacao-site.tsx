@@ -56,11 +56,6 @@ export default function AvaliacaoDoSite({
 
       {av && (
         <>
-          <p className="mt-1 text-[12px] font-semibold text-zinc-600">
-            {av.velocidade !== null
-              ? `Velocidade no celular (teste do Google): ${av.velocidade} de 100${av.carregaEmS ? ` · ${String(av.carregaEmS).replace('.', ',')} s para aparecer` : ''}`
-              : 'Velocidade no celular: não deu para medir'}
-          </p>
           {av.problemas.length > 0 ? (
             <ul className="mt-2 grid gap-1">
               {av.problemas.map((p) => (

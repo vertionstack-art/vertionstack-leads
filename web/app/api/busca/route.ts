@@ -19,8 +19,8 @@ import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriqu
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-// verificação (até 9 s) + nota do site (até 22 s) + o resto da busca
-export const maxDuration = 60;
+// verificação (até 9 s) + nota do site (até 9 s) + o resto da busca
+export const maxDuration = 45;
 
 const erro = (msg: string, status: number, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: false, erro: msg, ...extra }, { status });
@@ -214,8 +214,8 @@ export async function POST(req: Request) {
               let nota: AvaliacaoSite | null = null;
               if (siteFraco && v?.status === 'ok' && l.website) {
                 nota = await Promise.race([
-                  avaliarSite(v.urlFinal || l.website, 20_000).catch(() => null),
-                  new Promise<null>((ok) => setTimeout(() => ok(null), 22_000)),
+                  avaliarSite(v.urlFinal || l.website, 8000).catch(() => null),
+                  new Promise<null>((ok) => setTimeout(() => ok(null), 9000)),
                 ]);
               }
               return { l, v, nota };

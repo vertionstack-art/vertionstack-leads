@@ -99,7 +99,6 @@ export interface LeadComercial {
   /** nota do site no ar (0 a 10, lib/nota-site) e os problemas medidos */
   siteNota?: number | null;
   siteProblemas?: string[];
-  siteVelocidade?: number | null;
   rating: number | null;
   reviews: number | null;
   instagram: boolean;
@@ -195,7 +194,6 @@ function fatosDe(l: LeadComercial, s: LeituraSite | null, conversa: FalaComercia
   if (l.siteNota !== null && l.siteNota !== undefined) {
     f.push(
       `Nota do site medida pela ferramenta: ${String(l.siteNota).replace('.', ',')} de 10` +
-        (l.siteVelocidade !== null && l.siteVelocidade !== undefined ? `; velocidade no celular no teste do Google: ${l.siteVelocidade} de 100` : '') +
         (l.siteProblemas?.length ? `. Problemas achados: ${l.siteProblemas.join('; ')}` : '') +
         '.',
     );

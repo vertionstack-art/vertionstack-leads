@@ -43,7 +43,6 @@ export function leadComercialDe(lead: Lead): LeadComercial {
     siteDetalhe: lead.siteDetalhe,
     siteNota: lead.siteNota,
     siteProblemas: (lead.siteAvaliacao?.problemas || []).map((p) => p.texto),
-    siteVelocidade: lead.siteAvaliacao?.velocidade ?? null,
     rating: lead.rating,
     reviews: lead.reviews,
     instagram: Boolean(lead.instagram),

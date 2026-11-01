@@ -19,7 +19,7 @@ const DIAS_VALIDADE = 14;
 const INSTRUCOES = `Você avalia o site de um pequeno comércio para um vendedor de sites. Escreva em português do Brasil, curto e direto.
 
 Regras:
-- Use SÓ os dados recebidos (nota medida, velocidade do teste do Google, o que foi achado ou não no HTML, título, descrição e assuntos da página). Não invente número, visitas, design ou qualquer coisa que não esteja nos dados.
+- Use SÓ os dados recebidos (nota medida, o que foi achado ou não no HTML, título, descrição e assuntos da página). Não invente número, velocidade, visitas, design ou qualquer coisa que não esteja nos dados.
 - "Não achei no HTML" não prova que não existe (pode ser montado por JavaScript). Escreva "não achei" em vez de "não tem".
 - Não fale de visitas ou tráfego: ninguém de fora sabe esse número.
 - "resumo": 1 ou 2 frases dizendo se o site ajuda ou atrapalha o comércio a conseguir cliente, e por quê.
@@ -58,7 +58,7 @@ export async function POST(req: Request, ctx: Ctx) {
   // a nota medida: reaproveita se for recente, senão mede de novo
   let av: AvaliacaoSite | null = lead.siteAvaliacao;
   const velha = !av || Date.now() - new Date(av.medidoEm).getTime() > DIAS_VALIDADE * 86400_000;
-  if (velha) av = await avaliarSite(lead.website, 25_000).catch(() => null);
+  if (velha) av = await avaliarSite(lead.website).catch(() => null);
   if (!av) return NextResponse.json({ ok: false, erro: 'Não consegui abrir o site para avaliar. Ele pode estar fora do ar ou bloqueando robôs.' }, { status: 502 });
 
   if (!cabecaLigada()) {
@@ -75,7 +75,6 @@ export async function POST(req: Request, ctx: Ctx) {
     `Comércio: ${lead.name}${lead.category ? ` (${lead.category})` : ''}${lead.city ? `, ${lead.city}` : ''}.`,
     `Site: ${av.url}`,
     `Nota medida pela ferramenta: ${notaEmTexto(av.nota)} de 10.`,
-    av.velocidade !== null ? `Teste de velocidade do Google no celular: ${av.velocidade} de 100${av.carregaEmS ? `, conteúdo principal aparece em ${String(av.carregaEmS).replace('.', ',')} s` : ''}.` : 'Velocidade no celular: não deu para medir.',
     av.problemas.length ? `Problemas achados: ${av.problemas.map((p) => p.texto).join('; ')}.` : 'Nenhum problema achado pelas regras da ferramenta.',
     leitura?.lido ? `Título: ${leitura.titulo || '(sem título)'}. Descrição: ${leitura.descricao || '(sem descrição)'}. Assuntos da página: ${leitura.assuntos.join(' | ') || '(nenhum título h1/h2)'}.` : '',
   ]

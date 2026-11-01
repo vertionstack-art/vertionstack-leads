@@ -86,8 +86,8 @@ function anguloDoLead(lead: Lead): Angulo {
     return {
       resumo: `Tem site no ar (${lead.website}), mas fraco: nota ${String(lead.siteNota).replace('.', ',')} de 10 medida pela ferramenta. ${probs ? `Problemas achados: ${probs}.` : ''}`.trim(),
       porQueDoi:
-        'O site existe, mas trabalha contra: quem chega pelo celular desiste se demora, e sem um jeito rápido de chamar ' +
-        'o cliente vai para o concorrente que responde primeiro.',
+        'O site existe, mas trabalha contra: sem um jeito rápido de chamar (WhatsApp, telefone, orçamento) ' +
+        'o cliente que chega pelo Google vai para o concorrente que responde primeiro.',
       cuidado:
         'Ele já pagou por um site e pode gostar dele. Fale do problema como observação ("reparei que..."), nunca chame o site de ruim. ' +
         '"Não achei" no HTML não prova que não existe: se for afirmar, peça para ele conferir.',
