@@ -57,6 +57,15 @@ function pesoPresenca(lead: Lead): { pontos: number; motivo: string | null } {
       return { pontos: 24, motivo: 'O que está no Google como site é só um link encurtado, não um site próprio.' };
   }
 
+  // site no ar com nota baixa (lib/nota-site): quanto pior a nota, mais pontos
+  if (lead.siteStatus === 'ok' && lead.siteNota !== null && lead.siteNota !== undefined && lead.siteNota <= 6) {
+    const primeiro = lead.siteAvaliacao?.problemas?.[0]?.texto;
+    return {
+      pontos: Math.round(10 + (6 - lead.siteNota) * 2.5),
+      motivo: `Tem site no ar, mas fraco: nota ${String(lead.siteNota).replace('.', ',')} de 10${primeiro ? ` (${primeiro.charAt(0).toLowerCase() + primeiro.slice(1)})` : ''}.`,
+    };
+  }
+
   switch (lead.websiteKind) {
     case 'marketplace':
       return { pontos: 26, motivo: 'Depende de plataforma de terceiro e paga comissão por cliente.' };

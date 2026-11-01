@@ -12,6 +12,7 @@
 
 import { classifyWebsite, type WebsiteKind } from './classify';
 import type { SiteStatus } from './verificar-site';
+import type { AvaliacaoSite } from './nota-site';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { db, json, temBanco } from './sql';
 import { numeroWhatsapp, tipoDoTelefone, type TipoTelefone } from './telefone';
@@ -52,6 +53,9 @@ export interface Lead {
   siteStatus: SiteStatus | null;
   siteDetalhe: string | null;
   siteVerificadoEm: string | null;
+  /** nota de 0 a 10 do site que está no ar (lib/nota-site); null quando não foi medido */
+  siteNota: number | null;
+  siteAvaliacao: AvaliacaoSite | null;
   /** quem rodou a extensão que trouxe este comércio */
   coletadoPor: string | null;
   /** quem mexeu no status por último — é quem está cuidando do lead */
@@ -218,6 +222,8 @@ export function normalizarLead(
     siteStatus: null,
     siteDetalhe: null,
     siteVerificadoEm: null,
+    siteNota: null,
+    siteAvaliacao: null,
     coletadoPor: coletadoPor || null,
     responsavel: null,
     proposta: null,
@@ -259,6 +265,8 @@ export function daLinha(r: any): Lead {
     siteStatus: r.site_status,
     siteDetalhe: r.site_detalhe,
     siteVerificadoEm: r.site_verificado_em ? new Date(r.site_verificado_em).toISOString() : null,
+    siteNota: r.site_nota === null || r.site_nota === undefined ? null : Number(r.site_nota),
+    siteAvaliacao: json<AvaliacaoSite>(r.site_avaliacao),
     instagram: r.instagram,
     email: r.email ?? null,
     whatsapp: r.whatsapp ?? null,
@@ -339,14 +347,14 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         website_kind, website_label, is_lead, rating, reviews, maps_url,
         lat, lng, hours, status, coletado_por, instagram, origem, notes,
         whatsapp, whatsapp_fonte, telefone_tipo, email, fotos_google,
-        site_status, site_detalhe, site_verificado_em, oferta, sem_anuncio, updated_at
+        site_status, site_detalhe, site_verificado_em, site_nota, site_avaliacao, oferta, sem_anuncio, updated_at
       ) values (
         ${conta}, ${l.id}, ${l.name}, ${l.category}, ${l.searchTerm}, ${l.city}, ${l.phone},
         ${l.address}, ${l.website}, ${l.websiteKind}, ${l.websiteLabel}, ${l.isLead},
         ${l.rating}, ${l.reviews}, ${l.mapsUrl}, ${l.lat}, ${l.lng}, ${l.hours},
         'novo', ${l.coletadoPor}, ${l.instagram}, ${l.origem}, ${l.notes},
         ${l.whatsapp}, ${l.whatsappFonte}, ${l.telefoneTipo}, ${l.email}, ${l.fotosGoogle},
-        ${l.siteStatus}, ${l.siteDetalhe}, ${l.siteVerificadoEm}, ${l.oferta}, ${l.semAnuncio}, now()
+        ${l.siteStatus}, ${l.siteDetalhe}, ${l.siteVerificadoEm}, ${l.siteNota}, ${l.siteAvaliacao ? JSON.stringify(l.siteAvaliacao) : null}::jsonb, ${l.oferta}, ${l.semAnuncio}, now()
       )
       on conflict (conta_id, id) do update set
         name          = excluded.name,
@@ -378,6 +386,8 @@ export async function salvarLeads(conta: string, leads: Lead[], permitidosNovos?
         fotos_google   = coalesce(excluded.fotos_google, leads.fotos_google),
         sem_anuncio    = coalesce(excluded.sem_anuncio, leads.sem_anuncio),
         site_status        = coalesce(excluded.site_status, leads.site_status),
+        site_nota          = coalesce(excluded.site_nota, leads.site_nota),
+        site_avaliacao     = coalesce(excluded.site_avaliacao, leads.site_avaliacao),
         site_detalhe       = coalesce(excluded.site_detalhe, leads.site_detalhe),
         site_verificado_em = coalesce(excluded.site_verificado_em, leads.site_verificado_em),
         updated_at    = now()

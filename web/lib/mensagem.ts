@@ -23,6 +23,8 @@ export interface DadosMensagem {
   oferta?: string;
   fotosGoogle?: number | null;
   semAnuncio?: boolean | null;
+  /** nota do site no ar (lib/nota-site), com os problemas achados */
+  siteAvaliacao?: { problemas?: { frase: string; curto?: string }[] } | null;
 }
 
 export interface Remetente {
@@ -133,6 +135,10 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
         gancho = `Vi que a ${d.nome} atende pelo ${plataforma(d.website)}. Com um site próprio, o cliente fala direto com vocês, sem pagar comissão para ninguém.`;
       } else if (d.websiteKind === 'weak') {
         gancho = `Vi que o site da ${d.nome} está num construtor gratuito. Um site próprio, com o endereço de vocês, passa muito mais confiança.`;
+      } else if (d.websiteKind === 'site' && d.siteAvaliacao?.problemas?.length) {
+        // site no ar com nota baixa: o gancho é o problema medido, dito como observação
+        const [p1, p2] = d.siteAvaliacao.problemas;
+        gancho = `Entrei no site da ${d.nome} e reparei que ${p1.frase}${p2 ? ` e ${p2.frase}` : ''}. Dá para resolver isso e deixar ele trazendo mais cliente.`;
       } else if (d.websiteKind === 'site') {
         // tem site no ar: a ferramenta não mede se é lento ou feio, então o gancho é melhorar, sem acusar
         gancho = escolher(d.nome + 'site', [
@@ -233,6 +239,8 @@ export function problemaCurto(d: DadosMensagem): string {
   if (d.websiteKind === 'social') return 'vocês só têm rede social, sem site próprio';
   if (d.websiteKind === 'marketplace') return `vocês dependem do ${plataforma(d.website)}`;
   if (d.websiteKind === 'weak') return 'o site de vocês está num construtor gratuito';
+  const p1 = d.siteAvaliacao?.problemas?.[0];
+  if (d.websiteKind === 'site' && p1?.curto) return p1.curto;
   if (d.websiteKind === 'site') return 'o site de vocês pode ficar mais moderno e trazer mais clientes';
   return 'vocês ainda não têm site';
 }

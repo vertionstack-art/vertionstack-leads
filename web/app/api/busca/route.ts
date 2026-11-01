@@ -11,6 +11,7 @@ import { LIMITES } from '@/lib/planos';
 import { usarBuscaBonus } from '@/lib/indicacao';
 import { DETALHE_ENCURTADOR, verificarSite } from '@/lib/verificar-site';
 import { ehEncurtador } from '@/lib/classify';
+import { avaliarSite, NOTA_SITE_FRACO, type AvaliacaoSite } from '@/lib/nota-site';
 import { ehRede } from '@/lib/enriquecer';
 import { db } from '@/lib/sql';
 import { OFERTAS, servePara, type Oferta } from '@/lib/ofertas';
@@ -18,7 +19,8 @@ import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriqu
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 45;
+// verificação (até 9 s) + nota do site (até 22 s) + o resto da busca
+export const maxDuration = 60;
 
 const erro = (msg: string, status: number, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: false, erro: msg, ...extra }, { status });
@@ -34,8 +36,9 @@ function texto(v: unknown, max: number): string {
  * parar. Uma chamada por pedido mantém cada resposta rápida e deixa o botão
  * de parar funcionar de verdade.
  *
- * Só os comércios sem site próprio são guardados e contam na cota: quem já
- * tem site não é lead, e a pessoa não paga cota por ele.
+ * Só os comércios sem site próprio (ou com site fraco, nota até 6) são
+ * guardados e contam na cota: quem já tem site bom não é lead, e a pessoa
+ * não paga cota por ele.
  */
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
@@ -53,6 +56,8 @@ export async function POST(req: Request) {
   const quero = Math.max(1, Math.min(200, Math.floor(Number(c.quero) || 20)));
   // padrão ligado: lead sem WhatsApp quase nunca vira conversa
   const soComWhatsapp = c.soComWhatsapp !== false;
+  // padrão ligado: quem tem site no ar, mas fraco (nota até 6), também entra
+  const siteFraco = c.siteFraco !== false;
   // o que a conta vende muda o que é lead (lib/ofertas); vem do banco, não do navegador
   const [cfgOferta] = await db()`select oferta from contas where id = ${contaId}`;
   const oferta: Oferta = OFERTAS.some((o) => o.id === cfgOferta?.oferta) ? (cfgOferta.oferta as Oferta) : 'sites';
@@ -190,6 +195,12 @@ export async function POST(req: Request) {
      */
     const comSite = oferta === 'sites' ? todos.filter((l) => !l.isLead) : [];
     const comSiteNovos = new Set(await idsNovos(contaId, comSite.map((l) => l.id)));
+    /*
+     * Site que abre normal já não é descarte automático: ganha uma nota
+     * (lib/nota-site) e quem tira até 6 vira lead. A nota começa assim que
+     * a verificação termina, em paralelo com as outras, para a página da
+     * busca não passar do tempo.
+     */
     const conferencias = await Promise.all(
       comSite
         .filter((l) => comSiteNovos.has(l.id) && !ehRede(l.name))
@@ -197,16 +208,34 @@ export async function POST(req: Request) {
           Promise.race([
             verificarSite(l.website).then((v) => ({ l, v })),
             new Promise<{ l: typeof l; v: null }>((ok) => setTimeout(() => ok({ l, v: null }), 9000)),
-          ]).catch(() => ({ l, v: null })),
+          ])
+            .catch(() => ({ l, v: null }))
+            .then(async ({ l, v }) => {
+              let nota: AvaliacaoSite | null = null;
+              if (siteFraco && v?.status === 'ok' && l.website) {
+                nota = await Promise.race([
+                  avaliarSite(v.urlFinal || l.website, 20_000).catch(() => null),
+                  new Promise<null>((ok) => setTimeout(() => ok(null), 22_000)),
+                ]);
+              }
+              return { l, v, nota };
+            }),
         ),
     );
     let sitesQuebrados = 0;
-    for (const { l, v: conferido } of conferencias) {
+    let sitesFracos = 0;
+    for (const { l, v: conferido, nota } of conferencias) {
+      const agora = new Date().toISOString();
+      if (nota && nota.nota <= NOTA_SITE_FRACO) {
+        sitesFracos++;
+        leads.push({ ...l, isLead: true, siteStatus: 'ok', siteDetalhe: `Site no ar, nota ${String(nota.nota).replace('.', ',')} de 10.`, siteVerificadoEm: agora, siteNota: nota.nota, siteAvaliacao: nota });
+        continue;
+      }
       // encurtador que não respondeu a tempo também não é site próprio
       const v = conferido ?? (ehEncurtador(l.website) ? { status: 'encurtador' as const, viraLead: true, detalhe: DETALHE_ENCURTADOR } : null);
       if (!v || !v.viraLead) continue;
       sitesQuebrados++;
-      leads.unshift({ ...l, isLead: true, siteStatus: v.status, siteDetalhe: v.detalhe, siteVerificadoEm: new Date().toISOString() });
+      leads.unshift({ ...l, isLead: true, siteStatus: v.status, siteDetalhe: v.detalhe, siteVerificadoEm: agora });
     }
 
     const novosIds = new Set(await idsNovos(contaId, leads.map((l) => l.id)));
@@ -243,6 +272,7 @@ export async function POST(req: Request) {
       comercios: resultado.comercios.length,
       comSite: todos.length - leads.length,
       sitesQuebrados,
+      sitesFracos,
       retomada,
       buscas: { usadas: usadas + 1, limite: limiteBuscas },
       jaTinha: existentes.length,

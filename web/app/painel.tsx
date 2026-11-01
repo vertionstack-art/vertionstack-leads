@@ -76,6 +76,14 @@ const SITE_STATUS: Record<string, { rotulo: string; classe: string; bom: boolean
   certificado_vencido: { rotulo: 'certificado vencido', classe: 'text-emerald-800 font-semibold', bom: false },
 };
 
+/** site no ar com nota (lib/nota-site) aparece pela nota; o resto, pela verificação */
+function situacaoDoSite(lead: Lead): { rotulo: string; classe: string; bom: boolean } | null {
+  if (lead.siteStatus === 'ok' && lead.siteNota !== null && lead.siteNota !== undefined) {
+    return { rotulo: `site nota ${String(lead.siteNota).replace('.', ',')}`, classe: 'text-emerald-800 font-semibold', bom: false };
+  }
+  return lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null;
+}
+
 // ------------------------------------------------------------- utils
 
 /**
@@ -1039,7 +1047,7 @@ export default function Painel({
                   usuario={usuario}
                   statusLista={STATUS}
                   tipo={tipoDe(lead.websiteKind)}
-                  siteStatus={lead.siteStatus ? SITE_STATUS[lead.siteStatus] ?? null : null}
+                  siteStatus={situacaoDoSite(lead)}
                   linkWhatsApp={linkWhatsApp(lead)}
                   onStatus={(st) => salvarPatch(lead.id, { status: st })}
                   onPrompt={() => { setVariantePrompt('abordagem'); setPromptDe(lead); }}
@@ -1078,7 +1086,7 @@ export default function Painel({
                     const t = tipoDe(lead.websiteKind);
                     const zap = linkWhatsApp(lead);
                     const temp = temperaturaDoLead(lead);
-                    const situacao = lead.siteStatus ? SITE_STATUS[lead.siteStatus] : null;
+                    const situacao = situacaoDoSite(lead);
                     return (
                       <tr key={lead.id} className="group border-b border-zinc-200 align-top transition-colors duration-150 last:border-b-0 hover:bg-zinc-50">
                         <td className="py-4 pl-5 pr-4">

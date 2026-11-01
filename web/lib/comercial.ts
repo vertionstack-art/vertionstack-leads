@@ -96,6 +96,10 @@ export interface LeadComercial {
   website: string | null;
   siteStatus: string | null;
   siteDetalhe: string | null;
+  /** nota do site no ar (0 a 10, lib/nota-site) e os problemas medidos */
+  siteNota?: number | null;
+  siteProblemas?: string[];
+  siteVelocidade?: number | null;
   rating: number | null;
   reviews: number | null;
   instagram: boolean;
@@ -162,6 +166,9 @@ function oportunidadesDe(l: LeadComercial, s: LeituraSite | null): Oportunidade[
   else if (['fora_do_ar', 'nao_encontrado', 'certificado_vencido'].includes(st)) o.push({ servico: 'site', motivo: `O site cadastrado no Google tem problema: ${l.siteDetalhe || 'não abre'}.` });
   else if (st === 'em_construcao') o.push({ servico: 'melhoria', motivo: 'O site está inacabado ou vazio (página de "em breve"/em construção).' });
   else if (st === 'sem_https') o.push({ servico: 'melhoria', motivo: 'O site abre sem HTTPS: o navegador mostra "não seguro".' });
+  else if (st === 'ok' && l.siteNota !== null && l.siteNota !== undefined && l.siteNota <= 6) {
+    o.push({ servico: 'melhoria', motivo: `Site no ar, mas nota ${String(l.siteNota).replace('.', ',')} de 10${l.siteProblemas?.length ? ` (${l.siteProblemas.slice(0, 3).join('; ')})` : ''}.` });
+  }
 
   if (s?.lido && ks === 'site' && st !== 'em_construcao') {
     if (!s.formulario && !s.whatsapp) o.push({ servico: 'captacao', motivo: 'Não dá para afirmar que falta: só não achei formulário nem botão de WhatsApp no código da página inicial (pode existir). Use para perguntar como o visitante entra em contato.' });
@@ -185,6 +192,14 @@ function fatosDe(l: LeadComercial, s: LeituraSite | null, conversa: FalaComercia
   if (l.rating && l.reviews) f.push(`Google: nota ${l.rating.toFixed(1).replace('.', ',')} com ${l.reviews} avaliações.`);
   if (l.instagram) f.push('Tem Instagram.');
   if (l.websiteKind === 'site' && l.siteStatus === 'ok') f.push('O site está no ar e funcionando.');
+  if (l.siteNota !== null && l.siteNota !== undefined) {
+    f.push(
+      `Nota do site medida pela ferramenta: ${String(l.siteNota).replace('.', ',')} de 10` +
+        (l.siteVelocidade !== null && l.siteVelocidade !== undefined ? `; velocidade no celular no teste do Google: ${l.siteVelocidade} de 100` : '') +
+        (l.siteProblemas?.length ? `. Problemas achados: ${l.siteProblemas.join('; ')}` : '') +
+        '.',
+    );
+  }
   if (s?.lido) {
     if (s.titulo) f.push(`Título do site: "${s.titulo}".`);
     if (s.descricao) f.push(`O site se descreve assim: "${s.descricao}".`);

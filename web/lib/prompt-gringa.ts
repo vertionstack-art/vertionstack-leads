@@ -89,6 +89,15 @@ function diagnostico(lead: Lead): Diagnostico {
       };
   }
 
+  if (lead.siteStatus === 'ok' && lead.siteNota !== null && lead.siteNota !== undefined && lead.siteNota <= 6) {
+    const probs = (lead.siteAvaliacao?.problemas || []).map((p) => p.texto).join('; ');
+    return {
+      situacao: `They have a live website (${site}), but a weak one: scored ${lead.siteNota}/10 by the tool. ${probs ? `Issues found (in Portuguese): ${probs}.` : ''}`.trim(),
+      custo: 'Mobile visitors leave when a page is slow, and without a quick way to get in touch they call the competitor instead.',
+      cuidado: 'They paid for that site and may like it. Present each issue as an observation, never call the site bad.',
+    };
+  }
+
   switch (lead.websiteKind) {
     case 'none':
       return {

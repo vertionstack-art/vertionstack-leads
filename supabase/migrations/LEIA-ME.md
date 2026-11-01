@@ -21,3 +21,5 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 14. `0013_plano_semanal.sql`
 15. `0014_central.sql`
 16. `0015_proposta_aberta.sql`
+
+- `0030_nota_do_site.sql`: nota de 0 a 10 do site de quem já tem site (site_nota, site_avaliacao), 01/11/2026.

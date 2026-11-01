@@ -8,6 +8,8 @@ import { baixarIcs, linkGoogleAgenda, type EventoAgenda } from '@/lib/agenda';
 import { aplicarModelo, linkComTexto, MARCADORES, mensagemPronta, virarModelo, type Remetente } from '@/lib/mensagem';
 import { rotuloDoInteresse } from '@/lib/interesses';
 import EditarLeadModal from './editar-lead-modal';
+import AvaliacaoDoSite from './avaliacao-site';
+import type { AvaliacaoSite } from '@/lib/nota-site';
 
 /**
  * A ficha do lead: a mensagem do WhatsApp já escrita, o lembrete ("ligar dia
@@ -29,6 +31,8 @@ interface LeadFicha {
   website: string | null;
   websiteKind: string;
   siteStatus: string | null;
+  siteNota: number | null;
+  siteAvaliacao: AvaliacaoSite | null;
   rating: number | null;
   reviews: number | null;
   instagram: string | null;
@@ -377,6 +381,9 @@ export default function FichaLead({
 
           {dados && aba === 'whatsapp' && (
             <div>
+              {dados.lead.websiteKind === 'site' && dados.lead.website && (dados.lead.siteStatus === 'ok' || dados.lead.siteNota !== null) && (
+                <AvaliacaoDoSite leadId={dados.lead.id} website={dados.lead.website} inicial={dados.lead.siteAvaliacao} aoMudar={aoMudar} />
+              )}
               {dados.conversaGuiada && (
                 <a
                   href={`/conversa/${encodeURIComponent(dados.lead.id)}`}

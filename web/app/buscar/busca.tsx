@@ -28,6 +28,8 @@ interface Linha {
   novos: number;
   descartados: number;
   confirmados: number;
+  /** tinham site no ar, mas fraco (nota até 6), e entraram */
+  fracos?: number;
   /** 'pulada': já buscada até o fim, sem chamar o Google; 'continuou': retomou de onde parou */
   nota?: 'pulada' | 'continuou';
 }
@@ -92,6 +94,7 @@ export default function BuscaGoogle({
   const max = cota.ilimitado ? 500 : Math.min(200, cota.restantes ?? 0);
   const [quero, setQuero] = useState(Math.min(30, max) || 1);
   const [soComWhatsapp, setSoComWhatsapp] = useState(true);
+  const [siteFraco, setSiteFraco] = useState(true);
   const [descartes, setDescartes] = useState<Descartes>({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 });
   const [rodando, setRodando] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -126,8 +129,9 @@ export default function BuscaGoogle({
       novos: t.novos + l.novos,
       descartados: t.descartados + l.descartados,
       confirmados: t.confirmados + l.confirmados,
+      fracos: t.fracos + (l.fracos || 0),
     }),
-    { comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0 },
+    { comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0, fracos: 0 },
   );
   const semCota = !cota.ilimitado && (cota.restantes ?? 0) <= 0;
 
@@ -156,7 +160,7 @@ export default function BuscaGoogle({
             r = await fetch('/api/busca', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nicho, local, pagina, quero: faltam, soComWhatsapp }),
+              body: JSON.stringify({ nicho, local, pagina, quero: faltam, soComWhatsapp, siteFraco }),
             }).then((x) => x.json());
           } catch {
             setAviso({ texto: 'Falha de rede. Confira a internet e clique em Buscar de novo.' });
@@ -182,7 +186,7 @@ export default function BuscaGoogle({
           }
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
-          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0, nota: r.retomada ? 'continuou' : undefined };
+          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0, fracos: r.sitesFracos || 0, nota: r.retomada ? 'continuou' : undefined };
           if (r.descartados) setDescartes((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v + ((r.descartados as Record<string, number>)[k] || 0)])) as unknown as Descartes);
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
@@ -359,6 +363,20 @@ export default function BuscaGoogle({
               </span>
             </span>
           </label>
+          <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-[18px] bg-ceu/70 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={siteFraco}
+              onChange={(e) => setSiteFraco(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-[#0b0b0f]"
+            />
+            <span>
+              <span className="block text-[13px] font-bold">Trazer quem tem site fraco (nota até 6)</span>
+              <span className="block text-[12px] leading-relaxed text-zinc-600">
+                Quem tem site no ar ganha uma nota de 0 a 10 (velocidade no celular pelo teste do Google, botão de WhatsApp, formulário…). Até 6 vira lead, com os problemas anotados. A busca fica um pouco mais lenta.
+              </span>
+            </span>
+          </label>
         </fieldset>
 
         {aviso && (
@@ -405,10 +423,15 @@ export default function BuscaGoogle({
       {/* -------------------------------------------------- progresso */}
       <section aria-live="polite" className="flex flex-col rounded-[24px] bg-lavanda p-6">
         <h2 className="text-[16px] font-extrabold">Resultado</h2>
+        {totais.fracos > 0 && (
+          <p className="mt-2 text-[12.5px] font-semibold text-zinc-700">
+            {totais.fracos} dos leads novos {totais.fracos === 1 ? 'tinha' : 'tinham'} site no ar, mas fraco (nota até 6).
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             { rotulo: 'Leads novos', valor: totais.novos, fundo: 'bg-menta' },
-            { rotulo: 'Já tinham site', valor: totais.comSite, fundo: 'bg-white' },
+            { rotulo: 'Já tinham site bom', valor: totais.comSite, fundo: 'bg-white' },
             { rotulo: 'Descartados', valor: totais.descartados, fundo: 'bg-white' },
             { rotulo: 'Repetidos (não contam)', valor: totais.jaTinha, fundo: 'bg-white' },
           ].map((k) => (
