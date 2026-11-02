@@ -6,6 +6,7 @@ import { AlertTriangle, Check, ExternalLink, Loader2, RotateCcw, Send, Sparkles,
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import { ROTULO_TOM, TONS, type RespostaCopiloto, type Tom } from '@/lib/copiloto-tipos';
 import type { ItemFila } from '@/lib/fila';
+import { partesDaMensagem } from '@/lib/partes';
 
 /**
  * A fila em três tempos: você marca os leads, clica em "Gerar abordagens"
@@ -346,6 +347,14 @@ export default function Fila({
                     )}
                   </div>
 
+                  {r.texto.trim() && (
+                    <p className="mt-1.5 text-[11.5px] font-semibold text-zinc-500">
+                      {(() => {
+                        const n = partesDaMensagem(r.texto).length;
+                        return n > 1 ? `Vai em ${n} mensagens, com "digitando…" entre elas. Cada linha em branco separa uma mensagem.` : 'Vai em 1 mensagem. Deixe uma linha em branco para separar em até 3.';
+                      })()}
+                    </p>
+                  )}
                   {r.erro && <p role="alert" className="mt-2 text-[12.5px] font-semibold text-red-700">{r.erro}</p>}
                   {r.resposta && r.resposta.acao !== 'escrever' && (
                     <p className="mt-2 flex items-start gap-1.5 text-[12.5px] font-semibold text-amber-900">

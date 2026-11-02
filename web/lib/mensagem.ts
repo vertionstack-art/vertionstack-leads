@@ -84,7 +84,7 @@ function escolher<T>(semente: string, opcoes: T[]): T {
   return opcoes[h % opcoes.length];
 }
 
-const ABERTURAS = ['Oi, tudo bem?', 'Olá, tudo bem?', 'Oi! Tudo certo por aí?', 'Opa, tudo bem?', 'Oi, como vai?', 'Olá! Tudo tranquilo?'];
+const ABERTURAS = ['Oi, tudo bem?', 'Olá, tudo bem?', 'Oi! Tudo certo por aí?', 'Opa, tudo bem?', 'Opa, beleza?', 'Oi, como vai?', 'Olá! Tudo tranquilo?', 'Oi! Tudo bem por aí?'];
 
 /** "4,8 estrelas e 412 avaliações no Google" quando vale a pena citar */
 function reputacao(d: DadosMensagem): string | null {
@@ -96,13 +96,14 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
   const quem = eu(r);
   const oferta = d.oferta && d.oferta !== 'sites' ? d.oferta : r.oferta && r.oferta !== 'sites' && !d.oferta ? r.oferta : 'sites';
   const trabalho = oferta === 'outro' ? (r.ofertaTexto ? `trabalho com ${r.ofertaTexto.replace(/^(eu )?(vendo|faço|trabalho com)\s+/i, '').replace(/[.!]+$/, '')}` : '') : TRABALHO[oferta] || TRABALHO.sites;
+  // a primeira mensagem sai em três partes (lib/partes): cumprimento, apresentação, motivo e pergunta
   const apresentacao = r.empresa
-    ? `Aqui é ${quem}, do time ${r.empresa}.`
+    ? escolher(d.nome + 'ap', [`Aqui é ${quem}, do time ${r.empresa}.`, `Sou ${quem}, da ${r.empresa}.`, `Aqui é ${quem}, da ${r.empresa}.`])
     : trabalho
       ? `Aqui é ${quem}, ${trabalho}.`
       : `Aqui é ${quem}.`;
   const abertura = escolher(d.nome, ABERTURAS);
-  if (oferta !== 'sites') return mensagemDaOferta(oferta, d, `${abertura} ${apresentacao}`, trabalho);
+  if (oferta !== 'sites') return mensagemDaOferta(oferta, d, `${abertura}\n\n${apresentacao}`, trabalho);
   const rep = reputacao(d);
   const ramo = (d.category || 'o serviço de vocês').toLowerCase();
   const onde = d.city ? ` em ${d.city}` : '';
@@ -159,7 +160,7 @@ export function mensagemPronta(d: DadosMensagem, r: Remetente): string {
         'Tenho uma ideia pronta de como ficaria. Posso te mandar?',
       ]);
 
-  return `${abertura} ${apresentacao}\n\n${gancho}\n\n${fecho}`;
+  return `${abertura}\n\n${apresentacao}\n\n${gancho} ${fecho}`;
 }
 
 /** a primeira mensagem para quem não vende site: o gancho é a dor daquela oferta */
@@ -196,7 +197,7 @@ function mensagemDaOferta(oferta: string, d: DadosMensagem, inicio: string, trab
       gancho = `Vi a ${d.nome} no Google${rep ? `, com ${rep}` : ''}, e acho que posso ajudar vocês.`;
       fecho = trabalho ? 'Posso te contar em 2 minutos como funciona?' : 'Posso te mostrar o que eu faço?';
   }
-  return `${inicio}\n\n${gancho}\n\n${fecho}`;
+  return `${inicio}\n\n${gancho} ${fecho}`;
 }
 
 /** link do WhatsApp com o texto já preenchido */

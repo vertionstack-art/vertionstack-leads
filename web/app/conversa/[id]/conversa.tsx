@@ -163,7 +163,9 @@ export default function ConversaGuiada({
     setErro(null);
     try {
       const j = await chamar(`${base}/enviar`, { method: 'POST', body: JSON.stringify({ texto: t, passo: passoDoTexto, origemIa }) });
-      if (j.mensagem) setMensagens((m) => (m.some((x) => x.id === j.mensagem.id) ? m : [...m, j.mensagem]));
+      // a primeira mensagem pode ter saído em partes: entram todas, sem repetir
+      const novas: MensagemConversa[] = j.mensagens?.length ? j.mensagens : j.mensagem ? [j.mensagem] : [];
+      if (novas.length) setMensagens((m) => [...m, ...novas.filter((n) => !m.some((x) => x.id === n.id))]);
       setPassos(new Set(j.passos));
       setTexto('');
       setPassoDoTexto(null);
