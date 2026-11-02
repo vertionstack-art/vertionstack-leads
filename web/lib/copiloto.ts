@@ -85,7 +85,7 @@ const AJUSTE_TOM: Record<Tom, string> = {
 
 const TAREFA_TEXTO: Record<Tarefa, string> = {
   abordagem:
-    'PRIMEIRA mensagem de WhatsApp para alguém que ainda não conhece o vendedor. Objetivo: abrir conversa, não fechar venda. Escreva em 3 mensagens curtas, como gente faz no WhatsApp, separadas por UMA LINHA EM BRANCO (cada bloco sai como uma mensagem): 1) só o cumprimento, curto e variado ("Oi, tudo bem?", "Opa, beleza?", "Boa tarde! Tudo certo?"); 2) a apresentação (obrigatória, veja <apresentacao>), podendo dizer como achou o lead se for verdade pela ficha ("achei vocês no Google"); 3) cite o nome da empresa do lead, dê UM motivo real (da ficha) e termine com uma pergunta fácil sobre o negócio dele (como os clientes chegam, como marcam, como pedem orçamento). Com o tom "curto", junte 2 e 3 (fica em 2 mensagens). Não peça para o lead avaliar o próprio site. Se a conversa já começou, avise em "leitura" e escreva a continuação certa em UMA mensagem, sem se apresentar de novo.',
+    'PRIMEIRA mensagem de WhatsApp para alguém que ainda não conhece o vendedor. Objetivo: abrir conversa, não fechar venda. Escreva em 2 mensagens, como gente faz no WhatsApp, separadas por UMA LINHA EM BRANCO (cada bloco sai como uma mensagem): 1) só o cumprimento, curto e variado, com o cumprimento da hora de <apresentacao> no fim ("Opa, tudo bem? Boa noite!", "Oie, tudo certo? Bom dia!", "Eae, beleza? Boa tarde!"); 2) a apresentação (obrigatória, veja <apresentacao>), podendo dizer como achou o lead se for verdade pela ficha ("achei vocês no Google"), e na mesma mensagem cite o nome da empresa do lead, dê UM motivo real (da ficha) e termine com uma pergunta fácil sobre o negócio dele (como os clientes chegam, como marcam, como pedem orçamento). Não peça para o lead avaliar o próprio site. Se a conversa já começou, avise em "leitura" e escreva a continuação certa em UMA mensagem, sem se apresentar de novo.',
   resposta:
     'Resposta à última mensagem do cliente. Primeiro entenda o que ele quis dizer (dúvida, interesse, objeção, recusa, pergunta de preço, só educação). Responda isso antes de puxar qualquer próximo passo. Não recomece a apresentação.',
   followup:
@@ -192,7 +192,7 @@ const ESQUEMA = {
     objetivo: { type: 'string', description: 'Em 1 frase: o que esta mensagem precisa conseguir.' },
     estrategia: { type: 'string', description: 'Em 1 frase: como, apoiado em qual fato ou pergunta.' },
     acao: { type: 'string', enum: [...ACOES_COPILOTO] },
-    mensagem: { type: 'string', description: 'O texto pronto (WhatsApp, roteiro de áudio ou corpo do e-mail). Na abordagem, 2 ou 3 mensagens separadas por uma linha em branco. Vazio só se acao for aguardar ou encerrar sem mensagem.' },
+    mensagem: { type: 'string', description: 'O texto pronto (WhatsApp, roteiro de áudio ou corpo do e-mail). Na abordagem, 2 mensagens separadas por uma linha em branco (cumprimento; apresentação + abordagem). Vazio só se acao for aguardar ou encerrar sem mensagem.' },
     assunto: { type: 'string', description: 'Só para e-mail: o assunto. Senão vazio.' },
     alternativa: { type: 'string', description: 'Uma segunda versão REALMENTE diferente (outro ângulo ou outra pergunta), ou vazio. Nunca repita a mensagem.' },
     por_que: { type: 'string', description: 'Para o vendedor, em 1 frase curta: por que este caminho.' },

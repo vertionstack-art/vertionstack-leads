@@ -63,33 +63,33 @@ export const FASES: Fase[] = [
           {
             id: 'curta',
             rotulo: 'Curta, perguntando pelo responsável',
-            texto: '{saudacao}, tudo bem?\n\nAqui é {eu}{do_time}.\n\nEsse é o WhatsApp da {comercio}? Queria falar com quem cuida da divulgação de vocês.',
+            texto: 'Oi, tudo bem? {saudacao}!\n\nAqui é {eu}{do_time}. Esse é o WhatsApp da {comercio}? Queria falar com quem cuida da divulgação de vocês.',
           },
           // tem site, mas fraco: a ferramenta não mede lentidão nem visual, por isso quem escolhe é a pessoa, depois de olhar o site
           {
             id: 'site_antigo',
             rotulo: 'Tem site, mas antigo ou feio',
-            texto: '{saudacao}!\n\nAqui é {eu}{do_time}.\n\nDei uma olhada no site da {comercio} e acho que dá para deixar ele bem mais moderno e fácil de usar no celular. Montei uma ideia de como poderia ficar. Posso te mostrar?',
+            texto: 'Opa, tudo bem? {saudacao}!\n\nAqui é {eu}{do_time}. Dei uma olhada no site da {comercio} e acho que dá para deixar ele bem mais moderno e fácil de usar no celular. Montei uma ideia de como poderia ficar. Posso te mostrar?',
           },
           {
             id: 'site_lento',
             rotulo: 'Tem site, mas lento (confira antes)',
-            texto: 'Oi, tudo certo?\n\nAqui é {eu}{do_time}.\n\nTentei abrir o site da {comercio} pelo celular e ele demorou bastante para carregar. Muita gente desiste antes de a página abrir. Fiz uma ideia de uma versão mais leve e rápida, quer ver?',
+            texto: 'Oie, tudo certo? {saudacao}!\n\nAqui é {eu}{do_time}. Tentei abrir o site da {comercio} pelo celular e ele demorou bastante para carregar. Muita gente desiste antes de a página abrir. Fiz uma ideia de uma versão mais leve e rápida, quer ver?',
           },
           {
             id: 'site_sem_contato',
             rotulo: 'Tem site, mas difícil de chamar no WhatsApp',
-            texto: 'Olá!\n\nAqui é {eu}{do_time}.\n\nEntrei no site da {comercio} e senti falta de um jeito rápido de chamar vocês no WhatsApp ou pedir orçamento. É ali que muito cliente acaba desistindo. Posso te mostrar uma ideia?',
+            texto: 'Eae, beleza? {saudacao}!\n\nAqui é {eu}{do_time}. Entrei no site da {comercio} e senti falta de um jeito rápido de chamar vocês no WhatsApp ou pedir orçamento. É ali que muito cliente acaba desistindo. Posso te mostrar uma ideia?',
           },
           {
             id: 'site_google',
             rotulo: 'Tem site, mas não aparece no Google (confira antes)',
-            texto: 'Opa, tudo bem?\n\nAqui é {eu}{do_time}.\n\nPesquisei no Google pelo que vocês fazem e o site da {comercio} quase não aparece. Dá para melhorar isso. Posso te explicar como em 2 minutos?',
+            texto: 'Opa, beleza? {saudacao}!\n\nAqui é {eu}{do_time}. Pesquisei no Google pelo que vocês fazem e o site da {comercio} quase não aparece. Dá para melhorar isso. Posso te explicar como em 2 minutos?',
           },
           {
             id: 'site_bom',
             rotulo: 'Tem site bom, mas dá para vender mais',
-            texto: '{saudacao}!\n\nAqui é {eu}{do_time}.\n\nVi o site da {comercio}, ficou bacana! Trabalho deixando sites de comércio mais focados em trazer cliente pelo Google e pelo WhatsApp. Posso te mandar umas ideias?',
+            texto: 'Oi, tudo certo? {saudacao}!\n\nAqui é {eu}{do_time}. Vi o site da {comercio}, ficou bacana! Trabalho deixando sites de comércio mais focados em trazer cliente pelo Google e pelo WhatsApp. Posso te mandar umas ideias?',
           },
         ],
       },
