@@ -97,7 +97,7 @@ export async function conferirImap(): Promise<{ caixa: number }> {
   await imap.connect();
   try {
     const st = await imap.status('INBOX', { messages: true });
-    return { caixa: st.messages ?? 0 };
+    return { caixa: st && typeof st === 'object' ? (st.messages ?? 0) : 0 };
   } finally {
     await imap.logout().catch(() => {});
   }
