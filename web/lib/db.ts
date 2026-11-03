@@ -780,12 +780,10 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
       /*
        * Contagem por temperatura para os botões de filtro mostrarem número.
        * Não dá para agregar em SQL porque a nota é regra em TypeScript, então
-       * vem só o punhado de colunas que o cálculo usa.
+       * vem o lead inteiro, para a conta ser a mesma do filtro (antes vinham só
+       * algumas colunas e o contador dizia "6 frios" num filtro que achava 0).
        */
-      sql`
-        select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
-        from leads where conta_id = ${conta} ${daOrigem} and not so_proposta limit 5000
-      `,
+      sql`select * from leads where conta_id = ${conta} ${daOrigem} and not so_proposta limit 5000`,
       sql`select ${ehExterior} as exterior, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by 1`,
       sql`select (email is not null) as tem, count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta group by 1`,
     ]);
@@ -802,17 +800,9 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
   resumo.com_email = porEmail.find((r) => r.tem)?.n ?? 0;
   resumo.sem_email = porEmail.find((r) => !r.tem)?.n ?? 0;
 
+  // a mesma conta do filtro, com o lead inteiro: contador e filtro nunca discordam
   for (const r of paraTemperatura) {
-    const nivel = temperaturaDoLead({
-      websiteKind: r.website_kind,
-      siteStatus: r.site_status,
-      siteVerificadoEm: r.site_verificado_em,
-      reviews: r.reviews === null ? null : Number(r.reviews),
-      rating: r.rating === null ? null : Number(r.rating),
-      instagram: r.instagram,
-      phone: r.phone,
-      category: r.category,
-    } as unknown as Lead).nivel;
+    const nivel = temperaturaDoLead(daLinha(r)).nivel;
     resumo['temp_' + nivel] = (resumo['temp_' + nivel] || 0) + 1;
   }
 
