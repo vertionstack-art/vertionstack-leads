@@ -26,6 +26,9 @@ export const dynamic = 'force-dynamic';
 // fora do Brasil ainda lê as páginas de contato atrás do e-mail (até ~15 s a mais)
 export const maxDuration = 60;
 
+/** o Google Maps entrega no máximo 3 páginas de 20 por pergunta */
+const MAX_PAGINAS = 3;
+
 const erro = (msg: string, status: number, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: false, erro: msg, ...extra }, { status });
 
@@ -110,9 +113,21 @@ export async function POST(req: Request) {
   const chave = chaveDaPergunta(`${pergunta}${marca}`);
   let token = pagina;
   let retomada = false;
+  const memoria = await memoriaDaBusca(contaId, chave);
+  /*
+   * O Google Maps só tem 3 páginas (60 comércios) por pergunta. Em 03/11 ele
+   * devolveu "próxima página" em páginas vazias e a busca pediu a mesma
+   * pergunta 236 vezes. Daqui em diante, da 3ª página não passa.
+   */
+  if (pagina && (memoria?.paginas ?? 0) >= MAX_PAGINAS) {
+    return NextResponse.json({
+      ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
+      descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 },
+      cota: cotaParaJson(cota), fim: false,
+    });
+  }
   if (!pagina) {
-    const memoria = await memoriaDaBusca(contaId, chave);
-    if (memoria?.esgotada) {
+    if (memoria?.esgotada || (memoria?.proxima && memoria.paginas >= MAX_PAGINAS)) {
       return NextResponse.json({
         ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
         descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 },
@@ -162,6 +177,9 @@ export async function POST(req: Request) {
     console.error('[busca]', e);
     return erro('A busca no Google falhou. Tente de novo.', 502);
   }
+  // página vazia, token repetido ou 3ª página: a pergunta acabou
+  const paginaAtual = !pagina && !retomada ? 1 : (memoria?.paginas ?? 0) + 1;
+  if (!resultado.comercios.length || resultado.proxima === token || paginaAtual >= MAX_PAGINAS) resultado.proxima = null;
   await anotarBusca(contaId, chave, resultado.proxima, !pagina && !retomada);
   // conta a chamada já, antes de qualquer coisa que possa falhar: o Google cobrou
   await contarChamada(contaId, resultado.comercios.length, 0);

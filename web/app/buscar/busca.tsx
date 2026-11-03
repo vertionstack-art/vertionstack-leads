@@ -241,6 +241,8 @@ export default function BuscaGoogle({
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
           pagina = r.proxima;
+          // segunda trava: o Google só tem 3 páginas por pergunta
+          if (n >= 3) break;
         } while (pagina);
       }
     }
