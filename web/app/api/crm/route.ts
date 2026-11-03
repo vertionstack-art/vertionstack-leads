@@ -27,12 +27,13 @@ export async function GET(req: Request) {
   if (s.erro) return s.erro;
   const url = new URL(req.url);
   const funil = url.searchParams.get('funil');
+  const origem = url.searchParams.get('origem') === 'exterior' ? 'exterior' : 'brasil';
   if (url.searchParams.get('candidatos')) {
     if (!uuidValido(funil)) return erro('Funil inválido.');
-    const lista = await candidatos(s.sessao.contaId, funil, textoCurto(url.searchParams.get('q'), 60));
+    const lista = await candidatos(s.sessao.contaId, funil, textoCurto(url.searchParams.get('q'), 60), origem);
     return NextResponse.json({ ok: true, lista });
   }
-  return NextResponse.json({ ok: true, ...(await quadro(s.sessao.contaId, uuidValido(funil) ? funil : null)) });
+  return NextResponse.json({ ok: true, ...(await quadro(s.sessao.contaId, uuidValido(funil) ? funil : null, origem)) });
 }
 
 /**

@@ -104,7 +104,7 @@ export default function MenuLateral({
   const doca = [
     { tela: 'painel' as const, rotulo: 'Painel', href: '/', Icone: LayoutGrid },
     { tela: 'buscar' as const, rotulo: 'Buscar', href: '/buscar', Icone: Radar },
-    ...(verConversas ? [{ tela: 'conversas' as const, rotulo: 'Conversas', href: '/conversas', Icone: MessagesSquare }] : []),
+    ...(verConversas ? [{ tela: 'conversas' as const, rotulo: 'Comercial', href: '/conversas', Icone: MessagesSquare }] : []),
     { tela: 'crm' as const, rotulo: 'CRM', href: '/crm', Icone: Kanban },
     ...(verConversas ? [] : [{ tela: 'financeiro' as const, rotulo: 'Financeiro', href: '/financeiro', Icone: Wallet }]),
     { tela: 'perfil' as const, rotulo: 'Perfil', href: '/perfil', Icone: UserRound },
@@ -131,7 +131,7 @@ export default function MenuLateral({
             <Radar className={i} strokeWidth={1.8} />
           </Item>
           {verConversas && (
-            <Item rotulo="Conversas (WhatsApp)" ativo={ativo === 'conversas'} href="/conversas">
+            <Item rotulo="Comercial" ativo={ativo === 'conversas'} href="/conversas">
               <MessagesSquare className={i} strokeWidth={1.8} />
             </Item>
           )}

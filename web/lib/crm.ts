@@ -48,6 +48,8 @@ export interface Card {
   telefone: string | null;
   /** número para o wa.me; null quando só há telefone fixo */
   whatsapp: string | null;
+  /** no exterior o contato é por e-mail */
+  email: string | null;
   instagram: string | null;
   mapsUrl: string | null;
   notas: string | null;
@@ -71,11 +73,20 @@ export interface Card {
   mensalidade: number;
 }
 
+export type Origem = 'brasil' | 'exterior';
+
 export interface Quadro {
   funis: Funil[];
   funilId: string;
   cards: Card[];
+  /** Brasil ou Exterior: o quadro mostra uma origem por vez */
+  origem: Origem;
+  /** quantos cards este funil tem em cada origem, para as abas */
+  porOrigem: { brasil: number; exterior: number };
 }
+
+/** exterior = telefone com código de outro país (a mesma prova de lib/pais) */
+const ehExterior = (sql: ReturnType<typeof db>) => sql`(coalesce(l.phone, '') like '+%' and coalesce(l.phone, '') not like '+55%')`;
 
 /** o funil que toda conta ganha: o caminho de quem vende site para comércio local */
 const ETAPAS_PADRAO: Omit<Etapa, 'id' | 'posicao'>[] = [
@@ -141,17 +152,24 @@ async function listarFunis(sql: Sql, conta: string): Promise<Funil[]> {
   }));
 }
 
-export async function quadro(conta: string, funilPedido?: string | null): Promise<Quadro> {
+export async function quadro(conta: string, funilPedido?: string | null, origem: Origem = 'brasil'): Promise<Quadro> {
   await garantirFunil(conta);
   const sql = db();
   const funis = await listarFunis(sql, conta);
   const funil = funis.find((f) => f.id === funilPedido) || funis[0];
-  const linhas = await sql`
-    select l.* from leads l join etapas e on e.id = l.etapa_id
-    where l.conta_id = ${conta} and e.funil_id = ${funil.id}
-    order by l.etapa_ordem nulls last
-    limit ${MAX_CARDS}
-  `;
+  const exterior = ehExterior(sql);
+  const [linhas, contagem] = await Promise.all([
+    sql`
+      select l.* from leads l join etapas e on e.id = l.etapa_id
+      where l.conta_id = ${conta} and e.funil_id = ${funil.id} and ${exterior} = ${origem === 'exterior'}
+      order by l.etapa_ordem nulls last
+      limit ${MAX_CARDS}
+    `,
+    sql`
+      select ${exterior} as ext, count(*)::int as n from leads l join etapas e on e.id = l.etapa_id
+      where l.conta_id = ${conta} and e.funil_id = ${funil.id} group by 1
+    `,
+  ]);
   const cards: Card[] = linhas.map((r) => {
     const lead = daLinha(r);
     const v = valores(json<CfgProposta>(r.proposta));
@@ -161,7 +179,9 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       categoria: lead.category,
       cidade: lead.city,
       telefone: lead.phone,
-      whatsapp: lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone)),
+      // fora do Brasil só vale WhatsApp de link: a regra do celular brasileiro inventaria um número
+      whatsapp: origem === 'exterior' ? lead.whatsapp : lead.whatsapp || (lead.telefoneTipo === 'fixo' ? null : numeroWhatsapp(lead.phone)),
+      email: lead.email,
       instagram: lead.instagram,
       mapsUrl: lead.mapsUrl,
       notas: lead.notes,
@@ -180,7 +200,13 @@ export async function quadro(conta: string, funilPedido?: string | null): Promis
       mensalidade: v?.mensalidade ?? 0,
     };
   });
-  return { funis, funilId: funil.id, cards };
+  return {
+    funis,
+    funilId: funil.id,
+    cards,
+    origem,
+    porOrigem: { brasil: contagem.find((r) => !r.ext)?.n ?? 0, exterior: contagem.find((r) => r.ext)?.n ?? 0 },
+  };
 }
 
 /**
@@ -235,7 +261,8 @@ export async function tirarDoFunil(conta: string, leadId: string): Promise<boole
 }
 
 /** leads da conta que não estão neste funil, para o "adicionar ao funil" */
-export async function candidatos(conta: string, funilId: string, busca: string) {
+export async function candidatos(conta: string, funilId: string, busca: string, origem: Origem = 'brasil') {
+  const exterior = ehExterior(db());
   const termo = '%' + busca.replace(/[%_\\]/g, '') + '%';
   const r = await db()`
     select l.id, l.name, l.category, l.city, l.status, f.nome as funil
@@ -245,6 +272,7 @@ export async function candidatos(conta: string, funilId: string, busca: string) 
     where l.conta_id = ${conta} and not l.so_proposta
       and (e.funil_id is null or e.funil_id <> ${funilId})
       and l.status <> 'descartado'
+      and ${exterior} = ${origem === 'exterior'}
       and (${busca === ''} or l.name ilike ${termo} or l.category ilike ${termo} or l.city ilike ${termo} or l.phone ilike ${termo})
     order by l.updated_at desc
     limit 40

@@ -150,6 +150,8 @@ export interface Filtros {
   responsavel?: string;
   /** níveis de temperatura a mostrar; vazio ou ausente mostra todos */
   temperatura?: Nivel[];
+  /** Brasil ou exterior (telefone com código de outro país); ausente mostra os dois */
+  origem?: 'brasil' | 'exterior';
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes' | 'temperatura';
@@ -701,6 +703,8 @@ export interface PaginaDeLeads {
   resumo: Record<string, number>;
   cidades: string[];
   categorias: string[];
+  /** quantos leads há em cada aba (Brasil e Exterior), sem os outros filtros */
+  origens: { brasil: number; exterior: number };
 }
 
 export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLeads> {
@@ -727,8 +731,15 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
   const limitSql = porTemperatura ? 5000 : limit;
   const offsetSql = porTemperatura ? 0 : offset;
 
+  /*
+   * Exterior é quem tem telefone com código de outro país: é a mesma prova
+   * que lib/pais usa para tratar o lead como estrangeiro, só que em SQL.
+   */
+  const ehExterior = sql`(coalesce(phone, '') like '+%' and coalesce(phone, '') not like '+55%')`;
+  const daOrigem = f.origem ? sql`and ${ehExterior} = ${f.origem === 'exterior'}` : sql``;
+
   const onde = sql`
-    conta_id = ${conta} and not so_proposta
+    conta_id = ${conta} and not so_proposta ${daOrigem}
       and (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
@@ -743,7 +754,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
            or phone ilike ${busca} or category ilike ${busca} or city ilike ${busca})
   `;
 
-  const [linhas, totalRow, porTipo, porStatus, oportunidades, porPessoa, quebrados, cidades, categorias, paraTemperatura] =
+  const [linhas, totalRow, porTipo, porStatus, oportunidades, porPessoa, quebrados, cidades, categorias, paraTemperatura, porOrigem] =
     await Promise.all([
       sql`
         select * from leads where ${onde}
@@ -754,15 +765,15 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
         limit ${limitSql} offset ${offsetSql}
       `,
       sql`select count(*)::int as n from leads where ${onde}`,
-      sql`select website_kind, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by website_kind`,
-      sql`select status, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by status`,
+      sql`select website_kind, count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta group by website_kind`,
+      sql`select status, count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta group by status`,
       // "oportunidade" segue o is_lead, que a verificação de site também altera:
       // um comércio cujo site caiu volta para a lista mesmo tendo endereço cadastrado
-      sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta and is_lead = true`,
-      sql`select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by 1`,
-      sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta and site_status = any(${SITE_QUEBRADO}::text[])`,
-      sql`select distinct city from leads where conta_id = ${conta} and city is not null order by city limit 200`,
-      sql`select distinct category from leads where conta_id = ${conta} and category is not null order by category limit 300`,
+      sql`select count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta and is_lead = true`,
+      sql`select coalesce(responsavel, 'ninguem') as quem, count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta group by 1`,
+      sql`select count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta and site_status = any(${SITE_QUEBRADO}::text[])`,
+      sql`select distinct city from leads where conta_id = ${conta} ${daOrigem} and city is not null order by city limit 200`,
+      sql`select distinct category from leads where conta_id = ${conta} ${daOrigem} and category is not null order by category limit 300`,
       /*
        * Contagem por temperatura para os botões de filtro mostrarem número.
        * Não dá para agregar em SQL porque a nota é regra em TypeScript, então
@@ -770,8 +781,9 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
        */
       sql`
         select website_kind, site_status, site_verificado_em, reviews, rating, instagram, phone, category
-        from leads where conta_id = ${conta} and not so_proposta limit 5000
+        from leads where conta_id = ${conta} ${daOrigem} and not so_proposta limit 5000
       `,
+      sql`select ${ehExterior} as exterior, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by 1`,
     ]);
 
   const resumo: Record<string, number> = { total: 0 };
@@ -826,6 +838,10 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
     resumo,
     cidades: cidades.map((r) => r.city as string),
     categorias: categorias.map((r) => r.category as string),
+    origens: {
+      brasil: porOrigem.find((r) => !r.exterior)?.n ?? 0,
+      exterior: porOrigem.find((r) => r.exterior)?.n ?? 0,
+    },
   };
 }
 

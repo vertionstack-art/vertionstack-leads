@@ -391,6 +391,9 @@ export default function Painel({
   const [equipe, setEquipe] = useState<string[]>([]);
   const [ordem, setOrdem] = useState<'recentes' | 'nome' | 'avaliacoes' | 'temperatura'>('recentes');
   const [niveis, setNiveis] = useState<Nivel[]>([]);
+  // Brasil e exterior em abas separadas: canais, idioma e funil diferentes
+  const [origem, setOrigem] = useState<'brasil' | 'exterior'>('brasil');
+  const [origens, setOrigens] = useState<{ brasil: number; exterior: number }>({ brasil: 0, exterior: 0 });
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -425,10 +428,11 @@ export default function Painel({
     if (dePessoa) p.set('de', dePessoa);
     p.set('ordem', ordem);
     if (niveis.length) p.set('temp', niveis.join(','));
+    p.set('origem', origem);
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina, origem]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -442,6 +446,7 @@ export default function Painel({
       setResumo(d.resumo);
       setCidades(d.cidades);
       setCategorias(d.categorias);
+      if (d.origens) setOrigens(d.origens);
       if (d.equipe) setEquipe(d.equipe);
       if (d.cota) setCota(d.cota);
     } catch (e) {
@@ -450,6 +455,14 @@ export default function Painel({
       setCarregando(false);
     }
   }, [query]);
+
+  // volta para a aba (Brasil ou Exterior) em que você estava
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (localStorage.getItem('vl-origem') === 'exterior') setOrigem('exterior');
+    } catch {}
+  }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -847,8 +860,33 @@ export default function Painel({
             )}
           </div>
 
+          {/* ---------------------------------- Brasil / Exterior */}
+          <div role="tablist" aria-label="Origem dos leads" className="mt-8 inline-flex gap-1.5 rounded-full bg-zinc-100 p-1.5">
+            {(['brasil', 'exterior'] as const).map((o) => (
+              <button
+                key={o}
+                type="button"
+                role="tab"
+                aria-selected={origem === o}
+                onClick={() => {
+                  setOrigem(o);
+                  setPagina(0);
+                  setCidade('');
+                  setCategoria('');
+                  try {
+                    localStorage.setItem('vl-origem', o);
+                  } catch {}
+                }}
+                className={`inline-flex min-h-[40px] items-center gap-2 rounded-full px-5 text-[13.5px] font-extrabold transition-colors ${origem === o ? 'bg-tinta text-white' : 'text-zinc-600 hover:text-tinta'}`}
+              >
+                {o === 'brasil' ? 'Brasil' : 'Exterior'}
+                <span className={`tabular-nums text-[12px] ${origem === o ? 'text-white/70' : 'text-zinc-400'}`}>{origens[o]}</span>
+              </button>
+            ))}
+          </div>
+
           {/* ---------------------------------- resumo: oportunidades + temperatura */}
-          <section className="mt-8 grid gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <section className="mt-6 grid gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div>
               <h2 className="mb-4 text-[19px] font-extrabold tracking-[-0.02em]">Oportunidades</h2>
               <div className="flex min-h-[200px] flex-col rounded-[24px] bg-ceu p-6 lg:h-[236px]">

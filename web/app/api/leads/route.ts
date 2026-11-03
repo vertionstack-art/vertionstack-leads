@@ -45,6 +45,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     siteQuebrado: url.searchParams.get('quebrado') === '1',
     responsavel: texto(url.searchParams.get('de'), 60),
     temperatura: lista(url.searchParams.get('temp'), NIVEIS),
+    origem: url.searchParams.get('origem') === 'exterior' ? 'exterior' : url.searchParams.get('origem') === 'brasil' ? 'brasil' : undefined,
     limit: Math.min(Math.max(Number(url.searchParams.get('limit')) || 200, 1), 2000),
     offset: Math.max(Number(url.searchParams.get('offset')) || 0, 0),
     ordem: (ORDENS as readonly string[]).includes(ordem || '') ? (ordem as Filtros['ordem']) : 'recentes',

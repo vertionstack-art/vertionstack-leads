@@ -9,11 +9,11 @@ import { Kanban } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PaginaCrm({ searchParams }: { searchParams: Promise<{ funil?: string }> }) {
+export default async function PaginaCrm({ searchParams }: { searchParams: Promise<{ funil?: string; origem?: string }> }) {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  const { funil } = await searchParams;
-  const inicial = await quadro(sessao.contaId, funil || null);
+  const { funil, origem } = await searchParams;
+  const inicial = await quadro(sessao.contaId, funil || null, origem === 'exterior' ? 'exterior' : 'brasil');
 
   return (
     <Casca

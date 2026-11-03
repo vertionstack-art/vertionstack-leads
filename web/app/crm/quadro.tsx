@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDown, ArrowUp, Bell, Check, Clock, GripVertical, MapPin, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, Trash2, X,
+  ArrowDown, ArrowUp, Bell, Check, Clock, GripVertical, Mail, MapPin, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Settings2, Trash2, X,
 } from 'lucide-react';
 import type { Card, Cor, Etapa, Quadro } from '@/lib/crm';
 import type { Status } from '@/lib/db';
@@ -116,14 +116,27 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
   const emAberto = q.cards.filter((c) => !['fechado', 'descartado'].includes(situacaoDe(c.etapaId) || ''));
   const ganhos = q.cards.filter((c) => situacaoDe(c.etapaId) === 'fechado');
 
-  async function recarregar(funilId = q.funilId) {
+  async function recarregar(funilId = q.funilId, origem = q.origem) {
     try {
-      const r = await fetch('/api/crm?funil=' + funilId).then((x) => x.json());
-      if (r.ok) setQ({ funis: r.funis, funilId: r.funilId, cards: r.cards });
+      const r = await fetch(`/api/crm?funil=${funilId}&origem=${origem}`).then((x) => x.json());
+      if (r.ok) setQ({ funis: r.funis, funilId: r.funilId, cards: r.cards, origem: r.origem, porOrigem: r.porOrigem });
     } catch {
       setAviso('Não consegui atualizar o quadro.');
     }
   }
+
+  // volta para a aba (Brasil ou Exterior) em que você estava
+  useEffect(() => {
+    let salva: string | null = null;
+    try {
+      salva = localStorage.getItem('vl-crm-origem');
+    } catch {}
+    if (salva !== 'exterior' || inicial.origem === 'exterior') return;
+    const t = setTimeout(() => recarregar(inicial.funilId, 'exterior'), 0);
+    return () => clearTimeout(t);
+    // só na abertura da tela
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function mover(cardId: string, etapaId: string, antesDe: string | null) {
     const lista = (porEtapa.get(etapaId) || []).filter((c) => c.id !== cardId);
@@ -166,6 +179,28 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
 
   return (
     <div className="mt-7">
+      {/* ------------------------------------------- Brasil / Exterior */}
+      <div role="tablist" aria-label="Origem dos leads" className="mb-4 inline-flex gap-1.5 rounded-full bg-zinc-100 p-1.5">
+        {(['brasil', 'exterior'] as const).map((o) => (
+          <button
+            key={o}
+            type="button"
+            role="tab"
+            aria-selected={q.origem === o}
+            onClick={() => {
+              recarregar(q.funilId, o);
+              try {
+                localStorage.setItem('vl-crm-origem', o);
+              } catch {}
+            }}
+            className={`inline-flex min-h-[40px] items-center gap-2 rounded-full px-5 text-[13.5px] font-extrabold transition-colors ${q.origem === o ? 'bg-tinta text-white' : 'text-zinc-600 hover:text-tinta'}`}
+          >
+            {o === 'brasil' ? 'Brasil' : 'Exterior'}
+            <span className={`tabular-nums text-[12px] ${q.origem === o ? 'text-white/70' : 'text-zinc-400'}`}>{q.porOrigem[o]}</span>
+          </button>
+        ))}
+      </div>
+
       {/* ---------------------------------------------------- funis */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap gap-1.5 rounded-full bg-zinc-100 p-1">
@@ -366,6 +401,7 @@ export default function QuadroCrm({ inicial, tetoFunis }: { inicial: Quadro; tet
       {adicionarEm && (
         <ModalAdicionar
           funilId={funil.id}
+          origem={q.origem}
           etapa={adicionarEm}
           aoFechar={() => setAdicionarEm(null)}
           aoAdicionar={async (ids) => {
@@ -497,6 +533,16 @@ function CardCrm({
       {card.notas && <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-zinc-500">{card.notas}</p>}
 
       <div className="mt-3 flex items-center gap-1.5">
+        {card.email && !card.whatsapp && (
+          <a
+            href={`mailto:${card.email}`}
+            aria-label={`Mandar e-mail para ${card.nome}`}
+            title={card.email}
+            className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-zinc-100 text-tinta hover:bg-zinc-200"
+          >
+            <Mail aria-hidden className="h-3.5 w-3.5" />
+          </a>
+        )}
         {card.whatsapp && (
           <button
             type="button"
@@ -612,8 +658,8 @@ function ModalNome({ titulo, inicial, dica, aoFechar, aoSalvar }: {
 
 interface Candidato { id: string; nome: string; categoria: string | null; cidade: string | null; status: Status; funil: string | null }
 
-function ModalAdicionar({ funilId, etapa, aoFechar, aoAdicionar }: {
-  funilId: string; etapa: Etapa; aoFechar: () => void; aoAdicionar: (ids: string[]) => Promise<string | null>;
+function ModalAdicionar({ funilId, origem, etapa, aoFechar, aoAdicionar }: {
+  funilId: string; origem: 'brasil' | 'exterior'; etapa: Etapa; aoFechar: () => void; aoAdicionar: (ids: string[]) => Promise<string | null>;
 }) {
   const [busca, setBusca] = useState('');
   const [lista, setLista] = useState<Candidato[] | null>(null);
@@ -625,7 +671,7 @@ function ModalAdicionar({ funilId, etapa, aoFechar, aoAdicionar }: {
 
   async function buscar(texto: string) {
     try {
-      const r = await fetch(`/api/crm?candidatos=1&funil=${funilId}&q=${encodeURIComponent(texto)}`).then((x) => x.json());
+      const r = await fetch(`/api/crm?candidatos=1&funil=${funilId}&origem=${origem}&q=${encodeURIComponent(texto)}`).then((x) => x.json());
       setLista(r.ok ? r.lista : []);
     } catch {
       setLista([]);
