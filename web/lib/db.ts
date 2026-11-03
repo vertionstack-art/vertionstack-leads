@@ -152,6 +152,8 @@ export interface Filtros {
   temperatura?: Nivel[];
   /** Brasil ou exterior (telefone com código de outro país); ausente mostra os dois */
   origem?: 'brasil' | 'exterior';
+  /** só quem já tem e-mail, ou só quem ainda não tem */
+  email?: 'com' | 'sem';
   limit?: number;
   offset?: number;
   ordem?: 'recentes' | 'nome' | 'avaliacoes' | 'temperatura';
@@ -740,6 +742,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
 
   const onde = sql`
     conta_id = ${conta} and not so_proposta ${daOrigem}
+      and (${f.email ?? null}::text is null or (${f.email === 'com'}) = (email is not null))
       and (${kinds}::text[] is null or website_kind = any(${kinds}::text[]))
       and (${statusList}::text[] is null or status = any(${statusList}::text[]))
       and (${f.somenteLeads ? true : null}::boolean is null or is_lead = true)
@@ -754,7 +757,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
            or phone ilike ${busca} or category ilike ${busca} or city ilike ${busca})
   `;
 
-  const [linhas, totalRow, porTipo, porStatus, oportunidades, porPessoa, quebrados, cidades, categorias, paraTemperatura, porOrigem] =
+  const [linhas, totalRow, porTipo, porStatus, oportunidades, porPessoa, quebrados, cidades, categorias, paraTemperatura, porOrigem, porEmail] =
     await Promise.all([
       sql`
         select * from leads where ${onde}
@@ -784,6 +787,7 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
         from leads where conta_id = ${conta} ${daOrigem} and not so_proposta limit 5000
       `,
       sql`select ${ehExterior} as exterior, count(*)::int as n from leads where conta_id = ${conta} and not so_proposta group by 1`,
+      sql`select (email is not null) as tem, count(*)::int as n from leads where conta_id = ${conta} ${daOrigem} and not so_proposta group by 1`,
     ]);
 
   const resumo: Record<string, number> = { total: 0 };
@@ -795,6 +799,8 @@ export async function listarLeads(conta: string, f: Filtros): Promise<PaginaDeLe
   resumo.oportunidades = oportunidades[0].n;
   for (const r of porPessoa) resumo['de_' + r.quem] = r.n;
   resumo.site_quebrado = quebrados[0].n;
+  resumo.com_email = porEmail.find((r) => r.tem)?.n ?? 0;
+  resumo.sem_email = porEmail.find((r) => !r.tem)?.n ?? 0;
 
   for (const r of paraTemperatura) {
     const nivel = temperaturaDoLead({

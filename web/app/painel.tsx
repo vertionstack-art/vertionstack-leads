@@ -11,6 +11,7 @@ import { numeroWhatsapp } from '@/lib/telefone';
 import SeloProposta, { aceiteDa } from './selo-proposta';
 import PromptModal, { type Variante } from './prompt-modal';
 import { origemDoLead } from '@/lib/pais';
+import EmailRapido from './email-rapido';
 import { temperaturaDoLead, CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
@@ -394,6 +395,7 @@ export default function Painel({
   // Brasil e exterior em abas separadas: canais, idioma e funil diferentes
   const [origem, setOrigem] = useState<'brasil' | 'exterior'>('brasil');
   const [origens, setOrigens] = useState<{ brasil: number; exterior: number }>({ brasil: 0, exterior: 0 });
+  const [emailFiltro, setEmailFiltro] = useState<'' | 'com' | 'sem'>('');
   const [pagina, setPagina] = useState(0);
 
   const [verificando, setVerificando] = useState(false);
@@ -429,10 +431,11 @@ export default function Painel({
     p.set('ordem', ordem);
     if (niveis.length) p.set('temp', niveis.join(','));
     p.set('origem', origem);
+    if (origem === 'exterior' && emailFiltro) p.set('email', emailFiltro);
     p.set('limit', String(PAGINA));
     p.set('offset', String(pagina * PAGINA));
     return p.toString();
-  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina, origem]);
+  }, [buscaDebounce, kinds, statusFiltro, cidade, categoria, comTelefone, siteQuebrado, dePessoa, ordem, niveis, pagina, origem, emailFiltro]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -870,6 +873,7 @@ export default function Painel({
                 aria-selected={origem === o}
                 onClick={() => {
                   setOrigem(o);
+                  setEmailFiltro('');
                   setPagina(0);
                   setCidade('');
                   setCategoria('');
@@ -884,6 +888,34 @@ export default function Painel({
               </button>
             ))}
           </div>
+
+          {origem === 'exterior' && (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Filtrar por e-mail">
+              {([
+                ['', 'Todos'],
+                ['com', `Com e-mail · ${resumo.com_email ?? 0}`],
+                ['sem', `Sem e-mail · ${resumo.sem_email ?? 0}`],
+              ] as const).map(([v, rotulo]) => (
+                <button
+                  key={v || 'todos'}
+                  type="button"
+                  aria-pressed={emailFiltro === v}
+                  onClick={() => {
+                    setEmailFiltro(v);
+                    setPagina(0);
+                  }}
+                  className={`min-h-[34px] rounded-full px-3.5 text-[12.5px] font-bold transition-colors ${
+                    emailFiltro === v ? (v === 'sem' ? 'bg-manteiga text-amber-950' : v === 'com' ? 'bg-menta text-emerald-950' : 'bg-tinta text-white') : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  {rotulo}
+                </button>
+              ))}
+              {(resumo.sem_email ?? 0) > 0 && emailFiltro !== 'sem' && (
+                <span className="ml-1 text-[12px] text-zinc-500">Os sem e-mail têm o botão para colar na coluna Contato.</span>
+              )}
+            </div>
+          )}
 
           {/* ---------------------------------- resumo: oportunidades + temperatura */}
           <section className="mt-6 grid gap-x-8 gap-y-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
@@ -1222,7 +1254,7 @@ export default function Painel({
                               {'@' + lead.instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}
                             </a>
                           )}
-                          {lead.email && (
+                          {lead.email && !origemDoLead(lead).estrangeiro && (
                             <a
                               href={`mailto:${lead.email}`}
                               title={lead.email}
@@ -1240,6 +1272,17 @@ export default function Painel({
                         </td>
 
                         <td className="px-4 py-4">
+                          {origemDoLead(lead).estrangeiro && (
+                            <div className="mb-1.5">
+                              <EmailRapido
+                                lead={lead}
+                                aoSalvar={(email) => {
+                                  setLeads((lista) => lista.map((x) => (x.id === lead.id ? { ...x, email } : x)));
+                                  setResumo((r) => ({ ...r, com_email: (r.com_email || 0) + 1, sem_email: Math.max(0, (r.sem_email || 0) - 1) }));
+                                }}
+                              />
+                            </div>
+                          )}
                           {lead.phone || zap ? (
                             <div className="flex flex-col items-start gap-1.5">
                               {lead.phone && (

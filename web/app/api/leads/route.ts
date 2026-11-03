@@ -46,6 +46,7 @@ export function filtrosDaUrl(url: URL): Filtros {
     responsavel: texto(url.searchParams.get('de'), 60),
     temperatura: lista(url.searchParams.get('temp'), NIVEIS),
     origem: url.searchParams.get('origem') === 'exterior' ? 'exterior' : url.searchParams.get('origem') === 'brasil' ? 'brasil' : undefined,
+    email: url.searchParams.get('email') === 'com' ? 'com' : url.searchParams.get('email') === 'sem' ? 'sem' : undefined,
     limit: Math.min(Math.max(Number(url.searchParams.get('limit')) || 200, 1), 2000),
     offset: Math.max(Number(url.searchParams.get('offset')) || 0, 0),
     ordem: (ORDENS as readonly string[]).includes(ordem || '') ? (ordem as Filtros['ordem']) : 'recentes',
