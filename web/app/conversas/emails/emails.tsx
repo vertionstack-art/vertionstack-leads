@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, Check, Clock, Loader2, MessageSquareReply, RotateCcw, Send, Sparkles, Undo2, X } from 'lucide-react';
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import type { CandidatoEmail, EmailNaFila } from '@/lib/email-frio-fila';
+import { comPreco, lerValor, moedaDoLead, MOEDAS, type Moeda } from '@/lib/preco-email';
 
 /**
  * Três tempos, como na fila do WhatsApp: marque as empresas, clique em
@@ -312,6 +313,17 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
   const [assunto, setAssunto] = useState(email.assunto);
   const [corpo, setCorpo] = useState(email.corpo);
   const [demo, setDemo] = useState(email.demoUrl || '');
+  const [preco, setPreco] = useState(email.preco ? String(email.preco) : '');
+  const [moeda, setMoeda] = useState<Moeda>(email.moeda || moedaDoLead(email.fuso, email.cidade));
+  const precoDigitado = preco.trim() !== '';
+  const precoOk = !precoDigitado || lerValor(preco) !== null;
+  // cada tecla no valor (ou troca de moeda) refaz a frase do preço no texto
+  function mudarPreco(texto: string, m: Moeda) {
+    setPreco(texto);
+    setMoeda(m);
+    const v = lerValor(texto);
+    if (v !== null || !texto.trim()) setCorpo((c) => comPreco(c, v, m));
+  }
   const demoOk = /^https:\/\/[^\s]+\.[^\s]+$/i.test(demo.trim());
   const marcaOk = corpo.includes('[DEMO]') || (demoOk && corpo.includes(demo.trim()));
   const [ocupado, setOcupado] = useState<null | 'aprovar' | 'regerar' | 'tirar'>(null);
@@ -322,7 +334,7 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
     setOcupado(a);
     setErro(null);
     // o link da demo vai junto nas duas ações: "escrever outro" não perde o que você colou
-    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, demo: demo.trim(), ...(a === 'aprovar' ? { assunto, corpo } : {}) });
+    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, demo: demo.trim(), preco: preco.trim(), moeda, ...(a === 'aprovar' ? { assunto, corpo } : {}) });
     setOcupado(null);
     if (r.ok) aoMudar(r.email);
     else setErro(r.erro || 'Não deu certo.');
@@ -381,6 +393,38 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
         </span>
         <span className="mt-1 block text-[11.5px] text-zinc-500">No envio, o link entra no lugar de <b>[DEMO]</b> no texto.</span>
       </label>
+      <div className="mt-2.5">
+        <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-zinc-500">Valor do site</span>
+        <span className="mt-1 flex gap-1.5">
+          <select
+            value={moeda}
+            onChange={(e) => mudarPreco(preco, e.target.value as Moeda)}
+            aria-label="Moeda"
+            className="shrink-0 rounded-xl bg-zinc-100 px-2.5 py-2 text-[13.5px] font-bold outline-none focus:ring-2 focus:ring-tinta"
+          >
+            {MOEDAS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.rotulo}
+              </option>
+            ))}
+          </select>
+          <input
+            inputMode="decimal"
+            value={preco}
+            onChange={(e) => mudarPreco(e.target.value, moeda)}
+            placeholder="ex.: 900"
+            aria-label="Valor do site"
+            className={`min-w-0 flex-1 rounded-xl px-3.5 py-2 text-[13.5px] outline-none focus:ring-2 focus:ring-tinta ${!precoOk ? 'bg-rosa' : precoDigitado ? 'bg-menta/50' : 'bg-zinc-100'}`}
+          />
+        </span>
+        <span className="mt-1 block text-[11.5px] text-zinc-500">
+          {!precoOk
+            ? 'Digite só o número, por exemplo 900 ou 1200.'
+            : precoDigitado
+              ? 'A frase com o valor entrou no texto, logo depois da demo. Pode editar a frase à vontade.'
+              : 'Digite o valor e a frase com o preço entra sozinha no texto, depois da demo. Em branco, o e-mail sai sem preço.'}
+        </span>
+      </div>
       <label className="mt-2.5 block">
         <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-zinc-500">E-mail · {palavras} palavras</span>
         <textarea

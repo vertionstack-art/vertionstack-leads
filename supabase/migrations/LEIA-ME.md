@@ -28,3 +28,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 - `0033_email_frio.sql`: e-mails do exterior (emails_frios) e quem pediu para não receber (emails_bloqueados), 03/11/2026.
 - `0034_respostas_e_traducao.sql`: respostas lidas do Gmail (emails_respostas, emails_frios.resposta_*) e tradução do nicho (traducoes_nicho), 03/11/2026.
 - `0035_demo_no_email.sql`: link da demo em cada e-mail do exterior (emails_frios.demo_url), 03/11/2026.
+- `0036_preco_no_email.sql`: valor do site no e-mail do exterior (emails_frios.preco e moeda), 03/11/2026.

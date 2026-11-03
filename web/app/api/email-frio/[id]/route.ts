@@ -5,6 +5,7 @@ import { cabecaLigada, ErroIa, FALTA_CABECA } from '@/lib/cabeca';
 import { exigirEmailFrio } from '@/lib/email-frio-acesso';
 import { gerarEmail, umEmail } from '@/lib/email-frio-fila';
 import { demoValida, MARCA_DEMO } from '@/lib/email-frio';
+import { lerValor, moedaValida } from '@/lib/preco-email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,7 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!atual) return NextResponse.json({ ok: false, erro: 'E-mail não encontrado.' }, { status: 404 });
   if (['enviando', 'enviado'].includes(atual.status)) return NextResponse.json({ ok: false, erro: 'Este e-mail já saiu.' }, { status: 409 });
 
-  const c = (await req.json().catch(() => ({}))) as { acao?: string; assunto?: unknown; corpo?: unknown; demo?: unknown };
+  const c = (await req.json().catch(() => ({}))) as { acao?: string; assunto?: unknown; corpo?: unknown; demo?: unknown; preco?: unknown; moeda?: unknown };
   const assunto = c.assunto === undefined ? null : String(c.assunto).replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
   const corpo = c.corpo === undefined ? null : String(c.corpo).replace(/\r/g, '').trim().slice(0, 4000);
   if (assunto !== null && assunto.length < 2) return NextResponse.json({ ok: false, erro: 'Escreva o assunto.' }, { status: 400 });
@@ -40,12 +41,17 @@ export async function POST(req: Request, ctx: Ctx) {
     demo = String(c.demo ?? '').trim() ? demoValida(c.demo) : null;
     if (String(c.demo ?? '').trim() && !demo) return NextResponse.json({ ok: false, erro: 'O link da demo precisa ser um endereço completo, começando com https://' }, { status: 400 });
   }
-  if (assunto !== null || corpo !== null || demo !== undefined) {
+  // o valor do site: vazio apaga; a frase no texto quem põe é a tela
+  const preco = c.preco === undefined ? undefined : lerValor(c.preco);
+  const moeda = moedaValida(c.moeda);
+  if (assunto !== null || corpo !== null || demo !== undefined || preco !== undefined) {
     await db()`
       update emails_frios set
         assunto = coalesce(${assunto}, assunto),
         corpo = coalesce(${corpo}, corpo),
-        demo_url = case when ${demo !== undefined} then ${demo ?? null} else demo_url end
+        demo_url = case when ${demo !== undefined} then ${demo ?? null} else demo_url end,
+        preco = case when ${preco !== undefined} then ${preco ?? null}::numeric else preco end,
+        moeda = case when ${preco !== undefined} then ${preco ? moeda : null} else moeda end
       where conta_id = ${contaId} and id = ${id}
     `;
   }

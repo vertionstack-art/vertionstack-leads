@@ -9,6 +9,7 @@ import { ehEstrangeiro } from './pais';
 import { temperaturaDoLead, type Nivel } from './temperatura';
 import { demoValida, estaBloqueado, escreverEmail, fusoDoLead, proximaJanela } from './email-frio';
 import { tamanhoDigital, NOME_DO_PORTE } from './redes';
+import { comPreco, moedaValida, type Moeda } from './preco-email';
 
 export interface CandidatoEmail {
   id: string;
@@ -48,6 +49,9 @@ export interface EmailNaFila {
   respostaMessageId: string | null;
   /** o site de demonstração feito para a empresa (vai no lugar do [DEMO]) */
   demoUrl: string | null;
+  /** o valor do site que o Lucas digitou (entra numa frase depois da demo) */
+  preco: number | null;
+  moeda: Moeda | null;
 }
 
 /** leads do exterior com e-mail que ainda não ganharam e-mail (o mais quente primeiro) */
@@ -106,6 +110,8 @@ function daLinha(r: Record<string, any>): EmailNaFila {
     respondidoEm: r.respondido_em ? new Date(r.respondido_em).toISOString() : null,
     respostaMessageId: r.resposta_mid ?? null,
     demoUrl: r.demo_url ?? null,
+    preco: r.preco === null || r.preco === undefined ? null : Number(r.preco),
+    moeda: moedaValida(r.moeda),
   };
 }
 
@@ -140,10 +146,12 @@ export async function gerarEmail(conta: string, leadId: string): Promise<EmailNa
   if (!ehEstrangeiro(lead)) throw new Error('Este lead é do Brasil: o contato aqui é pelo WhatsApp.');
   if (!lead.email) throw new Error('Este lead ainda não tem e-mail. Adicione no cartão dele.');
   if (await estaBloqueado(lead.email)) throw new Error('Esse e-mail pediu para não receber mais mensagens.');
-  const [ja] = await db()`select status from emails_frios where conta_id = ${conta} and lead_id = ${leadId}`;
+  const [ja] = await db()`select status, preco, moeda from emails_frios where conta_id = ${conta} and lead_id = ${leadId}`;
   if (ja && ['enviando', 'enviado'].includes(ja.status)) throw new Error('Este lead já recebeu o e-mail.');
 
   const e = await escreverEmail(lead);
+  // o valor que você já digitou volta no texto novo, no mesmo lugar
+  if (ja?.preco && moedaValida(ja.moeda)) e.corpo = comPreco(e.corpo, Number(ja.preco), ja.moeda);
   const [r] = await db()`
     insert into emails_frios (conta_id, lead_id, para, assunto, corpo, status, fuso, modelo, demo_url)
     values (${conta}, ${leadId}, ${lead.email}, ${e.assunto}, ${e.corpo}, 'rascunho', ${fusoDoLead(lead)}, ${e.modelo}, ${demoValida(lead.previaUrl)})
