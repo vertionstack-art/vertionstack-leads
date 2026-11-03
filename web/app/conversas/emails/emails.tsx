@@ -62,6 +62,7 @@ export default function Emails({
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [gerando, setGerando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [testando, setTestando] = useState(false);
 
   const rascunhos = useMemo(() => emails.filter((e) => e.status === 'rascunho' || e.status === 'erro'), [emails]);
   const naFila = useMemo(() => emails.filter((e) => e.status === 'aprovado' || e.status === 'enviando'), [emails]);
@@ -101,6 +102,23 @@ export default function Emails({
           <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-700">
             {gmail ? 'Os aprovados saem por vertionstack@gmail.com.' : 'Você já pode escrever e aprovar; o envio começa quando a senha de app estiver na Vercel.'}
           </p>
+          {gmail && (
+            <button
+              type="button"
+              disabled={testando}
+              onClick={async () => {
+                setTestando(true);
+                setAviso(null);
+                const r = await chamar('/api/email-frio/teste', 'POST');
+                setTestando(false);
+                setAviso(r.ok ? r.msg : r.erro || 'O teste falhou.');
+              }}
+              className="mt-2 inline-flex min-h-[34px] items-center gap-1.5 rounded-full bg-white px-3.5 text-[12px] font-bold text-tinta hover:bg-zinc-50 disabled:opacity-50"
+            >
+              {testando ? <Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin" /> : <Send aria-hidden className="h-3.5 w-3.5" />}
+              Mandar teste para mim
+            </button>
+          )}
         </div>
         <div className="rounded-[18px] bg-lavanda px-4 py-3">
           <p className="text-[13px] font-extrabold tabular-nums">Hoje: {enviadosHoje} de {teto} enviados</p>
@@ -113,8 +131,8 @@ export default function Emails({
       </section>
 
       {aviso && (
-        <p role="alert" className="flex items-start gap-2 rounded-2xl bg-rosa px-4 py-3 text-[13px] font-semibold text-red-950">
-          <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> {aviso}
+        <p role="alert" className={`flex items-start gap-2 rounded-2xl px-4 py-3 text-[13px] font-semibold ${aviso.startsWith('Mandei') ? 'bg-menta text-emerald-950' : 'bg-rosa text-red-950'}`}>
+          {aviso.startsWith('Mandei') ? <Check aria-hidden className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />} {aviso}
         </p>
       )}
 
