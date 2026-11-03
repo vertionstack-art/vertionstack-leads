@@ -15,6 +15,11 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      conferir:
+        description: 'Só conferir se o Gmail aceita a leitura (não manda nada)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,4 +47,4 @@ jobs:
         run: |
           curl -sS --fail-with-body --max-time 90 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            https://leads.vertionstack.com/api/cron/respostas
+            "https://leads.vertionstack.com/api/cron/respostas${{ inputs.conferir && '?conferir=1' || '' }}"

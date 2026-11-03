@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { lerRespostas } from '@/lib/email-respostas';
+import { conferirImap, lerRespostas } from '@/lib/email-respostas';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -14,6 +14,7 @@ export async function GET(req: Request) {
   const veio = req.headers.get('authorization') || '';
   if (!segredos.some((s) => veio === `Bearer ${s}`)) return NextResponse.json({ ok: false }, { status: 401 });
   try {
+    if (new URL(req.url).searchParams.get('conferir') === '1') return NextResponse.json({ ok: true, ...(await conferirImap()) });
     return NextResponse.json({ ok: true, ...(await lerRespostas()) });
   } catch (e) {
     const m = e instanceof Error ? e.message : String(e);

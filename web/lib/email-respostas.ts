@@ -91,6 +91,18 @@ function semCitacao(texto: string): string {
   return (corte > 0 ? linhas.slice(0, corte) : linhas).join('\n').trim();
 }
 
+/** só confere se o Gmail aceita o login do IMAP (para o teste da instalação) */
+export async function conferirImap(): Promise<{ caixa: number }> {
+  const imap = new ImapFlow({ host: 'imap.gmail.com', port: 993, secure: true, auth: { user: process.env.GMAIL_USUARIO!, pass: process.env.GMAIL_SENHA_APP! }, logger: false });
+  await imap.connect();
+  try {
+    const st = await imap.status('INBOX', { messages: true });
+    return { caixa: st.messages ?? 0 };
+  } finally {
+    await imap.logout().catch(() => {});
+  }
+}
+
 export async function lerRespostas(): Promise<{ lidas: number; ligadas: number; erros: string[] }> {
   const usuario = process.env.GMAIL_USUARIO;
   const senha = process.env.GMAIL_SENHA_APP;
