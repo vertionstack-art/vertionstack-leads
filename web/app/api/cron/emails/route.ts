@@ -14,11 +14,14 @@ const POR_RODADA = 3;
 /**
  * Manda os e-mails aprovados cujo horário comercial de lá está aberto.
  * Chamado a cada 15 minutos pelo GitHub Actions (.github/workflows/emails.yml)
- * com o CRON_SECRET no cabeçalho; sem ele, ninguém de fora dispara envio.
+ * com a senha EMAIL_CRON_SECRET no cabeçalho; sem ela, ninguém de fora dispara
+ * envio. É uma senha só para isto porque o CRON_SECRET da Vercel é "sensível"
+ * (não dá para ver nem copiar para o GitHub).
  */
 export async function GET(req: Request) {
-  const segredo = process.env.CRON_SECRET;
-  if (!segredo || req.headers.get('authorization') !== `Bearer ${segredo}`) {
+  const segredos = [process.env.EMAIL_CRON_SECRET, process.env.CRON_SECRET].filter((s): s is string => Boolean(s && s.length >= 16));
+  const veio = req.headers.get('authorization') || '';
+  if (!segredos.some((s) => veio === `Bearer ${s}`)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   if (!gmailLigado()) return NextResponse.json({ ok: true, enviados: 0, motivo: 'gmail desligado' });
