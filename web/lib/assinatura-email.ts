@@ -30,7 +30,7 @@ const TINTA = '#12101B';
 const APOIO = '#565068';
 
 const linha = (rotulo: string, valor: string, href: string) =>
-  `<tr><td style="padding:2px 10px 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;letter-spacing:0.6px;text-transform:uppercase;color:${APOIO};white-space:nowrap;">${rotulo}</td>` +
+  `<tr><td style="padding:2px 8px 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:bold;letter-spacing:0.6px;text-transform:uppercase;color:${APOIO};white-space:nowrap;">${rotulo}</td>` +
   `<td style="padding:2px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;"><a href="${href}" style="color:${TINTA};text-decoration:none;">${valor}</a></td></tr>`;
 
 /** a assinatura em HTML, para colar no fim do corpo do e-mail */
@@ -38,20 +38,20 @@ export function assinaturaHtml(): string {
   const a = ASSINATURA;
   return `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:8px;">
 <tr>
-<td style="padding:0 18px 0 0;vertical-align:middle;">
-<img src="${a.foto}" width="88" height="88" alt="${a.nome}" style="display:block;width:88px;height:88px;border-radius:44px;border:0;">
+<td style="padding:0 12px 0 0;vertical-align:middle;">
+<img src="${a.foto}" width="64" height="64" alt="${a.nome}" style="display:block;width:64px;height:64px;border-radius:32px;border:0;">
 </td>
-<td style="padding:2px 0 2px 18px;vertical-align:middle;border-left:3px solid ${ROXO};">
-<div style="font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:bold;color:${TINTA};line-height:1.2;">${a.nome}</div>
-<div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${ROXO};padding-top:3px;">${a.cargo} &middot; ${a.empresa}</div>
-<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:9px;">
+<td style="padding:2px 0 2px 12px;vertical-align:middle;border-left:3px solid ${ROXO};">
+<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:bold;color:${TINTA};line-height:1.2;">${a.nome}</div>
+<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:4px;"><tr>
+<td style="padding:0 6px 0 0;vertical-align:middle;"><a href="${a.siteLink}" style="text-decoration:none;"><img src="${a.logo}" width="17" height="16" alt="" style="display:block;width:17px;height:16px;border:0;"></a></td>
+<td style="vertical-align:middle;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:${ROXO};">${a.cargo} &middot; ${a.empresa}</td>
+</tr></table>
+<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:8px;">
 ${linha('WhatsApp', a.whatsapp, a.whatsappLink)}
 ${linha('E-mail', a.email, `mailto:${a.email}`)}
 ${linha('Site', a.site, a.siteLink)}
 </table>
-</td>
-<td style="padding:0 0 0 18px;vertical-align:middle;">
-<a href="${a.siteLink}" style="text-decoration:none;"><img src="${a.logo}" width="34" height="32" alt="Vertion Stack" style="display:block;width:34px;height:32px;border:0;"></a>
 </td>
 </tr>
 </table>`;
