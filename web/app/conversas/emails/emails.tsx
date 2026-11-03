@@ -311,14 +311,18 @@ export default function Emails({
 function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e: EmailNaFila) => void; aoTirar: (id: string) => void }) {
   const [assunto, setAssunto] = useState(email.assunto);
   const [corpo, setCorpo] = useState(email.corpo);
+  const [demo, setDemo] = useState(email.demoUrl || '');
+  const demoOk = /^https:\/\/[^\s]+\.[^\s]+$/i.test(demo.trim());
+  const marcaOk = corpo.includes('[DEMO]') || (demoOk && corpo.includes(demo.trim()));
   const [ocupado, setOcupado] = useState<null | 'aprovar' | 'regerar' | 'tirar'>(null);
-  const [erro, setErro] = useState<string | null>(email.status === 'erro' ? email.erro : null);
+  const [erro, setErro] = useState<string | null>(email.erro);
   const palavras = corpo.trim().split(/\s+/).filter(Boolean).length;
 
   async function acao(a: 'aprovar' | 'regerar') {
     setOcupado(a);
     setErro(null);
-    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, ...(a === 'aprovar' ? { assunto, corpo } : {}) });
+    // o link da demo vai junto nas duas ações: "escrever outro" não perde o que você colou
+    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, demo: demo.trim(), ...(a === 'aprovar' ? { assunto, corpo } : {}) });
     setOcupado(null);
     if (r.ok) aoMudar(r.email);
     else setErro(r.erro || 'Não deu certo.');
@@ -360,6 +364,24 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
         />
       </label>
       <label className="mt-2.5 block">
+        <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-zinc-500">Link da demo · obrigatório</span>
+        <span className="mt-1 flex gap-1.5">
+          <input
+            type="url"
+            value={demo}
+            onChange={(e) => setDemo(e.target.value)}
+            placeholder="https://… o site de demonstração que você fez para eles"
+            className={`min-w-0 flex-1 rounded-xl px-3.5 py-2 text-[13.5px] outline-none focus:ring-2 focus:ring-tinta ${demoOk ? 'bg-menta/50' : 'bg-manteiga/70'}`}
+          />
+          {demoOk && (
+            <a href={demo.trim()} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center rounded-xl border border-zinc-200 px-3 text-[12.5px] font-bold hover:border-zinc-400">
+              Abrir
+            </a>
+          )}
+        </span>
+        <span className="mt-1 block text-[11.5px] text-zinc-500">No envio, o link entra no lugar de <b>[DEMO]</b> no texto.</span>
+      </label>
+      <label className="mt-2.5 block">
         <span className="text-[11.5px] font-extrabold uppercase tracking-wide text-zinc-500">E-mail · {palavras} palavras</span>
         <textarea
           value={corpo}
@@ -377,13 +399,19 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={!!ocupado}
+          disabled={!!ocupado || !demoOk || !marcaOk}
+          title={!demoOk ? 'Cole o link da demo para aprovar' : !marcaOk ? 'Escreva [DEMO] no texto onde o link deve aparecer' : undefined}
           onClick={() => acao('aprovar')}
           className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-tinta px-4 text-[13px] font-bold text-white hover:bg-tinta-70 disabled:opacity-40"
         >
           {ocupado === 'aprovar' ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <Send aria-hidden className="h-4 w-4" />}
           Aprovar
         </button>
+        {(!demoOk || !marcaOk) && (
+          <span className="self-center text-[12px] font-semibold text-amber-800">
+            {!demoOk ? 'Cole o link da demo para aprovar.' : 'Escreva [DEMO] no texto, onde o link deve aparecer.'}
+          </span>
+        )}
         <button
           type="button"
           disabled={!!ocupado}

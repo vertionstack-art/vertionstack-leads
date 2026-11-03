@@ -4,6 +4,7 @@ import { db } from '@/lib/sql';
 import { cabecaLigada, ErroIa, FALTA_CABECA } from '@/lib/cabeca';
 import { exigirEmailFrio } from '@/lib/email-frio-acesso';
 import { gerarEmail, umEmail } from '@/lib/email-frio-fila';
+import { demoValida, MARCA_DEMO } from '@/lib/email-frio';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,16 +29,34 @@ export async function POST(req: Request, ctx: Ctx) {
   if (!atual) return NextResponse.json({ ok: false, erro: 'E-mail não encontrado.' }, { status: 404 });
   if (['enviando', 'enviado'].includes(atual.status)) return NextResponse.json({ ok: false, erro: 'Este e-mail já saiu.' }, { status: 409 });
 
-  const c = (await req.json().catch(() => ({}))) as { acao?: string; assunto?: unknown; corpo?: unknown };
+  const c = (await req.json().catch(() => ({}))) as { acao?: string; assunto?: unknown; corpo?: unknown; demo?: unknown };
   const assunto = c.assunto === undefined ? null : String(c.assunto).replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
   const corpo = c.corpo === undefined ? null : String(c.corpo).replace(/\r/g, '').trim().slice(0, 4000);
   if (assunto !== null && assunto.length < 2) return NextResponse.json({ ok: false, erro: 'Escreva o assunto.' }, { status: 400 });
   if (corpo !== null && corpo.length < 40) return NextResponse.json({ ok: false, erro: 'O texto ficou curto demais.' }, { status: 400 });
-  if (assunto !== null || corpo !== null) {
-    await db()`update emails_frios set assunto = coalesce(${assunto}, assunto), corpo = coalesce(${corpo}, corpo) where conta_id = ${contaId} and id = ${id}`;
+  // o link da demo: vazio apaga, preenchido tem de ser um endereço https completo
+  let demo: string | null | undefined = undefined;
+  if (c.demo !== undefined) {
+    demo = String(c.demo ?? '').trim() ? demoValida(c.demo) : null;
+    if (String(c.demo ?? '').trim() && !demo) return NextResponse.json({ ok: false, erro: 'O link da demo precisa ser um endereço completo, começando com https://' }, { status: 400 });
+  }
+  if (assunto !== null || corpo !== null || demo !== undefined) {
+    await db()`
+      update emails_frios set
+        assunto = coalesce(${assunto}, assunto),
+        corpo = coalesce(${corpo}, corpo),
+        demo_url = case when ${demo !== undefined} then ${demo ?? null} else demo_url end
+      where conta_id = ${contaId} and id = ${id}
+    `;
   }
 
   if (c.acao === 'aprovar') {
+    // regra do Lucas: todo e-mail leva a demo
+    const [e] = await db()`select corpo, demo_url from emails_frios where conta_id = ${contaId} and id = ${id}`;
+    if (!demoValida(e?.demo_url)) return NextResponse.json({ ok: false, erro: 'Cole o link da demo antes de aprovar: todo e-mail leva a demo.' }, { status: 400 });
+    if (!String(e.corpo).includes(MARCA_DEMO) && !String(e.corpo).includes(String(e.demo_url))) {
+      return NextResponse.json({ ok: false, erro: `Escreva ${MARCA_DEMO} no texto, no lugar onde o link da demo deve aparecer.` }, { status: 400 });
+    }
     await db()`update emails_frios set status = 'aprovado', aprovado_em = now(), erro = null where conta_id = ${contaId} and id = ${id} and status in ('rascunho', 'erro')`;
   } else if (c.acao === 'voltar') {
     await db()`update emails_frios set status = 'rascunho', aprovado_em = null where conta_id = ${contaId} and id = ${id} and status in ('aprovado', 'erro')`;

@@ -7,7 +7,7 @@ import { buscarLead, type Lead } from './db';
 import { db } from './sql';
 import { ehEstrangeiro } from './pais';
 import { temperaturaDoLead, type Nivel } from './temperatura';
-import { estaBloqueado, escreverEmail, fusoDoLead, proximaJanela } from './email-frio';
+import { demoValida, estaBloqueado, escreverEmail, fusoDoLead, proximaJanela } from './email-frio';
 import { tamanhoDigital, NOME_DO_PORTE } from './redes';
 
 export interface CandidatoEmail {
@@ -46,6 +46,8 @@ export interface EmailNaFila {
   respondidoEm: string | null;
   /** para abrir a conversa no Gmail */
   respostaMessageId: string | null;
+  /** o site de demonstração feito para a empresa (vai no lugar do [DEMO]) */
+  demoUrl: string | null;
 }
 
 /** leads do exterior com e-mail que ainda não ganharam e-mail (o mais quente primeiro) */
@@ -103,6 +105,7 @@ function daLinha(r: Record<string, any>): EmailNaFila {
     respostaResumo: r.resposta_resumo ?? null,
     respondidoEm: r.respondido_em ? new Date(r.respondido_em).toISOString() : null,
     respostaMessageId: r.resposta_mid ?? null,
+    demoUrl: r.demo_url ?? null,
   };
 }
 
@@ -142,11 +145,13 @@ export async function gerarEmail(conta: string, leadId: string): Promise<EmailNa
 
   const e = await escreverEmail(lead);
   const [r] = await db()`
-    insert into emails_frios (conta_id, lead_id, para, assunto, corpo, status, fuso, modelo)
-    values (${conta}, ${leadId}, ${lead.email}, ${e.assunto}, ${e.corpo}, 'rascunho', ${fusoDoLead(lead)}, ${e.modelo})
+    insert into emails_frios (conta_id, lead_id, para, assunto, corpo, status, fuso, modelo, demo_url)
+    values (${conta}, ${leadId}, ${lead.email}, ${e.assunto}, ${e.corpo}, 'rascunho', ${fusoDoLead(lead)}, ${e.modelo}, ${demoValida(lead.previaUrl)})
     on conflict (conta_id, lead_id) do update set
       para = excluded.para, assunto = excluded.assunto, corpo = excluded.corpo, status = 'rascunho',
-      fuso = excluded.fuso, modelo = excluded.modelo, criado_em = now(), aprovado_em = null, erro = null
+      fuso = excluded.fuso, modelo = excluded.modelo, criado_em = now(), aprovado_em = null, erro = null,
+      -- escrever outro texto não apaga o link da demo que você já colou
+      demo_url = coalesce(emails_frios.demo_url, excluded.demo_url)
     returning id
   `;
   return (await umEmail(conta, r.id))!;

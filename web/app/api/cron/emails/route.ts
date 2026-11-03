@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/sql';
 import { atualizarLead, buscarLead } from '@/lib/db';
 import { registrarEvento } from '@/lib/eventos';
-import { dentroDaJanela, enviadosHoje, estaBloqueado, gmailLigado, mandarPeloGmail, tetoPorDia } from '@/lib/email-frio';
+import { comDemo, demoValida, dentroDaJanela, enviadosHoje, estaBloqueado, gmailLigado, mandarPeloGmail, tetoPorDia } from '@/lib/email-frio';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
   const restam = tetoPorDia() - (await enviadosHoje());
   if (restam <= 0) return NextResponse.json({ ok: true, enviados: 0, motivo: 'teto do dia' });
 
-  const fila = await db()`select id, conta_id, lead_id, para, assunto, corpo, fuso from emails_frios where status = 'aprovado' order by aprovado_em asc limit 100`;
+  const fila = await db()`select id, conta_id, lead_id, para, assunto, corpo, fuso, demo_url from emails_frios where status = 'aprovado' order by aprovado_em asc limit 100`;
   const agora = fila.filter((e) => dentroDaJanela(e.fuso as string)).slice(0, Math.min(POR_RODADA, restam));
 
   let enviados = 0;
@@ -42,8 +42,13 @@ export async function GET(req: Request) {
       await db()`update emails_frios set status = 'cancelado', erro = 'Pediu para não receber' where id = ${e.id}`;
       continue;
     }
+    const demo = demoValida(e.demo_url);
+    if (!demo) {
+      await db()`update emails_frios set status = 'rascunho', erro = 'Falta o link da demo. Cole o link e aprove de novo.' where id = ${e.id}`;
+      continue;
+    }
     try {
-      const messageId = await mandarPeloGmail(e.para as string, e.assunto as string, e.corpo as string);
+      const messageId = await mandarPeloGmail(e.para as string, e.assunto as string, comDemo(e.corpo as string, demo));
       await db()`update emails_frios set status = 'enviado', enviado_em = now(), message_id = ${messageId}, erro = null where id = ${e.id}`;
       enviados++;
       const conta = e.conta_id as string;

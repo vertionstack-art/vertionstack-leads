@@ -131,9 +131,7 @@ function fatos(lead: Lead): string {
     c
       ? `- A competitor in the same area and same line of business, ${c.nome}, has a modern website (${c.site}) that I rated ${c.nota}/10. You may mention this competitor by name, factually, once, without attacking anyone.`
       : null,
-    lead.previaUrl
-      ? `- I already built them a free preview site, live now: ${lead.previaUrl}. This is the strongest thing in the email: say it is already done, put the link near the top, never ask permission to show it.`
-      : '- I have not built them a preview. Do not mention or promise one.',
+    '- I ALREADY BUILT THEM A FREE DEMO WEBSITE, made for this business before we ever spoke. It is live. Write the token [DEMO] alone on its own line where the link goes; it is replaced by the real link when the email is sent.',
   ]
     .filter(Boolean)
     .join('\n');
@@ -148,12 +146,19 @@ Persuasion, used deliberately and honestly:
 - Sell the result (more people who find them online actually call or book), not "a website".
 - One single call to action that costs nothing to answer in one line (a question), never "book a 15-minute call".
 
+THE DEMO IS THE HEART OF EVERY EMAIL. A demo website is already built for them and live. This is reciprocity: I gave first, unasked.
+- Say it as something already done ("I put together a demo of a new site for [business]"), never as an offer ("I could build you one").
+- Never ask permission to show it ("would you like to see...?"): the link is already in the email.
+- Say plainly it is a quick demo built from the outside, before we spoke; the real site uses their own photos, words, prices and brand, and every part is theirs to change. Never apologise for it or call it rough.
+- The call to action is about the demo: what they think of it, or what they would change first.
+
 Structure (in this order):
 1. One or two sentences on the specific thing you saw on their site or listing (from the facts).
 2. What it costs them, said as a likely consequence ("people searching on a phone tend to call whoever is easiest to reach"), never as a fact about their numbers.
 3. If a competitor is in the facts: one factual sentence naming it and saying its site makes contacting or booking easy. No attack.
-4. One sentence on who is writing: Lucas, from Vertion Stack, builds websites for local businesses that turn visitors into calls and bookings, delivered in 3 to 7 business days.
-5. The single question as call to action.
+4. The demo: one sentence saying you already built it for them, then [DEMO] alone on its own line, then one sentence that it is a starting point built before we spoke and the real one is built around their own photos and brand.
+5. One sentence on who is writing: Lucas, from Vertion Stack, builds websites for local businesses that turn visitors into calls and bookings, delivered in 3 to 7 business days.
+6. The single question about the demo as call to action.
 
 Hard rules:
 - Invent NOTHING. No statistics, no clients, no case studies, no prices, no deadlines that are not in the facts. If a detail is not in the facts, leave it out.
@@ -163,9 +168,38 @@ Hard rules:
 - Criticise the situation, never the owner or whoever built the old site.
 - Native, plain American English (British spelling if the city is in the UK, Ireland, Australia or New Zealand). Short sentences. No corporate words (leverage, solutions, synergy, digital transformation).
 - Subject: under 6 words, sentence case, specific to them.
-- Body: 90 to 140 words, plain text, short paragraphs separated by a blank line. Start with "Hi" plus the business name or "there" (you do not know the owner's name). End with exactly "Best,\\nLucas". Do NOT write a signature, address or unsubscribe line: they are added automatically.
+- Body: 100 to 150 words (not counting [DEMO]), plain text, short paragraphs separated by a blank line. Start with "Hi" plus the business name or "there" (you do not know the owner's name). End with exactly "Best,\\nLucas". Do NOT write a signature, address or unsubscribe line: they are added automatically.
 
 Return JSON: {"assunto": "...", "corpo": "..."}.`;
+
+// ------------------------------------------------------------------ a demo
+
+/** o lugar do link da demo no texto; no envio vira o link de verdade */
+export const MARCA_DEMO = '[DEMO]';
+
+/** a IA às vezes esquece o [DEMO] ou cola numa frase: ele fica sempre sozinho numa linha */
+export function garantirDemo(corpo: string): string {
+  if (corpo.includes(MARCA_DEMO)) return corpo.replace(/[ \t]*\[DEMO\][ \t]*/g, '\n[DEMO]\n').replace(/\n{3,}/g, '\n\n').trim();
+  const p = corpo.split(/\n{2,}/);
+  // depois do segundo parágrafo (o problema e o custo), antes de quem escreve
+  p.splice(Math.min(2, p.length - 1), 0, `I already put together a demo of a new site for you:\n${MARCA_DEMO}`);
+  return p.join('\n\n');
+}
+
+/** link de demo aceito: endereço web completo (https) */
+export function demoValida(url: unknown): string | null {
+  const u = String(url ?? '').trim();
+  if (!/^https:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(u) || u.length > 300) return null;
+  try {
+    return new URL(u).href;
+  } catch {
+    return null;
+  }
+}
+
+export function comDemo(corpo: string, demo: string): string {
+  return corpo.split(MARCA_DEMO).join(demo);
+}
 
 export interface EmailEscrito {
   assunto: string;
@@ -191,6 +225,7 @@ export async function escreverEmail(lead: Lead): Promise<EmailEscrito> {
   // a IA às vezes esquece o fecho ou acrescenta assinatura: o fecho é sempre o mesmo
   corpo = corpo.replace(/\n+(best|regards|cheers|thanks|sincerely)[\s\S]*$/i, '').trim() + '\n\nBest,\nLucas';
   if (!assunto || corpo.length < 120) throw new Error('A IA devolveu um e-mail vazio. Tente gerar de novo.');
+  corpo = garantirDemo(corpo);
   return { assunto, corpo: corpo.slice(0, 4000), modelo: r.modelo };
 }
 
@@ -261,6 +296,8 @@ function gmail(): nodemailer.Transporter {
 }
 
 export async function mandarPeloGmail(para: string, assunto: string, corpo: string): Promise<string> {
+  // trava final: e-mail com o [DEMO] sem trocar nunca sai
+  if (corpo.includes(MARCA_DEMO)) throw new Error('Falta o link da demo neste e-mail.');
   const { html, texto, sair } = montarEmail(para, assunto, corpo);
   const r = await gmail().sendMail({
     from: { name: REMETENTE_NOME, address: process.env.GMAIL_USUARIO! },
