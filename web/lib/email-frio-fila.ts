@@ -40,6 +40,12 @@ export interface EmailNaFila {
   saiEm: string | null;
   enviadoEm: string | null;
   erro: string | null;
+  /** a resposta que chegou (lib/email-respostas) */
+  respostaTipo: string | null;
+  respostaResumo: string | null;
+  respondidoEm: string | null;
+  /** para abrir a conversa no Gmail */
+  respostaMessageId: string | null;
 }
 
 /** leads do exterior com e-mail que ainda não ganharam e-mail (o mais quente primeiro) */
@@ -93,15 +99,21 @@ function daLinha(r: Record<string, any>): EmailNaFila {
     saiEm: r.status === 'aprovado' ? proximaJanela(r.fuso).toISOString() : null,
     enviadoEm: r.enviado_em ? new Date(r.enviado_em).toISOString() : null,
     erro: r.erro ?? null,
+    respostaTipo: r.resposta_tipo ?? null,
+    respostaResumo: r.resposta_resumo ?? null,
+    respondidoEm: r.respondido_em ? new Date(r.respondido_em).toISOString() : null,
+    respostaMessageId: r.resposta_mid ?? null,
   };
 }
 
 export async function emailsDaConta(conta: string): Promise<EmailNaFila[]> {
   const linhas = await db()`
-    select e.*, l.name as nome, l.city from emails_frios e
+    select e.*, l.name as nome, l.city,
+      (select x.message_id from emails_respostas x where x.email_frio_id = e.id and x.tipo <> 'automatica' order by x.recebida_em desc limit 1) as resposta_mid
+    from emails_frios e
     join leads l on l.conta_id = e.conta_id and l.id = e.lead_id
     where e.conta_id = ${conta} and e.status <> 'cancelado'
-    order by e.criado_em desc
+    order by e.respondido_em desc nulls last, e.criado_em desc
     limit 300
   `;
   return linhas.map(daLinha);
@@ -109,7 +121,9 @@ export async function emailsDaConta(conta: string): Promise<EmailNaFila[]> {
 
 export async function umEmail(conta: string, id: string): Promise<EmailNaFila | null> {
   const [r] = await db()`
-    select e.*, l.name as nome, l.city from emails_frios e
+    select e.*, l.name as nome, l.city,
+      (select x.message_id from emails_respostas x where x.email_frio_id = e.id and x.tipo <> 'automatica' order by x.recebida_em desc limit 1) as resposta_mid
+    from emails_frios e
     join leads l on l.conta_id = e.conta_id and l.id = e.lead_id
     where e.conta_id = ${conta} and e.id = ${id}
   `;

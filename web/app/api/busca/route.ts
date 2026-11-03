@@ -17,6 +17,7 @@ import { db } from '@/lib/sql';
 import { OFERTAS, servePara, type Oferta } from '@/lib/ofertas';
 import { aplicarAvaliacao, avaliarLead, avaliarLeadExterior, type MotivoDescarte } from '@/lib/enriquecer';
 import { NOTA_CONCORRENTE, paisExterior } from '@/lib/exterior';
+import { traduzirNicho } from '@/lib/traduzir-nicho';
 import type { Concorrente } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -101,7 +102,9 @@ export async function POST(req: Request) {
    * página não chama o Google de novo; pergunta pela metade continua da
    * página onde parou, em vez de recomeçar pelos mesmos resultados.
    */
-  const pergunta = pais ? `${nicho} in ${local}` : `${nicho} em ${local}`;
+  // no exterior você escreve em português e o Google de lá recebe em inglês
+  const nichoGoogle = pais ? await traduzirNicho(nicho, pais.id) : nicho;
+  const pergunta = pais ? `${nichoGoogle} in ${local}` : `${nicho} em ${local}`;
   // a memória é por oferta (e por país): a mesma pergunta rende leads diferentes para quem vende outra coisa
   const marca = `${oferta === 'sites' ? '' : ` #${oferta}`}${pais ? ` #${pais.id}` : ''}`;
   const chave = chaveDaPergunta(`${pergunta}${marca}`);
@@ -303,6 +306,7 @@ export async function POST(req: Request) {
       descartados,
       comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,
       comEmail: novos.filter((l) => l.email).length,
+      traduzido: pais && nichoGoogle !== nicho ? nichoGoogle : null,
       novos: r.novos,
       proxima: resultado.proxima,
       cota: cotaParaJson(cota),

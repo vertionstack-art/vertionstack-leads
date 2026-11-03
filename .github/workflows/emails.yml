@@ -1,4 +1,4 @@
-# Envio dos e-mails do exterior que o Lucas aprovou.
+# Envio dos e-mails do exterior que o Lucas aprovou, e leitura das respostas.
 #
 # A cada 15 minutos chama /api/cron/emails, que só manda o que está dentro
 # do horário comercial do país do lead (9h às 11h30 de lá, segunda a sexta)
@@ -36,3 +36,10 @@ jobs:
           curl -sS --fail-with-body --max-time 90 \
             -H "Authorization: Bearer $CRON_SECRET" \
             https://leads.vertionstack.com/api/cron/emails
+      - name: Ler as respostas
+        env:
+          CRON_SECRET: ${{ secrets.EMAIL_CRON_SECRET }}
+        run: |
+          curl -sS --fail-with-body --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://leads.vertionstack.com/api/cron/respostas

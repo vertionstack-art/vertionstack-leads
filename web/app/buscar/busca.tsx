@@ -236,7 +236,7 @@ export default function BuscaGoogle({
           }
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
-          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${rotuloNicho(nicho)} ${exterior ? 'in' : 'em'} ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: (exterior ? r.comEmail : r.comWhatsappLink) || 0, fracos: r.sitesFracos || 0, nota: r.retomada ? 'continuou' : undefined };
+          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${rotuloNicho(nicho)} ${exterior ? 'in' : 'em'} ${local}${r.traduzido ? ` (buscou “${r.traduzido}”)` : ''}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: (exterior ? r.comEmail : r.comWhatsappLink) || 0, fracos: r.sitesFracos || 0, nota: r.retomada ? 'continuou' : undefined };
           if (r.descartados) setDescartes((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v + ((r.descartados as Record<string, number>)[k] || 0)])) as unknown as Descartes);
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
@@ -339,7 +339,7 @@ export default function BuscaGoogle({
                 }
               }}
               maxLength={60}
-              placeholder={exterior ? 'Outro nicho, em inglês. Ex.: pool cleaning' : 'Outro nicho, ex.: Lava-jato'}
+              placeholder={exterior ? 'Outro nicho, pode ser em português. Ex.: limpeza de piscina' : 'Outro nicho, ex.: Lava-jato'}
               aria-label="Outro nicho"
               className="min-w-0 flex-1 rounded-full bg-zinc-100 px-4 py-2 text-[13.5px] outline-none focus:ring-2 focus:ring-tinta"
             />

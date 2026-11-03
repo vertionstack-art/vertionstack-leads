@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { AlertTriangle, Check, Clock, Loader2, RotateCcw, Send, Sparkles, Undo2, X } from 'lucide-react';
+import { AlertTriangle, Check, Clock, Loader2, MessageSquareReply, RotateCcw, Send, Sparkles, Undo2, X } from 'lucide-react';
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import type { CandidatoEmail, EmailNaFila } from '@/lib/email-frio-fila';
 
@@ -13,6 +13,16 @@ import type { CandidatoEmail, EmailNaFila } from '@/lib/email-frio-fila';
  */
 
 const ROTULO_NIVEL: Record<Nivel, string> = { quente: 'Quente', morno: 'Morno', frio: 'Frio' };
+
+/** a resposta que chegou, como aparece na lista de enviados */
+const RESPOSTA: Record<string, { rotulo: string; fundo: string }> = {
+  interessado: { rotulo: 'Interessado', fundo: 'bg-menta' },
+  pergunta: { rotulo: 'Fez uma pergunta', fundo: 'bg-ceu' },
+  sem_interesse: { rotulo: 'Sem interesse', fundo: 'bg-zinc-100' },
+  descadastro: { rotulo: 'Pediu para não receber', fundo: 'bg-zinc-100' },
+  devolvido: { rotulo: 'E-mail voltou', fundo: 'bg-rosa' },
+  outro: { rotulo: 'Respondeu', fundo: 'bg-manteiga' },
+};
 
 const CIDADE_DO_FUSO: Record<string, string> = {
   'America/New_York': 'Nova York',
@@ -251,17 +261,47 @@ export default function Emails({
         <section>
           <h2 className="text-[16px] font-extrabold">Enviados <span className="text-zinc-400">({enviados.length})</span></h2>
           <ul className="mt-3 space-y-1.5">
-            {enviados.map((e) => (
-              <li key={e.id} className="flex items-center gap-3 rounded-xl bg-menta/40 px-3.5 py-2.5 text-[13px]">
-                <Check aria-hidden className="h-4 w-4 shrink-0 text-emerald-800" />
-                <span className="min-w-0 flex-1 truncate">
-                  <b>{e.nome}</b> · “{e.assunto}” · {e.para}
-                </span>
-                {e.enviadoEm && <span className="shrink-0 text-[12px] text-zinc-500">{quando(e.enviadoEm)}</span>}
-              </li>
-            ))}
+            {enviados.map((e) => {
+              const r = e.respostaTipo ? RESPOSTA[e.respostaTipo] || RESPOSTA.outro : null;
+              return (
+                <li key={e.id} className={`rounded-xl px-3.5 py-2.5 text-[13px] ${r ? r.fundo : 'bg-zinc-50'}`}>
+                  <div className="flex items-center gap-3">
+                    {r ? <MessageSquareReply aria-hidden className="h-4 w-4 shrink-0" /> : <Check aria-hidden className="h-4 w-4 shrink-0 text-emerald-800" />}
+                    <span className="min-w-0 flex-1 truncate">
+                      <b>{e.nome}</b> · “{e.assunto}” · {e.para}
+                    </span>
+                    {r ? (
+                      <span className="shrink-0 rounded-full bg-white/80 px-2.5 py-0.5 text-[11.5px] font-extrabold">{r.rotulo}</span>
+                    ) : (
+                      e.enviadoEm && <span className="shrink-0 text-[12px] text-zinc-500">enviado {quando(e.enviadoEm)}</span>
+                    )}
+                  </div>
+                  {r && (
+                    <p className="mt-1 pl-7 text-[12.5px] leading-relaxed text-zinc-700">
+                      {e.respostaResumo}
+                      {e.respostaMessageId && (
+                        <>
+                          {' '}
+                          <a
+                            href={`https://mail.google.com/mail/u/0/#search/rfc822msgid%3A${encodeURIComponent(e.respostaMessageId)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold underline underline-offset-2"
+                          >
+                            Abrir no Gmail e responder
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-          <p className="mt-2 text-[12px] text-zinc-500">As respostas chegam na caixa do vertionstack@gmail.com.</p>
+          <p className="mt-2 text-[12px] text-zinc-500">
+            A cada 15 minutos a ferramenta lê o Gmail: quem respondeu interessado ou com pergunta vai para <b>Negociando</b> no CRM, quem disse não vai para <b>Descartado</b>.
+            Responder continua sendo com você, pelo Gmail.
+          </p>
         </section>
       )}
     </div>
