@@ -20,6 +20,7 @@ import { numeroWhatsapp, whatsappsInternacionaisNoTexto, whatsappsNoTexto } from
 import { emailNoTexto } from './email-lead';
 import { acharEmailDaEmpresa } from './email-exterior';
 import { MIN_AVALIACOES, MIN_NOTA_GOOGLE } from './exterior';
+import { redesNoTexto, type Redes } from './redes';
 import { MARCA_DE_ANUNCIO, type Oferta } from './ofertas';
 
 export type MotivoDescarte = 'empresa_grande' | 'site_proprio' | 'sem_contato' | 'sem_whatsapp' | 'fora_do_perfil' | 'sem_email' | 'pouco_movimento';
@@ -64,6 +65,8 @@ export interface Avaliacao {
   email: string | null;
   /** o site abriu e não tem pixel/tag de anúncio; null quando não deu para ler */
   semAnuncio: boolean | null;
+  /** só no exterior: os perfis que a empresa publica no site */
+  redes?: Redes | null;
 }
 
 const EMPRESA_GRANDE = /(\bS\.?\s?\/?\s?A\.?$|\bS\/A\b|\bS\.A\.|\bholding\b|\bgrupo\b|\bmultinacional\b|\bincorporadora\b)/i;
@@ -202,6 +205,7 @@ export async function avaliarLeadExterior(
   let instagram: string | null = lead.instagram;
   let email: string | null = null;
   let semAnuncio: boolean | null = null;
+  let redes: Redes = lead.website ? redesNoTexto(lead.website) : {};
 
   if (lead.website) {
     const host = hostDe(lead.website);
@@ -217,6 +221,7 @@ export async function avaliarLeadExterior(
         const insta = texto.match(INSTAGRAM);
         if (insta) instagram = instagram || `https://instagram.com/${insta[1]}`;
         semAnuncio = !MARCA_DE_ANUNCIO.test(home.html);
+        redes = { ...redesNoTexto(home.html), ...redes };
         email = (await acharEmailDaEmpresa(lead.website, home).catch(() => null))?.email ?? null;
       }
     }
@@ -229,7 +234,8 @@ export async function avaliarLeadExterior(
   const soRede = Boolean(lead.website && hostDe(lead.website) && REDE_SOCIAL.test(hostDe(lead.website)!));
   if (opcoes.soComEmail && !email && !whatsapp && !soRede) return fora('sem_email');
   if (!email && !whatsapp && !lead.phone && !instagram) return fora('sem_contato');
-  return { descarte: null, whatsappLink: whatsapp, instagram, email, semAnuncio };
+  if (instagram && !redes.instagram) redes.instagram = instagram;
+  return { descarte: null, whatsappLink: whatsapp, instagram, email, semAnuncio, redes: Object.keys(redes).length ? redes : null };
 }
 
 /** aplica o que a avaliação achou no lead que vai ser gravado */
@@ -241,5 +247,6 @@ export function aplicarAvaliacao(lead: Lead, a: Avaliacao): Lead {
     instagram: a.instagram || lead.instagram,
     email: lead.email || a.email,
     semAnuncio: a.semAnuncio ?? lead.semAnuncio,
+    redes: a.redes ? { ...(lead.redes || {}), ...a.redes } : lead.redes,
   };
 }

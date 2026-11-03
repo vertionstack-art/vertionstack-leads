@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AlertTriangle, Bell, Check, History, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import { origemDoLead } from '@/lib/pais';
+import { NOME_DA_REDE, NOME_DO_PORTE, tamanhoDigital, type Rede } from '@/lib/redes';
 import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
 import SeloProposta, { aceiteDa } from './selo-proposta';
 
@@ -262,6 +263,40 @@ export default function LeadCard({
           )}
         </div>
       )}
+
+      {/* exterior: tudo da empresa em links separados, e o tamanho do digital para dar o preço */}
+      {gringa && (() => {
+        const links: { rotulo: string; href: string }[] = [];
+        if (lead.website && lead.websiteKind === 'site') links.push({ rotulo: 'Site', href: lead.website });
+        if (lead.mapsUrl) links.push({ rotulo: 'Google Maps', href: lead.mapsUrl });
+        const redes = { ...(lead.redes || {}), ...(lead.instagram && !lead.redes?.instagram ? { instagram: lead.instagram } : {}) };
+        for (const [rede, href] of Object.entries(redes) as [Rede, string][]) links.push({ rotulo: NOME_DA_REDE[rede] || rede, href });
+        if (lead.website && lead.websiteKind !== 'site' && !links.some((l) => l.href === lead.website)) links.push({ rotulo: lead.websiteLabel || 'Link', href: lead.website });
+        const t = tamanhoDigital(lead);
+        return (
+          <div className="mt-2 rounded-[18px] bg-zinc-50 px-3.5 py-2.5">
+            <p className="text-[11.5px] font-extrabold uppercase tracking-wide text-zinc-500">Ver a empresa</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {links.map((l) => (
+                <a
+                  key={l.rotulo + l.href}
+                  href={l.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-white px-3 py-1.5 text-[12px] font-bold text-tinta ring-1 ring-zinc-200 hover:ring-zinc-400"
+                >
+                  {l.rotulo}
+                </a>
+              ))}
+              {!links.length && <span className="text-[12px] text-zinc-500">Nenhum link achado.</span>}
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed text-zinc-600">
+              <b className="text-tinta">Porte estimado: {NOME_DO_PORTE[t.porte]}</b>
+              {lead.rating ? ` · ★ ${String(lead.rating).replace('.', ',')}` : ''} · {t.motivos.join(' · ')}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* ações */}
       {gringa && (
