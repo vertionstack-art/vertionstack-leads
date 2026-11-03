@@ -162,7 +162,10 @@ export default function BuscaGoogle({
   const nichosPadrao = exterior ? NICHOS_EXTERIOR.map((n) => n.en) : NICHOS_PADRAO;
   const rotuloNicho = (n: string) => (exterior ? NICHOS_EXTERIOR.find((x) => x.en === n)?.pt ?? n : n);
 
+  // no exterior, cidade em branco = o país inteiro, cidade média por cidade média
+  const paisInteiro = exterior && !cidade.trim();
   const locais = (() => {
+    if (paisInteiro) return paisAtual.cidades;
     const lista = bairros.split('\n').map((b) => b.trim()).filter(Boolean).slice(0, 30);
     return lista.length ? lista.map((b) => `${b}, ${cidade.trim()}`) : [cidade.trim()];
   })();
@@ -182,8 +185,8 @@ export default function BuscaGoogle({
   const semCota = !cota.ilimitado && (cota.restantes ?? 0) <= 0;
 
   async function iniciar() {
-    if (!nichos.size || cidade.trim().length < 2) {
-      setAviso({ texto: 'Escolha pelo menos um nicho e escreva a cidade.' });
+    if (!nichos.size || (!paisInteiro && cidade.trim().length < 2)) {
+      setAviso({ texto: exterior ? 'Escolha pelo menos um nicho.' : 'Escolha pelo menos um nicho e escreva a cidade.' });
       return;
     }
     parar.current = false;
@@ -384,7 +387,7 @@ export default function BuscaGoogle({
             </label>
           )}
           <label className="block">
-            <span className="text-[12.5px] font-bold">Cidade</span>
+            <span className="text-[12.5px] font-bold">{exterior ? 'Cidade (opcional)' : 'Cidade'}</span>
             <input
               value={cidade}
               onChange={(e) => {
@@ -392,7 +395,7 @@ export default function BuscaGoogle({
                 guardar(undefined, undefined, e.target.value);
               }}
               maxLength={60}
-              placeholder={exterior ? paisAtual.exemploCidade : 'Ex.: Gurupi - TO'}
+              placeholder={exterior ? `Em branco = ${paisAtual.nome} inteiro` : 'Ex.: Gurupi - TO'}
               className="mt-1.5 w-full rounded-full bg-zinc-100 px-4 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-tinta"
             />
           </label>
@@ -427,7 +430,10 @@ export default function BuscaGoogle({
             </div>
           )}
           <p className="text-[12px] leading-relaxed text-zinc-500">
-            {exterior && 'Cidade média rende mais que capital: muito comércio local e menos gente oferecendo site. '}
+            {exterior &&
+              (paisInteiro
+                ? `País inteiro: a busca passa pelas ${paisAtual.cidades.length} cidades médias de ${paisAtual.nome} (as da lista acima), uma por uma. `
+                : 'Deixe a cidade em branco para buscar no país inteiro. Cidade média rende mais que capital: muito comércio local e menos gente oferecendo site. ')}
             O Google mostra no máximo 60 comércios por busca. Em cidade grande, liste os bairros para achar mais.
           </p>
         </fieldset>
@@ -540,7 +546,7 @@ export default function BuscaGoogle({
               <Play aria-hidden className="h-4 w-4" fill="currentColor" /> Buscar
             </button>
           )}
-          {!rodando && nichos.size > 0 && cidade.trim() && (
+          {!rodando && nichos.size > 0 && (cidade.trim() || paisInteiro) && (
             <p className="text-[12.5px] text-zinc-500">
               {perguntas} {perguntas === 1 ? 'busca' : 'buscas'} ({nichos.size} {nichos.size === 1 ? 'nicho' : 'nichos'} × {locais.length}{' '}
               {locais.length === 1 ? 'lugar' : 'lugares'}), até juntar {quero} {quero === 1 ? 'lead' : 'leads'}.

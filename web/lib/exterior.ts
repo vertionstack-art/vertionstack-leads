@@ -23,12 +23,12 @@ export interface PaisExterior {
 }
 
 export const PAISES_EXTERIOR: PaisExterior[] = [
-  { id: 'US', nome: 'Estados Unidos', exemploCidade: 'Ex.: Austin, TX', exemploBairros: 'Downtown\nSouth Congress\nEast Austin', cidades: ['Austin, TX', 'Denver, CO', 'Nashville, TN', 'Portland, OR', 'Charlotte, NC', 'Tampa, FL', 'Raleigh, NC', 'Boise, ID'], tlds: ['com', 'us', 'net'] },
-  { id: 'CA', nome: 'Canadá', exemploCidade: 'Ex.: Toronto, ON', exemploBairros: 'Downtown\nScarborough\nNorth York', cidades: ['Calgary, AB', 'Ottawa, ON', 'Hamilton, ON', 'Halifax, NS', 'Victoria, BC'], tlds: ['ca', 'com'] },
-  { id: 'GB', nome: 'Reino Unido', exemploCidade: 'Ex.: Manchester', exemploBairros: 'City Centre\nSalford\nStockport', cidades: ['Manchester', 'Leeds', 'Bristol', 'Nottingham', 'Sheffield', 'Brighton'], tlds: ['co.uk', 'uk', 'com'] },
+  { id: 'US', nome: 'Estados Unidos', exemploCidade: 'Ex.: Austin, TX', exemploBairros: 'Downtown\nSouth Congress\nEast Austin', cidades: ['Austin, TX', 'Denver, CO', 'Nashville, TN', 'Portland, OR', 'Charlotte, NC', 'Tampa, FL', 'Raleigh, NC', 'Boise, ID', 'Spokane, WA', 'Chattanooga, TN', 'Fort Collins, CO', 'Greenville, SC', 'Sarasota, FL', 'Madison, WI', 'Knoxville, TN', 'Colorado Springs, CO'], tlds: ['com', 'us', 'net'] },
+  { id: 'CA', nome: 'Canadá', exemploCidade: 'Ex.: Toronto, ON', exemploBairros: 'Downtown\nScarborough\nNorth York', cidades: ['Calgary, AB', 'Ottawa, ON', 'Hamilton, ON', 'Halifax, NS', 'Victoria, BC', 'London, ON', 'Kelowna, BC', 'Kitchener, ON', 'Saskatoon, SK'], tlds: ['ca', 'com'] },
+  { id: 'GB', nome: 'Reino Unido', exemploCidade: 'Ex.: Manchester', exemploBairros: 'City Centre\nSalford\nStockport', cidades: ['Manchester', 'Leeds', 'Bristol', 'Nottingham', 'Sheffield', 'Brighton', 'Leicester', 'Cardiff', 'Southampton', 'Norwich'], tlds: ['co.uk', 'uk', 'com'] },
   { id: 'IE', nome: 'Irlanda', exemploCidade: 'Ex.: Dublin', exemploBairros: 'Dublin 2\nRathmines\nSwords', cidades: ['Dublin', 'Cork', 'Galway', 'Limerick'], tlds: ['ie', 'com'] },
-  { id: 'AU', nome: 'Austrália', exemploCidade: 'Ex.: Brisbane, QLD', exemploBairros: 'Fortitude Valley\nSouth Brisbane\nChermside', cidades: ['Brisbane, QLD', 'Perth, WA', 'Adelaide, SA', 'Gold Coast, QLD', 'Newcastle, NSW'], tlds: ['com.au', 'au', 'com'] },
-  { id: 'NZ', nome: 'Nova Zelândia', exemploCidade: 'Ex.: Auckland', exemploBairros: 'Ponsonby\nNewmarket\nTakapuna', cidades: ['Auckland', 'Wellington', 'Christchurch', 'Hamilton'], tlds: ['co.nz', 'nz', 'com'] },
+  { id: 'AU', nome: 'Austrália', exemploCidade: 'Ex.: Brisbane, QLD', exemploBairros: 'Fortitude Valley\nSouth Brisbane\nChermside', cidades: ['Brisbane, QLD', 'Perth, WA', 'Adelaide, SA', 'Gold Coast, QLD', 'Newcastle, NSW', 'Sunshine Coast, QLD', 'Geelong, VIC', 'Townsville, QLD'], tlds: ['com.au', 'au', 'com'] },
+  { id: 'NZ', nome: 'Nova Zelândia', exemploCidade: 'Ex.: Auckland', exemploBairros: 'Ponsonby\nNewmarket\nTakapuna', cidades: ['Auckland', 'Wellington', 'Christchurch', 'Hamilton', 'Tauranga', 'Dunedin'], tlds: ['co.nz', 'nz', 'com'] },
 ];
 
 export function paisExterior(id: unknown): PaisExterior | null {
