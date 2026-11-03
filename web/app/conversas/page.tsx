@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ListOrdered, MessagesSquare, Smartphone } from 'lucide-react';
+import { ListOrdered, MessagesSquare, Smartphone, Mail } from 'lucide-react';
 import { estadoDoWhatsapp } from '@/lib/evolution';
 import { sessaoAtual } from '@/lib/conta';
 import { daLinha } from '@/lib/db';
@@ -77,6 +77,13 @@ export default async function PaginaConversas() {
         >
           <ListOrdered aria-hidden className="h-4 w-4" />
           Fila de abordagem
+        </Link>
+        <Link
+          href="/conversas/emails"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-lavanda px-4 text-[13px] font-bold text-tinta transition-colors hover:bg-violet-200"
+        >
+          <Mail aria-hidden className="h-4 w-4" />
+          E-mails do exterior
         </Link>
         <Link
           href="/conversas/whatsapp"

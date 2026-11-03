@@ -23,7 +23,8 @@ export type TipoEvento =
   | 'previa_aberta'
   | 'etapa'
   | 'lembrete'
-  | 'lembrete_feito';
+  | 'lembrete_feito'
+  | 'email';
 
 export interface Evento {
   id: string;

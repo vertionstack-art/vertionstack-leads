@@ -29,7 +29,7 @@ interface Diagnostico {
  * O e-mail inteiro se apoia nisto. Sem um problema concreto e específico,
  * a mensagem vira folheto e não tem por que ser lida.
  */
-function diagnostico(lead: Lead): Diagnostico {
+export function diagnostico(lead: Lead): Diagnostico {
   const site = lead.website || 'the listed website';
 
   switch (lead.siteStatus) {
@@ -153,7 +153,7 @@ function diagnostico(lead: Lead): Diagnostico {
 }
 
 /** a reputação vira prova social — e prova social é o ativo que ele já tem */
-function reputacao(lead: Lead): string {
+export function reputacao(lead: Lead): string {
   if (!lead.rating) return 'No Google reviews yet.';
   const n = lead.reviews || 0;
   const nota = lead.rating.toFixed(1);

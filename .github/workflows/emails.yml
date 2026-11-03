@@ -1,0 +1,37 @@
+# Envio dos e-mails do exterior que o Lucas aprovou.
+#
+# A cada 15 minutos chama /api/cron/emails, que só manda o que está dentro
+# do horário comercial do país do lead (9h às 11h30 de lá, segunda a sexta)
+# e respeita o teto do dia (EMAIL_TETO_DIA, padrão 20). Sem e-mail aprovado,
+# a chamada não faz nada.
+#
+# Precisa do segredo CRON_SECRET neste repositório (o mesmo valor da Vercel):
+# Settings → Secrets and variables → Actions → New repository secret.
+
+name: Envio de e-mails do exterior
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: envio-de-emails
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Chamar o envio
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "Falta o segredo CRON_SECRET no repositório."; exit 1; fi
+          curl -sS --fail-with-body --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://leads.vertionstack.com/api/cron/emails

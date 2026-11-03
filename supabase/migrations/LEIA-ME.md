@@ -25,3 +25,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 - `0030_nota_do_site.sql`: nota de 0 a 10 do site de quem já tem site (site_nota, site_avaliacao), 01/11/2026.
 - `0031_concorrente.sql`: concorrente com site bom na busca do exterior (concorrente jsonb), 02/11/2026.
 - `0032_redes.sql`: links das redes que a empresa publica no site (redes jsonb), 02/11/2026.
+- `0033_email_frio.sql`: e-mails do exterior (emails_frios) e quem pediu para não receber (emails_bloqueados), 03/11/2026.
