@@ -5,6 +5,7 @@ import { estourou } from '@/lib/limite';
 import { db } from '@/lib/sql';
 import { avaliarSite, notaEmTexto, type AvaliacaoSite } from '@/lib/nota-site';
 import { leituraDoLead } from '@/lib/leitura-site';
+import { ehEstrangeiro } from '@/lib/pais';
 import { cabecaLigada, ErroIa, FALTA_CABECA, perguntarJson } from '@/lib/cabeca';
 import { LIMITE_POR_DIA, pedidosHoje, registrarUso } from '@/lib/robo';
 
@@ -58,7 +59,7 @@ export async function POST(req: Request, ctx: Ctx) {
   // a nota medida: reaproveita se for recente, senão mede de novo
   let av: AvaliacaoSite | null = lead.siteAvaliacao;
   const velha = !av || Date.now() - new Date(av.medidoEm).getTime() > DIAS_VALIDADE * 86400_000;
-  if (velha) av = await avaliarSite(lead.website).catch(() => null);
+  if (velha) av = await avaliarSite(lead.website, 8000, ehEstrangeiro(lead)).catch(() => null);
   if (!av) return NextResponse.json({ ok: false, erro: 'Não consegui abrir o site para avaliar. Ele pode estar fora do ar ou bloqueando robôs.' }, { status: 502 });
 
   if (!cabecaLigada()) {

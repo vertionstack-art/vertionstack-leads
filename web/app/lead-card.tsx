@@ -1,6 +1,7 @@
 'use client';
 
-import { AlertTriangle, Bell, Check, History, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, Bell, Check, History, Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
 import { origemDoLead } from '@/lib/pais';
 import { temperaturaDoLead, CLASSE_NIVEL } from '@/lib/temperatura';
@@ -67,6 +68,36 @@ export default function LeadCard({
   const telLimpo = lead.phone ? lead.phone.replace(/\D/g, '') : null;
   // fora do Brasil o contato é e-mail, não WhatsApp — e o prompt é outro
   const gringa = origemDoLead(lead).estrangeiro;
+  // e-mail que você achou à mão (Instagram, Facebook, site) e salvou daqui do cartão
+  const [emailSalvo, setEmailSalvo] = useState<string | null>(null);
+  const [emailNovo, setEmailNovo] = useState('');
+  const [emailErro, setEmailErro] = useState<string | null>(null);
+  const [salvandoEmail, setSalvandoEmail] = useState(false);
+  const email = emailSalvo ?? lead.email;
+
+  async function salvarEmail() {
+    const v = emailNovo.trim();
+    if (!v) return;
+    setSalvandoEmail(true);
+    setEmailErro(null);
+    try {
+      const r = await fetch(`/api/leads/${encodeURIComponent(lead.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: v }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!j.ok) throw new Error(j.erro || 'Não consegui salvar.');
+      setEmailSalvo(v.toLowerCase());
+      setEmailNovo('');
+    } catch (e) {
+      setEmailErro(e instanceof Error ? e.message : 'Não consegui salvar.');
+    } finally {
+      setSalvandoEmail(false);
+    }
+  }
+  // onde procurar o e-mail: Instagram, Facebook ou o próprio site
+  const ondeProcurar = lead.instagram || lead.website;
   const temp = temperaturaDoLead(lead);
 
   const inicial = (lead.name.match(/[\p{L}\p{N}]/u)?.[0] || '•').toUpperCase();
@@ -169,11 +200,11 @@ export default function LeadCard({
           <p className="col-span-2 text-center text-[12.5px] font-semibold tabular-nums text-zinc-500">
             {lead.phone}
             {lead.whatsappFonte === 'link' && <span className="text-emerald-700"> · WhatsApp confirmado no link da empresa</span>}
-            {lead.email && (
+            {email && !gringa && (
               <>
                 <br />
-                <a href={`mailto:${lead.email}`} className="text-roxo-700 underline underline-offset-2">
-                  {lead.email}
+                <a href={`mailto:${email}`} className="text-roxo-700 underline underline-offset-2">
+                  {email}
                 </a>
               </>
             )}
@@ -183,6 +214,53 @@ export default function LeadCard({
         <p className="mt-3.5 rounded-full bg-zinc-50 py-2.5 text-center text-[12.5px] font-semibold text-zinc-500">
           Sem telefone cadastrado
         </p>
+      )}
+
+      {/* exterior: o e-mail é o canal; sem e-mail achado, você completa aqui */}
+      {gringa && (
+        <div className={`mt-2 rounded-[18px] px-3.5 py-2.5 ${email ? 'bg-menta/50' : 'bg-manteiga/70'}`}>
+          {email ? (
+            <p className="flex items-center gap-2 text-[12.5px] font-semibold">
+              <Mail aria-hidden className="h-4 w-4 shrink-0" />
+              <a href={`mailto:${email}`} className="truncate text-roxo-700 underline underline-offset-2">{email}</a>
+              {emailSalvo && <span className="shrink-0 text-emerald-800">salvo</span>}
+            </p>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                salvarEmail();
+              }}
+            >
+              <p className="text-[12px] font-bold text-zinc-700">
+                Sem e-mail ainda.{' '}
+                {ondeProcurar && (
+                  <a href={ondeProcurar} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+                    Procurar {/instagram\.com/i.test(ondeProcurar) ? 'no Instagram' : /facebook\.com|fb\.com/i.test(ondeProcurar) ? 'no Facebook' : 'no site'}
+                  </a>
+                )}
+              </p>
+              <div className="mt-1.5 flex gap-1.5">
+                <input
+                  type="email"
+                  value={emailNovo}
+                  onChange={(e) => setEmailNovo(e.target.value)}
+                  placeholder="email@empresa.com"
+                  aria-label={`E-mail de ${lead.name}`}
+                  className="min-w-0 flex-1 rounded-full bg-white px-3.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-tinta"
+                />
+                <button
+                  type="submit"
+                  disabled={salvandoEmail || !emailNovo.trim()}
+                  className="shrink-0 rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white disabled:opacity-40"
+                >
+                  {salvandoEmail ? 'Salvando…' : 'Adicionar'}
+                </button>
+              </div>
+              {emailErro && <p role="alert" className="mt-1 text-[12px] font-semibold text-red-700">{emailErro}</p>}
+            </form>
+          )}
+        </div>
       )}
 
       {/* ações */}

@@ -22,7 +22,7 @@ import { lerPagina } from './verificar-site';
 export const NOTA_SITE_FRACO = 6;
 
 export interface ProblemaSite {
-  codigo: 'sem_whatsapp' | 'sem_telefone' | 'sem_contato' | 'celular' | 'sem_https' | 'sem_descricao' | 'pouco_conteudo' | 'ano_antigo';
+  codigo: 'sem_whatsapp' | 'sem_contato_direto' | 'sem_telefone' | 'sem_contato' | 'celular' | 'sem_https' | 'sem_descricao' | 'pouco_conteudo' | 'ano_antigo';
   /** como aparece na ficha */
   texto: string;
   /** como entra numa mensagem para o dono, sem acusar ("reparei que ...") */
@@ -55,12 +55,16 @@ const arred = (n: number) => Math.round(n * 2) / 2;
  * faz o cliente conseguir chamar vale mais (5 de 10), depois celular e
  * segurança (2,5), depois conteúdo e cuidado (2,5).
  */
-export function calcularNota(l: LeituraSite, ano: number | null, anoAtual = new Date().getFullYear()) {
+export function calcularNota(l: LeituraSite, ano: number | null, anoAtual = new Date().getFullYear(), exterior = false) {
   const problemas: ProblemaSite[] = [];
   let pontos = 0;
 
   // jeito de chamar: até 5
-  if (l.whatsapp) pontos += 2.5;
+  if (exterior) {
+    // fora do Brasil o WhatsApp não é o canal de todo mundo: vale e-mail clicável ou chat
+    if (l.whatsapp || l.email) pontos += 2.5;
+    else problemas.push({ codigo: 'sem_contato_direto', texto: 'Sem e-mail clicável nem chat', frase: 'não tem um jeito rápido de mandar mensagem pelo site', curto: 'o site não tem um jeito rápido de mandar mensagem' });
+  } else if (l.whatsapp) pontos += 2.5;
   else problemas.push({ codigo: 'sem_whatsapp', texto: 'Não achei botão de WhatsApp', frase: 'não achei um jeito rápido de chamar vocês no WhatsApp', curto: 'o site de vocês não tem um jeito rápido de chamar no WhatsApp' });
   if (l.telefoneClicavel) pontos += 1;
   else problemas.push({ codigo: 'sem_telefone', texto: 'Telefone não é clicável', frase: 'no celular não dá para tocar no telefone e ligar direto', curto: 'no site de vocês não dá para tocar no telefone e ligar direto' });
@@ -95,12 +99,12 @@ export function calcularNota(l: LeituraSite, ano: number | null, anoAtual = new 
  * Lê o site e dá a nota. Devolve null quando o site não abre para leitura:
  * sem ler, não há nota (e o comércio fica de fora, como antes).
  */
-export async function avaliarSite(url: string, limiteMs = 8000): Promise<AvaliacaoSite | null> {
+export async function avaliarSite(url: string, limiteMs = 8000, exterior = false): Promise<AvaliacaoSite | null> {
   const alvo = url.startsWith('http') ? url : 'https://' + url;
   const pagina = await lerPagina(alvo, limiteMs).catch(() => null);
   if (!pagina?.html) return null;
   const leitura = analisarHtml(pagina.url || alvo, pagina.html);
-  const { nota, problemas } = calcularNota(leitura, anoDoRodape(pagina.html));
+  const { nota, problemas } = calcularNota(leitura, anoDoRodape(pagina.html), undefined, exterior);
   return { nota, problemas, url: pagina.url || alvo, medidoEm: new Date().toISOString() };
 }
 

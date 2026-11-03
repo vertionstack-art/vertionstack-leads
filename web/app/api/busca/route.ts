@@ -15,12 +15,15 @@ import { avaliarSite, NOTA_SITE_FRACO, type AvaliacaoSite } from '@/lib/nota-sit
 import { ehRede } from '@/lib/enriquecer';
 import { db } from '@/lib/sql';
 import { OFERTAS, servePara, type Oferta } from '@/lib/ofertas';
-import { aplicarAvaliacao, avaliarLead, type MotivoDescarte } from '@/lib/enriquecer';
+import { aplicarAvaliacao, avaliarLead, avaliarLeadExterior, type MotivoDescarte } from '@/lib/enriquecer';
+import { NOTA_CONCORRENTE, paisExterior } from '@/lib/exterior';
+import type { Concorrente } from '@/lib/db';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 // verificação (até 9 s) + nota do site (até 9 s) + o resto da busca
-export const maxDuration = 45;
+// fora do Brasil ainda lê as páginas de contato atrás do e-mail (até ~15 s a mais)
+export const maxDuration = 60;
 
 const erro = (msg: string, status: number, extra: Record<string, unknown> = {}) =>
   NextResponse.json({ ok: false, erro: msg, ...extra }, { status });
@@ -58,6 +61,12 @@ export async function POST(req: Request) {
   const soComWhatsapp = c.soComWhatsapp !== false;
   // padrão ligado: quem tem site no ar, mas fraco (nota até 6), também entra
   const siteFraco = c.siteFraco !== false;
+  // busca fora do Brasil (lib/exterior): o Google em inglês e o filtro que procura e-mail
+  const pais = paisExterior(c.pais);
+  const exterior = Boolean(pais);
+  // padrão desligado: quem não tem e-mail no site entra assim mesmo, e você completa à mão no cartão
+  const soComEmail = c.soComEmail === true;
+  const soBemAvaliados = c.soBemAvaliados !== false;
   // o que a conta vende muda o que é lead (lib/ofertas); vem do banco, não do navegador
   const [cfgOferta] = await db()`select oferta from contas where id = ${contaId}`;
   const oferta: Oferta = OFERTAS.some((o) => o.id === cfgOferta?.oferta) ? (cfgOferta.oferta as Oferta) : 'sites';
@@ -92,9 +101,10 @@ export async function POST(req: Request) {
    * página não chama o Google de novo; pergunta pela metade continua da
    * página onde parou, em vez de recomeçar pelos mesmos resultados.
    */
-  const pergunta = `${nicho} em ${local}`;
-  // a memória é por oferta: a mesma pergunta rende leads diferentes para quem vende outra coisa
-  const chave = chaveDaPergunta(oferta === 'sites' ? pergunta : `${pergunta} #${oferta}`);
+  const pergunta = pais ? `${nicho} in ${local}` : `${nicho} em ${local}`;
+  // a memória é por oferta (e por país): a mesma pergunta rende leads diferentes para quem vende outra coisa
+  const marca = `${oferta === 'sites' ? '' : ` #${oferta}`}${pais ? ` #${pais.id}` : ''}`;
+  const chave = chaveDaPergunta(`${pergunta}${marca}`);
   let token = pagina;
   let retomada = false;
   if (!pagina) {
@@ -102,7 +112,7 @@ export async function POST(req: Request) {
     if (memoria?.esgotada) {
       return NextResponse.json({
         ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
-        descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 },
+        descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 },
         cota: cotaParaJson(cota), fim: false,
       });
     }
@@ -137,12 +147,12 @@ export async function POST(req: Request) {
   let resultado;
   try {
     try {
-      resultado = await buscarPagina(pergunta, token);
+      resultado = await buscarPagina(pergunta, token, pais?.id ?? 'BR');
     } catch (e) {
       // token guardado que o Google não aceita mais: recomeça do começo
       if (!retomada || !(e instanceof ErroGoogle) || e.status !== 400) throw e;
       retomada = false;
-      resultado = await buscarPagina(pergunta, null);
+      resultado = await buscarPagina(pergunta, null, pais?.id ?? 'BR');
     }
   } catch (e) {
     if (e instanceof ErroGoogle) return erro(e.message, e.status === 429 ? 429 : 502);
@@ -155,7 +165,7 @@ export async function POST(req: Request) {
 
   // "Centro, Gurupi, TO" vira "Gurupi, TO": cidade com a UF, sem o bairro
   const partes = local.split(',').map((p) => p.trim()).filter(Boolean);
-  const cidade = (partes.length >= 2 && /^[A-Za-z]{2}$/.test(partes[partes.length - 1]) ? partes.slice(-2).join(', ') : partes[partes.length - 1]) || local;
+  const cidade = pais ? `${local}, ${pais.id}` : (partes.length >= 2 && /^[A-Za-z]{2}$/.test(partes[partes.length - 1]) ? partes.slice(-2).join(', ') : partes[partes.length - 1]) || local;
   const todos = resultado.comercios
     .map((g) =>
       normalizarLead(
@@ -181,7 +191,9 @@ export async function POST(req: Request) {
         'google',
       ),
     )
-    .filter((l): l is NonNullable<typeof l> => l !== null);
+    .filter((l): l is NonNullable<typeof l> => l !== null)
+    // fora do Brasil o telefone não vira WhatsApp pela regra brasileira de celular
+    .map((l) => (pais ? { ...l, whatsapp: null, whatsappFonte: null, telefoneTipo: null } : l));
   // quem vende site só quer os sem site; nas outras ofertas todos entram na conferência
   const leads = oferta === 'sites' ? todos.filter((l) => l.isLead) : [...todos];
 
@@ -214,7 +226,7 @@ export async function POST(req: Request) {
               let nota: AvaliacaoSite | null = null;
               if (siteFraco && v?.status === 'ok' && l.website) {
                 nota = await Promise.race([
-                  avaliarSite(v.urlFinal || l.website, 8000).catch(() => null),
+                  avaliarSite(v.urlFinal || l.website, 8000, exterior).catch(() => null),
                   new Promise<null>((ok) => setTimeout(() => ok(null), 9000)),
                 ]);
               }
@@ -224,6 +236,16 @@ export async function POST(req: Request) {
     );
     let sitesQuebrados = 0;
     let sitesFracos = 0;
+    /*
+     * No exterior, o melhor site bom desta página (mesmo nicho, mesma cidade)
+     * vira o "concorrente" dos leads novos dela: o e-mail pode mostrar que o
+     * vizinho já está na frente. Só quem tirou nota alta e tem avaliações.
+     */
+    const bons = conferencias
+      .filter(({ nota }) => nota && nota.nota >= NOTA_CONCORRENTE)
+      .sort((a, b) => b.nota!.nota - a.nota!.nota || (b.l.reviews ?? 0) - (a.l.reviews ?? 0));
+    const concorrente: Concorrente | null =
+      pais && bons[0]?.l.website ? { nome: bons[0].l.name, site: bons[0].nota!.url || bons[0].l.website, nota: bons[0].nota!.nota, avaliacoes: bons[0].l.reviews } : null;
     for (const { l, v: conferido, nota } of conferencias) {
       const agora = new Date().toISOString();
       if (nota && nota.nota <= NOTA_SITE_FRACO) {
@@ -242,9 +264,11 @@ export async function POST(req: Request) {
     const existentes = leads.filter((l) => !novosIds.has(l.id));
 
     // o filtro de precisão roda só nos que ainda não estão no painel (lib/enriquecer)
-    const descartados: Record<MotivoDescarte, number> = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 };
+    const descartados: Record<MotivoDescarte, number> = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 };
     const candidatos = leads.filter((l) => novosIds.has(l.id));
-    const avaliacoes = await Promise.all(candidatos.map((l) => avaliarLead(l, soComWhatsapp, oferta)));
+    const avaliacoes = await Promise.all(
+      candidatos.map((l) => (pais ? avaliarLeadExterior(l, { soComEmail, soBemAvaliados, tlds: pais.tlds }) : avaliarLead(l, soComWhatsapp, oferta))),
+    );
     const aprovados = candidatos.flatMap((l, i) => {
       const a = avaliacoes[i];
       if (a.descarte) {
@@ -256,7 +280,7 @@ export async function POST(req: Request) {
         descartados.fora_do_perfil++;
         return [];
       }
-      return [{ ...pronto, isLead: true }];
+      return [{ ...pronto, isLead: true, concorrente: pronto.concorrente ?? concorrente }];
     });
 
     const limite = cota.ilimitado ? quero : Math.min(quero, cota.restantes);
@@ -278,6 +302,7 @@ export async function POST(req: Request) {
       jaTinha: existentes.length,
       descartados,
       comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,
+      comEmail: novos.filter((l) => l.email).length,
       novos: r.novos,
       proxima: resultado.proxima,
       cota: cotaParaJson(cota),

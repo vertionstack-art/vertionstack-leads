@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, Loader2, Play, Plus, Square } from 'lucide-react';
 import type { ResumoBuscas } from '@/lib/google-places';
+import { NICHOS_EXTERIOR, PAISES_EXTERIOR } from '@/lib/exterior';
 
 const NICHOS_PADRAO = [
   'Barbearia', 'Clínica', 'Restaurante', 'Academia', 'Imobiliária', 'Oficina mecânica', 'Serralheria', 'Pizzaria',
@@ -40,7 +41,13 @@ interface Descartes {
   sem_contato: number;
   sem_whatsapp: number;
   fora_do_perfil: number;
+  sem_email: number;
+  pouco_movimento: number;
 }
+
+const DESCARTES_ZERADOS: Descartes = { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 };
+
+type Modo = 'brasil' | 'exterior';
 
 const ROTULO_DESCARTE: Record<keyof Descartes, string> = {
   sem_whatsapp: 'sem WhatsApp',
@@ -48,15 +55,21 @@ const ROTULO_DESCARTE: Record<keyof Descartes, string> = {
   site_proprio: 'têm site fora do Maps',
   sem_contato: 'sem nenhum contato',
   fora_do_perfil: 'não combinam com o que você vende',
+  sem_email: 'sem e-mail nem WhatsApp',
+  pouco_movimento: 'pouco movimento (menos de 10 avaliações ou nota abaixo de 4)',
 };
 
-const PREFS = 'vl-busca';
+const PREFS: Record<Modo, string> = { brasil: 'vl-busca', exterior: 'vl-busca-exterior' };
+const PREF_MODO = 'vl-busca-modo';
 
-function lerPrefs(): { nichos: string[]; extras: string[]; cidade: string; bairros: string } {
+interface Prefs { nichos: string[]; extras: string[]; cidade: string; bairros: string; pais: string }
+
+function lerPrefs(modo: Modo): Prefs {
+  const vazio: Prefs = { nichos: [], extras: [], cidade: '', bairros: '', pais: 'US' };
   try {
-    return { nichos: [], extras: [], cidade: '', bairros: '', ...JSON.parse(localStorage.getItem(PREFS) || '{}') };
+    return { ...vazio, ...JSON.parse(localStorage.getItem(PREFS[modo]) || '{}') };
   } catch {
-    return { nichos: [], extras: [], cidade: '', bairros: '' };
+    return vazio;
   }
 }
 
@@ -94,27 +107,60 @@ export default function BuscaGoogle({
   const max = cota.ilimitado ? 500 : Math.min(200, cota.restantes ?? 0);
   const [quero, setQuero] = useState(Math.min(30, max) || 1);
   const [soComWhatsapp, setSoComWhatsapp] = useState(true);
+  const [modo, setModo] = useState<Modo>('brasil');
+  const [pais, setPais] = useState('US');
+  const [soComEmail, setSoComEmail] = useState(false);
+  const [soBemAvaliados, setSoBemAvaliados] = useState(true);
   const [siteFraco, setSiteFraco] = useState(true);
-  const [descartes, setDescartes] = useState<Descartes>({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 });
+  const [descartes, setDescartes] = useState<Descartes>(DESCARTES_ZERADOS);
   const [rodando, setRodando] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [aviso, setAviso] = useState<{ texto: string; fim?: boolean } | null>(null);
   const [terminou, setTerminou] = useState(false);
   const parar = useRef(false);
 
-  useEffect(() => {
-    const p = lerPrefs();
+  function carregar(m: Modo) {
+    const p = lerPrefs(m);
     setNichos(new Set(p.nichos));
     setExtras(p.extras);
     setCidade(p.cidade);
     setBairros(p.bairros);
+    setPais(PAISES_EXTERIOR.some((x) => x.id === p.pais) ? p.pais : 'US');
+  }
+
+  useEffect(() => {
+    let m: Modo = 'brasil';
+    try {
+      m = localStorage.getItem(PREF_MODO) === 'exterior' ? 'exterior' : 'brasil';
+    } catch {}
+    // lido uma vez, depois que a página abre (o servidor não tem localStorage)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setModo(m);
+    carregar(m);
   }, []);
 
-  function guardar(n = nichos, e = extras, c = cidade, b = bairros) {
+  function guardar(n = nichos, e = extras, c = cidade, b = bairros, pa = pais) {
     try {
-      localStorage.setItem(PREFS, JSON.stringify({ nichos: [...n], extras: e, cidade: c, bairros: b }));
+      localStorage.setItem(PREFS[modo], JSON.stringify({ nichos: [...n], extras: e, cidade: c, bairros: b, pais: pa }));
     } catch {}
   }
+
+  function trocarModo(m: Modo) {
+    if (m === modo) return;
+    setModo(m);
+    carregar(m);
+    setLinhas([]);
+    setAviso(null);
+    setTerminou(false);
+    try {
+      localStorage.setItem(PREF_MODO, m);
+    } catch {}
+  }
+
+  const exterior = modo === 'exterior';
+  const paisAtual = PAISES_EXTERIOR.find((x) => x.id === pais) ?? PAISES_EXTERIOR[0];
+  const nichosPadrao = exterior ? NICHOS_EXTERIOR.map((n) => n.en) : NICHOS_PADRAO;
+  const rotuloNicho = (n: string) => (exterior ? NICHOS_EXTERIOR.find((x) => x.en === n)?.pt ?? n : n);
 
   const locais = (() => {
     const lista = bairros.split('\n').map((b) => b.trim()).filter(Boolean).slice(0, 30);
@@ -145,7 +191,7 @@ export default function BuscaGoogle({
     setTerminou(false);
     setAviso(null);
     setLinhas([]);
-    setDescartes({ empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0 });
+    setDescartes(DESCARTES_ZERADOS);
     let faltam = quero;
 
     fora: for (const nicho of nichos) {
@@ -160,7 +206,11 @@ export default function BuscaGoogle({
             r = await fetch('/api/busca', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nicho, local, pagina, quero: faltam, soComWhatsapp, siteFraco }),
+              body: JSON.stringify(
+                exterior
+                  ? { nicho, local, pagina, quero: faltam, siteFraco, pais, soComEmail, soBemAvaliados }
+                  : { nicho, local, pagina, quero: faltam, soComWhatsapp, siteFraco },
+              ),
             }).then((x) => x.json());
           } catch {
             setAviso({ texto: 'Falha de rede. Confira a internet e clique em Buscar de novo.' });
@@ -180,13 +230,13 @@ export default function BuscaGoogle({
             break; // erro desta pergunta: segue para a próxima
           }
           if (r.jaFeita) {
-            const pulada: Linha = { chave: `${nicho}|${local}|pulada`, pergunta: `${nicho} em ${local}`, pagina: 0, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0, nota: 'pulada' };
+            const pulada: Linha = { chave: `${nicho}|${local}|pulada`, pergunta: `${rotuloNicho(nicho)} ${exterior ? 'in' : 'em'} ${local}`, pagina: 0, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0, nota: 'pulada' };
             setLinhas((l) => [...l, pulada]);
             break; // próxima pergunta
           }
           faltam -= r.novos;
           // a linha é montada já, com o número desta página: o React aplica depois
-          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${nicho} em ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: r.comWhatsappLink || 0, fracos: r.sitesFracos || 0, nota: r.retomada ? 'continuou' : undefined };
+          const linha: Linha = { chave: `${nicho}|${local}|${n}`, pergunta: `${rotuloNicho(nicho)} ${exterior ? 'in' : 'em'} ${local}`, pagina: n, comercios: r.comercios, comSite: r.comSite, jaTinha: r.jaTinha, novos: r.novos, descartados: Object.values((r.descartados || {}) as Record<string, number>).reduce((a, b) => a + b, 0), confirmados: (exterior ? r.comEmail : r.comWhatsappLink) || 0, fracos: r.sitesFracos || 0, nota: r.retomada ? 'continuou' : undefined };
           if (r.descartados) setDescartes((d) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v + ((r.descartados as Record<string, number>)[k] || 0)])) as unknown as Descartes);
           setLinhas((l) => [...l, linha]);
           if (r.fim) break fora;
@@ -227,10 +277,32 @@ export default function BuscaGoogle({
           if (!rodando) iniciar();
         }}
       >
+        <div role="radiogroup" aria-label="Onde buscar" className="grid grid-cols-2 gap-1.5 rounded-full bg-zinc-100 p-1.5">
+          {(['brasil', 'exterior'] as Modo[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={modo === m}
+              disabled={rodando}
+              onClick={() => trocarModo(m)}
+              className={`min-h-[40px] rounded-full text-[13.5px] font-extrabold transition-colors ${modo === m ? 'bg-tinta text-white' : 'text-zinc-600 hover:text-tinta'}`}
+            >
+              {m === 'brasil' ? 'Brasil · WhatsApp' : 'Exterior · e-mail'}
+            </button>
+          ))}
+        </div>
+        {exterior && (
+          <p className="-mt-3 text-[12.5px] leading-relaxed text-zinc-600">
+            Busca no Google do país escolhido, em inglês, e lê o site de cada empresa atrás do e-mail (página inicial e de contato).
+            Os e-mails que vamos mandar saem em inglês.
+          </p>
+        )}
+
         <fieldset disabled={rodando}>
           <legend className="flex items-center gap-2.5 text-[16px] font-extrabold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ceu text-[13px] font-extrabold">1</span>O que procurar</legend>
           <div className="mt-3 flex flex-wrap gap-2">
-            {[...NICHOS_PADRAO, ...extras].map((n) => {
+            {[...nichosPadrao, ...extras].map((n) => {
               const on = nichos.has(n);
               return (
                 <button
@@ -251,7 +323,7 @@ export default function BuscaGoogle({
                   }`}
                 >
                   {on && <Check aria-hidden className="h-3.5 w-3.5" strokeWidth={3} />}
-                  {n}
+                  {rotuloNicho(n)}
                 </button>
               );
             })}
@@ -267,7 +339,7 @@ export default function BuscaGoogle({
                 }
               }}
               maxLength={60}
-              placeholder="Outro nicho, ex.: Lava-jato"
+              placeholder={exterior ? 'Outro nicho, em inglês. Ex.: pool cleaning' : 'Outro nicho, ex.: Lava-jato'}
               aria-label="Outro nicho"
               className="min-w-0 flex-1 rounded-full bg-zinc-100 px-4 py-2 text-[13.5px] outline-none focus:ring-2 focus:ring-tinta"
             />
@@ -276,7 +348,7 @@ export default function BuscaGoogle({
               onClick={() => {
                 const n = novoNicho.trim();
                 if (!n) return;
-                const e = extras.includes(n) || NICHOS_PADRAO.includes(n) ? extras : [...extras, n];
+                const e = extras.includes(n) || nichosPadrao.includes(n) ? extras : [...extras, n];
                 const s = new Set(nichos).add(n);
                 setExtras(e);
                 setNichos(s);
@@ -292,6 +364,23 @@ export default function BuscaGoogle({
 
         <fieldset disabled={rodando} className="grid gap-4 md:grid-cols-2">
           <legend className="mb-3 flex items-center gap-2.5 text-[16px] font-extrabold"><span aria-hidden className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-manteiga text-[13px] font-extrabold">2</span>Onde</legend>
+          {exterior && (
+            <label className="block">
+              <span className="text-[12.5px] font-bold">País</span>
+              <select
+                value={pais}
+                onChange={(e) => {
+                  setPais(e.target.value);
+                  guardar(undefined, undefined, undefined, undefined, e.target.value);
+                }}
+                className="mt-1.5 w-full rounded-full bg-zinc-100 px-4 py-2.5 text-[14px] font-semibold outline-none focus:ring-2 focus:ring-tinta"
+              >
+                {PAISES_EXTERIOR.map((x) => (
+                  <option key={x.id} value={x.id}>{x.nome}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="text-[12.5px] font-bold">Cidade</span>
             <input
@@ -301,12 +390,12 @@ export default function BuscaGoogle({
                 guardar(undefined, undefined, e.target.value);
               }}
               maxLength={60}
-              placeholder="Ex.: Gurupi - TO"
+              placeholder={exterior ? paisAtual.exemploCidade : 'Ex.: Gurupi - TO'}
               className="mt-1.5 w-full rounded-full bg-zinc-100 px-4 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-tinta"
             />
           </label>
           <label className="block md:row-span-2">
-            <span className="text-[12.5px] font-bold">Bairros (opcional, um por linha)</span>
+            <span className="text-[12.5px] font-bold">{exterior ? 'Bairros ou regiões (opcional, um por linha)' : 'Bairros (opcional, um por linha)'}</span>
             <textarea
               value={bairros}
               onChange={(e) => {
@@ -314,11 +403,29 @@ export default function BuscaGoogle({
                 guardar(undefined, undefined, undefined, e.target.value);
               }}
               rows={4}
-              placeholder={'Centro\nSetor Aeroporto\nJardim Tocantins'}
+              placeholder={exterior ? paisAtual.exemploBairros : 'Centro\nSetor Aeroporto\nJardim Tocantins'}
               className="mt-1.5 w-full resize-y rounded-[18px] bg-zinc-100 px-4 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-tinta"
             />
           </label>
+          {exterior && (
+            <div className="flex flex-wrap gap-1.5 md:col-span-1">
+              {paisAtual.cidades.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => {
+                    setCidade(c);
+                    guardar(undefined, undefined, c);
+                  }}
+                  className={`rounded-full px-3 py-1.5 text-[12px] font-bold ${cidade === c ? 'bg-tinta text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-[12px] leading-relaxed text-zinc-500">
+            {exterior && 'Cidade média rende mais que capital: muito comércio local e menos gente oferecendo site. '}
             O Google mostra no máximo 60 comércios por busca. Em cidade grande, liste os bairros para achar mais.
           </p>
         </fieldset>
@@ -349,6 +456,28 @@ export default function BuscaGoogle({
               )}
             </p>
           </div>
+          {exterior ? (
+            <>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] bg-menta/60 px-4 py-3">
+                <input type="checkbox" checked={soComEmail} onChange={(e) => setSoComEmail(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0b0b0f]" />
+                <span>
+                  <span className="block text-[13px] font-bold">Só os que já vêm com e-mail</span>
+                  <span className="block text-[12px] leading-relaxed text-zinc-600">
+                    Desligado, quem não tem e-mail no site entra também, e no cartão do lead aparece um campo para você colar o e-mail que achar no Instagram ou no Facebook.
+                  </span>
+                </span>
+              </label>
+              <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-[18px] bg-manteiga/70 px-4 py-3">
+                <input type="checkbox" checked={soBemAvaliados} onChange={(e) => setSoBemAvaliados(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0b0b0f]" />
+                <span>
+                  <span className="block text-[13px] font-bold">Só negócios com movimento</span>
+                  <span className="block text-[12px] leading-relaxed text-zinc-600">
+                    10 avaliações ou mais e nota 4 ou mais no Google: negócio que existe, tem cliente e tem como pagar por um site.
+                  </span>
+                </span>
+              </label>
+            </>
+          ) : (
           <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[18px] bg-menta/60 px-4 py-3">
             <input
               type="checkbox"
@@ -363,6 +492,7 @@ export default function BuscaGoogle({
               </span>
             </span>
           </label>
+          )}
           <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-[18px] bg-ceu/70 px-4 py-3">
             <input
               type="checkbox"
@@ -373,7 +503,9 @@ export default function BuscaGoogle({
             <span>
               <span className="block text-[13px] font-bold">Trazer quem tem site fraco (nota até 6)</span>
               <span className="block text-[12px] leading-relaxed text-zinc-600">
-                Quem tem site no ar ganha uma nota de 0 a 10 (botão de WhatsApp, telefone clicável, formulário, celular, cadeado…). Até 6 vira lead, com os problemas anotados.
+                {exterior
+                  ? 'Quem tem site no ar ganha uma nota de 0 a 10 (contato direto, telefone clicável, formulário ou agendamento, celular, cadeado…). Até 6 vira lead, com os problemas anotados.'
+                  : 'Quem tem site no ar ganha uma nota de 0 a 10 (botão de WhatsApp, telefone clicável, formulário, celular, cadeado…). Até 6 vira lead, com os problemas anotados.'}
               </span>
             </span>
           </label>
@@ -446,7 +578,7 @@ export default function BuscaGoogle({
           <p className="mt-3 text-[12px] leading-relaxed text-zinc-600">
             {totais.confirmados > 0 && (
               <>
-                <b className="text-emerald-800">{totais.confirmados}</b> com WhatsApp confirmado no link da própria empresa.{' '}
+                <b className="text-emerald-800">{totais.confirmados}</b> {exterior ? 'com e-mail da própria empresa, conferido.' : 'com WhatsApp confirmado no link da própria empresa.'}{' '}
               </>
             )}
             {totais.descartados > 0 && (

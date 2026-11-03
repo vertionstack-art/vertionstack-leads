@@ -16,11 +16,13 @@
 import { lookup } from 'node:dns/promises';
 import type { Lead } from './db';
 import { lerPagina } from './verificar-site';
-import { numeroWhatsapp, whatsappsNoTexto } from './telefone';
+import { numeroWhatsapp, whatsappsInternacionaisNoTexto, whatsappsNoTexto } from './telefone';
 import { emailNoTexto } from './email-lead';
+import { acharEmailDaEmpresa } from './email-exterior';
+import { MIN_AVALIACOES, MIN_NOTA_GOOGLE } from './exterior';
 import { MARCA_DE_ANUNCIO, type Oferta } from './ofertas';
 
-export type MotivoDescarte = 'empresa_grande' | 'site_proprio' | 'sem_contato' | 'sem_whatsapp' | 'fora_do_perfil';
+export type MotivoDescarte = 'empresa_grande' | 'site_proprio' | 'sem_contato' | 'sem_whatsapp' | 'fora_do_perfil' | 'sem_email' | 'pouco_movimento';
 
 /**
  * Franquias e redes: a loja da esquina com a marca de uma rede não decide
@@ -133,7 +135,7 @@ async function seguirLink(site: string): Promise<Achados> {
  * Testa nomedaempresa.com.br e .com; conta como site próprio se o título da
  * página traz o nome dela e não é domínio estacionado.
  */
-async function temSiteEscondido(nome: string): Promise<boolean> {
+async function temSiteEscondido(nome: string, tlds: string[] = ['com.br', 'com']): Promise<boolean> {
   const palavras = palavrasDoNome(nome);
   if (!palavras.length || palavras.length > 5) return false;
   const marca = palavras.filter((p) => !RAMO.has(p));
@@ -141,7 +143,7 @@ async function temSiteEscondido(nome: string): Promise<boolean> {
   const slugs = [...new Set([palavras.length >= 2 ? palavras.join('') : '', marca.length >= 2 ? marca.join('') : ''])].filter(
     (x) => x.length >= 6 && x.length <= 30,
   );
-  const dominios = slugs.flatMap((x) => [`${x}.com.br`, `${x}.com`]);
+  const dominios = slugs.flatMap((x) => tlds.map((t) => `${x}.${t}`));
   for (const dominio of dominios) {
     try {
       await lookup(dominio);
@@ -178,6 +180,56 @@ export async function avaliarLead(lead: Lead, soComWhatsapp: boolean, oferta: Of
   if (!lead.phone && !temWhatsapp && !instagram && !lead.website) return fora('sem_contato');
   if (soComWhatsapp && !temWhatsapp) return fora('sem_whatsapp');
   return { descarte: null, whatsappLink, instagram, email: link.email, semAnuncio: link.semAnuncio };
+}
+
+/**
+ * O filtro dos leads de fora do Brasil. Lá o canal é o e-mail: o lead só
+ * entra com e-mail da empresa (achado no site e com domínio que recebe
+ * mensagem) ou, na falta dele, com WhatsApp publicado num link dela.
+ * O telefone do Maps não vira WhatsApp: fora daqui ninguém garante que
+ * aquele número tem WhatsApp.
+ */
+export async function avaliarLeadExterior(
+  lead: Lead,
+  opcoes: { soComEmail: boolean; soBemAvaliados: boolean; tlds: string[] },
+): Promise<Avaliacao> {
+  const fora = (descarte: MotivoDescarte): Avaliacao => ({ descarte, whatsappLink: null, instagram: null, email: null, semAnuncio: null });
+
+  if (EMPRESA_GRANDE.test(lead.name.trim()) || ehRede(lead.name)) return fora('empresa_grande');
+  if (opcoes.soBemAvaliados && ((lead.reviews ?? 0) < MIN_AVALIACOES || (lead.rating ?? 0) < MIN_NOTA_GOOGLE)) return fora('pouco_movimento');
+
+  let whatsapp: string | null = null;
+  let instagram: string | null = lead.instagram;
+  let email: string | null = null;
+  let semAnuncio: boolean | null = null;
+
+  if (lead.website) {
+    const host = hostDe(lead.website);
+    if (host && REDE_SOCIAL.test(host)) {
+      const ig = lead.website.match(INSTAGRAM);
+      if (ig) instagram = `https://instagram.com/${ig[1]}`;
+    } else if (host) {
+      whatsapp = whatsappsInternacionaisNoTexto(lead.website)[0] || null;
+      const home = await lerPagina(lead.website, 6000, 1_500_000).catch(() => null);
+      if (home?.html) {
+        const texto = home.url + ' ' + home.html;
+        whatsapp = whatsapp || whatsappsInternacionaisNoTexto(texto)[0] || null;
+        const insta = texto.match(INSTAGRAM);
+        if (insta) instagram = instagram || `https://instagram.com/${insta[1]}`;
+        semAnuncio = !MARCA_DE_ANUNCIO.test(home.html);
+        email = (await acharEmailDaEmpresa(lead.website, home).catch(() => null))?.email ?? null;
+      }
+    }
+  } else if (await temSiteEscondido(lead.name, opcoes.tlds).catch(() => false)) {
+    return fora('site_proprio');
+  }
+
+  // o guia de prospecção chama de "lead premium" quem usa Facebook ou Instagram como site:
+  // o e-mail costuma estar na página dele, que o robô não lê; entra para você copiar à mão
+  const soRede = Boolean(lead.website && hostDe(lead.website) && REDE_SOCIAL.test(hostDe(lead.website)!));
+  if (opcoes.soComEmail && !email && !whatsapp && !soRede) return fora('sem_email');
+  if (!email && !whatsapp && !lead.phone && !instagram) return fora('sem_contato');
+  return { descarte: null, whatsappLink: whatsapp, instagram, email, semAnuncio };
 }
 
 /** aplica o que a avaliação achou no lead que vai ser gravado */

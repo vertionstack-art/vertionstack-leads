@@ -95,7 +95,7 @@ export class ErroGoogle extends Error {
   }
 }
 
-export async function buscarPagina(pergunta: string, pagina: string | null): Promise<PaginaGoogle> {
+export async function buscarPagina(pergunta: string, pagina: string | null, regiao = 'BR'): Promise<PaginaGoogle> {
   if (modoFalso() && !process.env.GOOGLE_PLACES_KEY) return paginaFalsa(pergunta, pagina);
 
   const r = await fetch(URL_BUSCA, {
@@ -105,7 +105,7 @@ export async function buscarPagina(pergunta: string, pagina: string | null): Pro
       'X-Goog-Api-Key': process.env.GOOGLE_PLACES_KEY!,
       'X-Goog-FieldMask': CAMPOS,
     },
-    body: JSON.stringify({ textQuery: pergunta, languageCode: 'pt-BR', regionCode: 'BR', pageSize: 20, ...(pagina ? { pageToken: pagina } : {}) }),
+    body: JSON.stringify({ textQuery: pergunta, languageCode: regiao === 'BR' ? 'pt-BR' : 'en', regionCode: regiao, pageSize: 20, ...(pagina ? { pageToken: pagina } : {}) }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!r.ok) {
@@ -124,7 +124,8 @@ export async function buscarPagina(pergunta: string, pagina: string | null): Pro
       id: String(p.id),
       nome: p.displayName?.text || '',
       endereco: p.formattedAddress || null,
-      telefone: p.nationalPhoneNumber || p.internationalPhoneNumber || null,
+      // fora do Brasil guarda o número com o código do país: é ele que marca o lead como estrangeiro (lib/pais)
+      telefone: regiao === 'BR' ? p.nationalPhoneNumber || p.internationalPhoneNumber || null : p.internationalPhoneNumber || p.nationalPhoneNumber || null,
       site: p.websiteUri || null,
       nota: typeof p.rating === 'number' ? p.rating : null,
       avaliacoes: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,

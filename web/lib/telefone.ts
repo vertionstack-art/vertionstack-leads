@@ -49,6 +49,17 @@ export function whatsappsNoTexto(texto: string): string[] {
   return [...achados];
 }
 
+/**
+ * WhatsApp em link wa.me de empresa de fora: o número já vem com o código do
+ * país e não ganha o 55. Número brasileiro (55...) não serve aqui.
+ */
+export function whatsappsInternacionaisNoTexto(texto: string): string[] {
+  const achados = new Set<string>();
+  const re = /(?:wa\.me\/|whatsapp\.com\/send\/?\?(?:[^"'\s<>]*?&(?:amp;)?)?phone=|api\.whatsapp\.com\/send\?(?:[^"'\s<>]*?&(?:amp;)?)?phone=)\+?(\d{8,15})/gi;
+  for (const m of texto.matchAll(re)) if (!m[1].startsWith('55')) achados.add(m[1]);
+  return [...achados];
+}
+
 /** (21) 98765-4321 a partir de 5521987654321 */
 export function formatarWhatsapp(n: string): string {
   const d = n.startsWith('55') ? n.slice(2) : n;

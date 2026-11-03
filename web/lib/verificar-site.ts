@@ -403,7 +403,7 @@ export const ROTULO_SITE: Record<SiteStatus, string> = {
  * travas da verificação: só endereço público, cada redirecionamento conferido,
  * tempo curto e no máximo 400 KB. Devolve null se não abrir.
  */
-export async function lerPagina(url: string, limiteMs = 6000): Promise<{ url: string; html: string } | null> {
+export async function lerPagina(url: string, limiteMs = 6000, maxBytes = 400_000): Promise<{ url: string; html: string } | null> {
   try {
     const r = await buscar(url, limiteMs);
     if (!r.ok) return null;
@@ -413,7 +413,7 @@ export async function lerPagina(url: string, limiteMs = 6000): Promise<{ url: st
     if (!leitor) return { url: r.url, html: '' };
     const partes: Uint8Array[] = [];
     let total = 0;
-    while (total < 400_000) {
+    while (total < maxBytes) {
       const { done, value } = await leitor.read();
       if (done || !value) break;
       partes.push(value);
