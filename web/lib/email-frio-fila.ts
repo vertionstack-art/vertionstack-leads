@@ -7,9 +7,11 @@ import { buscarLead, type Lead } from './db';
 import { db } from './sql';
 import { ehEstrangeiro } from './pais';
 import { temperaturaDoLead, type Nivel } from './temperatura';
-import { demoValida, estaBloqueado, escreverEmail, fusoDoLead, MARCA_DEMO, proximaJanela } from './email-frio';
+import { demoValida, enviadosHoje, estaBloqueado, escreverEmail, fusoDoLead, gmailLigado, MARCA_DEMO, proximaJanela, tetoPorDia } from './email-frio';
 import { tamanhoDigital, NOME_DO_PORTE } from './redes';
 import { comPreco, lerValor, moedaValida, type Moeda } from './preco-email';
+import { enviarUm } from './email-frio-envio';
+import { quandoValido, type QuandoEnviar } from './quando-enviar';
 
 export interface CandidatoEmail {
   id: string;
@@ -37,8 +39,10 @@ export interface EmailNaFila {
   corpo: string;
   status: 'rascunho' | 'aprovado' | 'enviando' | 'enviado' | 'erro' | 'cancelado';
   fuso: string;
-  /** quando abre a janela de envio de lá (só para os aprovados) */
+  /** quando sai (só para os aprovados): a hora marcada, ou quando abre a janela de lá */
   saiEm: string | null;
+  /** true quando você marcou a hora (agora, 5 min, de 5 em 5...); false = horário comercial de lá */
+  horaMarcada: boolean;
   enviadoEm: string | null;
   erro: string | null;
   /** a resposta que chegou (lib/email-respostas) */
@@ -102,7 +106,8 @@ function daLinha(r: Record<string, any>): EmailNaFila {
     corpo: r.corpo,
     status: r.status,
     fuso: r.fuso,
-    saiEm: r.status === 'aprovado' ? proximaJanela(r.fuso).toISOString() : null,
+    saiEm: r.status !== 'aprovado' ? null : r.enviar_em ? new Date(r.enviar_em).toISOString() : proximaJanela(r.fuso).toISOString(),
+    horaMarcada: Boolean(r.enviar_em),
     enviadoEm: r.enviado_em ? new Date(r.enviado_em).toISOString() : null,
     erro: r.erro ?? null,
     respostaTipo: r.resposta_tipo ?? null,
@@ -167,6 +172,8 @@ export async function gerarEmail(conta: string, leadId: string): Promise<EmailNa
 
 export interface MudancaEmail {
   acao?: string;
+  /** só no aprovar (e no reaprovar de quem já está na fila) */
+  quando?: unknown;
   assunto?: unknown;
   corpo?: unknown;
   demo?: unknown;
@@ -216,7 +223,29 @@ export async function mexerNoEmail(conta: string, id: string, c: MudancaEmail): 
     if (!String(e.corpo).includes(MARCA_DEMO) && !String(e.corpo).includes(String(e.demo_url))) {
       return { ok: false, erro: `Escreva ${MARCA_DEMO} no texto, no lugar onde o link da demo deve aparecer.`, status: 400 };
     }
-    await db()`update emails_frios set status = 'aprovado', aprovado_em = now(), erro = null where conta_id = ${conta} and id = ${id} and status in ('rascunho', 'erro')`;
+    const quando: QuandoEnviar = quandoValido(c.quando) ? c.quando : 'janela';
+    // espaçado: 5 ou 10 min depois do último que já está marcado na fila (o primeiro sai já)
+    const passo = quando === '5em5' ? 5 : quando === '10em10' ? 10 : 0;
+    await db()`
+      update emails_frios set status = 'aprovado', aprovado_em = coalesce(case when status = 'aprovado' then aprovado_em end, now()), erro = null,
+        enviar_em = case
+          when ${quando} = 'janela' then null
+          when ${quando} = 'agora' then now()
+          when ${quando} = '5min' then now() + interval '5 minutes'
+          else greatest(now(), coalesce((
+            select max(x.enviar_em) + make_interval(mins => ${passo}) from emails_frios x
+            where x.conta_id = ${conta} and x.id <> ${id} and x.status in ('aprovado', 'enviando') and x.enviar_em is not null
+          ), now()))
+        end
+      where conta_id = ${conta} and id = ${id} and status in ('rascunho', 'erro', 'aprovado')`;
+    if (quando === 'agora') {
+      // manda daqui mesmo, sem esperar o próximo minuto; o teto do dia vale igual
+      if (!gmailLigado()) return { ok: false, erro: 'O Gmail ainda não está ligado na Vercel. O e-mail ficou aprovado.', status: 400 };
+      const hoje = await enviadosHoje();
+      if (hoje >= tetoPorDia()) return { ok: false, erro: `Já saíram ${hoje} e-mails hoje (o teto é ${tetoPorDia()}). Este ficou aprovado e sai assim que virar o dia.`, status: 400 };
+      const r = await enviarUm(id);
+      if (!r.ok && !r.pulado) return { ok: false, erro: `Não consegui mandar: ${r.erro}`, status: 400 };
+    }
   } else if (c.acao === 'voltar') {
     await db()`update emails_frios set status = 'rascunho', aprovado_em = null where conta_id = ${conta} and id = ${id} and status in ('aprovado', 'erro')`;
   } else if (c.acao === 'regerar') {

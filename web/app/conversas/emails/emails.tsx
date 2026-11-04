@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Check, Clock, Loader2, MessageSquareReply, RotateCcw, Send, Sparkles, Undo2, X } from 'lucide-react';
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import type { CandidatoEmail, EmailNaFila } from '@/lib/email-frio-fila';
+import { QUANDO_ENVIAR, quandoValido, type QuandoEnviar } from '@/lib/quando-enviar';
 import { comPreco, lerValor, moedaDoLead, MOEDAS, type Moeda } from '@/lib/preco-email';
 
 /**
@@ -74,6 +75,21 @@ export default function Emails({
   const [gerando, setGerando] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const [testando, setTestando] = useState(false);
+  // quando sai o que você aprovar: fica lembrado neste navegador
+  const [momento, setMomento] = useState<QuandoEnviar>('janela');
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('vl-email-quando');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (quandoValido(v)) setMomento(v);
+    } catch {}
+  }, []);
+  function escolherMomento(q: QuandoEnviar) {
+    setMomento(q);
+    try {
+      localStorage.setItem('vl-email-quando', q);
+    } catch {}
+  }
 
   const rascunhos = useMemo(() => emails.filter((e) => e.status === 'rascunho' || e.status === 'erro'), [emails]);
   const naFila = useMemo(() => emails.filter((e) => e.status === 'aprovado' || e.status === 'enviando'), [emails]);
@@ -217,9 +233,36 @@ export default function Emails({
       {/* ------------------------------------------------- 2. ler e aprovar */}
       <section>
         <h2 className="text-[16px] font-extrabold">2. Ler e aprovar <span className="text-zinc-400">({rascunhos.length})</span></h2>
+        <div className="mt-3 rounded-[18px] bg-zinc-50 p-3.5">
+          <p className="text-[12px] font-extrabold uppercase tracking-wide text-zinc-500">Quando enviar o que você aprovar</p>
+          <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Quando enviar">
+            {(Object.keys(QUANDO_ENVIAR) as QuandoEnviar[]).map((q) => (
+              <button
+                key={q}
+                type="button"
+                role="radio"
+                aria-checked={momento === q}
+                onClick={() => escolherMomento(q)}
+                className={`min-h-[36px] rounded-full px-3.5 text-[12.5px] font-bold transition-colors ${momento === q ? 'bg-tinta text-white' : 'bg-white text-zinc-600 hover:text-tinta'}`}
+              >
+                {QUANDO_ENVIAR[q]}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[12px] leading-relaxed text-zinc-500">
+            {momento === 'janela'
+              ? 'Sai entre 9h e 11h30 de lá, em dia útil: é quando o dono lê o e-mail.'
+              : momento === 'agora'
+                ? 'Sai no instante em que você clicar em Aprovar.'
+                : momento === '5min'
+                  ? 'Sai 5 minutos depois de aprovar.'
+                  : `O primeiro sai já; cada um que você aprovar depois sai ${momento === '5em5' ? '5' : '10'} minutos depois do anterior.`}
+            {momento !== 'janela' && ' Atenção ao fuso: pode chegar de madrugada lá. O teto do dia continua valendo.'}
+          </p>
+        </div>
         <div className="mt-3 grid gap-4 xl:grid-cols-2">
           {rascunhos.map((e) => (
-            <Rascunho key={e.id + e.assunto} email={e} aoMudar={trocar} aoTirar={(id) => setEmails((l) => l.filter((x) => x.id !== id))} />
+            <Rascunho key={e.id + e.assunto} email={e} momento={momento} aoMudar={trocar} aoTirar={(id) => setEmails((l) => l.filter((x) => x.id !== id))} />
           ))}
           {!rascunhos.length && <p className="text-[13px] text-zinc-500">Os e-mails escritos aparecem aqui para você ler antes de aprovar.</p>}
         </div>
@@ -227,7 +270,7 @@ export default function Emails({
 
       {/* ------------------------------------------------- 3. na fila */}
       <section className="rounded-[24px] bg-zinc-50 p-5">
-        <h2 className="text-[16px] font-extrabold">3. Aprovados, esperando o horário de lá <span className="text-zinc-400">({naFila.length})</span></h2>
+        <h2 className="text-[16px] font-extrabold">3. Aprovados, na fila de envio <span className="text-zinc-400">({naFila.length})</span></h2>
         <ul className="mt-3 space-y-1.5">
           {naFila.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-white px-3.5 py-2.5 text-[13px]">
@@ -235,9 +278,23 @@ export default function Emails({
               <span className="min-w-0 flex-1">
                 <b className="block truncate">{e.nome}</b>
                 <span className="block truncate text-[12px] text-zinc-500">
-                  “{e.assunto}” · {e.status === 'enviando' ? 'saindo agora' : e.saiEm ? `sai a partir de ${quando(e.saiEm)} (sua hora), 9h em ${CIDADE_DO_FUSO[e.fuso] || e.fuso}` : ''}
+                  “{e.assunto}” · {e.status === 'enviando' ? 'saindo agora' : !e.saiEm ? '' : e.horaMarcada ? `hora marcada: sai ${quando(e.saiEm)} (sua hora)` : `sai a partir de ${quando(e.saiEm)} (sua hora), 9h em ${CIDADE_DO_FUSO[e.fuso] || e.fuso}`}
                 </span>
               </span>
+              {e.status === 'aprovado' && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(`Mandar agora para ${e.para}?`)) return;
+                    const r = await chamar(`/api/email-frio/${e.id}`, 'POST', { acao: 'aprovar', quando: 'agora' });
+                    if (r.ok) trocar(r.email);
+                    else setAviso(r.erro);
+                  }}
+                  className="inline-flex min-h-[34px] items-center gap-1 rounded-full bg-tinta px-3 text-[12px] font-bold text-white hover:bg-tinta-70"
+                >
+                  <Send aria-hidden className="h-3.5 w-3.5" /> Enviar agora
+                </button>
+              )}
               {e.status === 'aprovado' && (
                 <button
                   type="button"
@@ -309,7 +366,7 @@ export default function Emails({
   );
 }
 
-function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e: EmailNaFila) => void; aoTirar: (id: string) => void }) {
+function Rascunho({ email, momento, aoMudar, aoTirar }: { email: EmailNaFila; momento: QuandoEnviar; aoMudar: (e: EmailNaFila) => void; aoTirar: (id: string) => void }) {
   const [assunto, setAssunto] = useState(email.assunto);
   const [corpo, setCorpo] = useState(email.corpo);
   const [demo, setDemo] = useState(email.demoUrl || '');
@@ -334,7 +391,7 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
     setOcupado(a);
     setErro(null);
     // o link da demo vai junto nas duas ações: "escrever outro" não perde o que você colou
-    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, demo: demo.trim(), preco: preco.trim(), moeda, ...(a === 'aprovar' ? { assunto, corpo } : {}) });
+    const r = await chamar(`/api/email-frio/${email.id}`, 'POST', { acao: a, demo: demo.trim(), preco: preco.trim(), moeda, ...(a === 'aprovar' ? { assunto, corpo, quando: momento } : {}) });
     setOcupado(null);
     if (r.ok) aoMudar(r.email);
     else setErro(r.erro || 'Não deu certo.');
@@ -449,7 +506,7 @@ function Rascunho({ email, aoMudar, aoTirar }: { email: EmailNaFila; aoMudar: (e
           className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full bg-tinta px-4 text-[13px] font-bold text-white hover:bg-tinta-70 disabled:opacity-40"
         >
           {ocupado === 'aprovar' ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <Send aria-hidden className="h-4 w-4" />}
-          Aprovar
+          {momento === 'agora' ? 'Aprovar e enviar agora' : momento === 'janela' ? 'Aprovar' : `Aprovar · ${QUANDO_ENVIAR[momento].toLowerCase()}`}
         </button>
         {(!demoOk || !marcaOk) && (
           <span className="self-center text-[12px] font-semibold text-amber-800">

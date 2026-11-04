@@ -29,3 +29,4 @@ Já aplicadas no projeto `vertion-leads` (pphdllprqlrffuxywxmz), nesta ordem:
 - `0034_respostas_e_traducao.sql`: respostas lidas do Gmail (emails_respostas, emails_frios.resposta_*) e tradução do nicho (traducoes_nicho), 03/11/2026.
 - `0035_demo_no_email.sql`: link da demo em cada e-mail do exterior (emails_frios.demo_url), 03/11/2026.
 - `0036_preco_no_email.sql`: valor do site no e-mail do exterior (emails_frios.preco e moeda), 03/11/2026.
+- `0037_envio_marcado.sql`: hora marcada no e-mail do exterior (emails_frios.enviar_em), senha interna do cron (segredos_internos) e pg_cron + pg_net chamando /api/cron/emails?agendados=1 a cada minuto quando há e-mail vencido, 04/11/2026.
