@@ -55,10 +55,11 @@ export function valorFormatado(valor: number, moeda: Moeda): string {
 
 /** a frase do preço; começa sempre igual, é assim que a ferramenta acha e troca */
 export function frasePreco(valor: number, moeda: Moeda): string {
-  return `The full site, built around your own photos, services and brand, is ${valorFormatado(valor, moeda)}, live in 3 to 7 business days.`;
+  return `The full site is ${valorFormatado(valor, moeda)}, customized for you from top to bottom.`;
 }
 
-const INICIO = 'The full site, built around your own photos';
+// pega também a frase antiga ("The full site, built around your own photos...")
+const INICIO = 'The full site';
 
 /**
  * Põe, troca ou tira a frase do preço no texto. Vai num parágrafo próprio

@@ -149,16 +149,19 @@ Persuasion, used deliberately and honestly:
 THE DEMO IS THE HEART OF EVERY EMAIL. A demo website is already built for them and live. This is reciprocity: I gave first, unasked.
 - Say it as something already done ("I put together a demo of a new site for [business]"), never as an offer ("I could build you one").
 - Never ask permission to show it ("would you like to see...?"): the link is already in the email.
-- Say plainly it is a quick demo built from the outside, before we spoke; the real site uses their own photos, words, prices and brand, and every part is theirs to change. Never apologise for it or call it rough.
-- The call to action is about the demo: what they think of it, or what they would change first.
+- Call it a DEMO VERSION, in those words, so nobody mistakes it for the finished site.
+- Say clearly that it is fully customizable: every text, color, section and photo can change, and we can add all the information they need (their own photos, full list of services, prices, service area, hours, booking or quote form, reviews). Never apologise for it or call it rough.
+- Say in a few words what the demo already shows (mobile friendly, tap to call, a clear quote or booking button), only what fits this business.
+- The call to action is about the demo: what they think of it, or what they would change or add first.
 
 Structure (in this order):
 1. One or two sentences on the specific thing you saw on their site or listing (from the facts).
 2. What it costs them, said as a likely consequence ("people searching on a phone tend to call whoever is easiest to reach"), never as a fact about their numbers.
 3. If a competitor is in the facts: one factual sentence naming it and saying its site makes contacting or booking easy. No attack.
-4. The demo: one sentence saying you already built it for them, then [DEMO] alone on its own line, then one sentence that it is a starting point built before we spoke and the real one is built around their own photos and brand.
-5. One sentence on who is writing: Lucas, from Vertion Stack, builds websites for local businesses that turn visitors into calls and bookings, delivered in 3 to 7 business days.
-6. The single question about the demo as call to action.
+4. The demo: one sentence saying you already built a demo version of a new site for them, then [DEMO] alone on its own line.
+5. Right after the link, one or two sentences: what the demo already shows, and that it is a demo version, fully customizable, where we can add all the information they need (their photos, services, prices, hours and anything else).
+6. One sentence on who is writing: Lucas, from Vertion Stack, builds websites for local businesses that turn visitors into calls and bookings, delivered in 3 to 7 business days.
+7. The single question about the demo as call to action.
 
 Hard rules:
 - Invent NOTHING. No statistics, no clients, no case studies, no prices, no deadlines that are not in the facts. If a detail is not in the facts, leave it out.
@@ -167,8 +170,9 @@ Hard rules:
 - No false urgency, no fake "Re:" in the subject, no exclamation marks, no emoji.
 - Criticise the situation, never the owner or whoever built the old site.
 - Native, plain American English (British spelling if the city is in the UK, Ireland, Australia or New Zealand). Short sentences. No corporate words (leverage, solutions, synergy, digital transformation).
-- Subject: under 6 words, sentence case, specific to them.
-- Body: 100 to 150 words (not counting [DEMO]), plain text, short paragraphs separated by a blank line. Start with "Hi" plus the business name or "there" (you do not know the owner's name). End with exactly "Best,\\nLucas". Do NOT write a signature, address or unsubscribe line: they are added automatically.
+- Subject: under 7 words, sentence case, with their business name, about the site you made for them (like "Website concept for Joe's Plumbing" or "I built a site for Joe's Plumbing"). Vary the wording.
+- Do not write any price: if there is one, Lucas adds it after the demo.
+- Body: 90 to 140 words (not counting [DEMO]), plain text, short paragraphs separated by a blank line. Start with "Hi" plus the business name or "there" (you do not know the owner's name). End with exactly "Best,\\nLucas". Do NOT write a signature, address or unsubscribe line: they are added automatically.
 
 Return JSON: {"assunto": "...", "corpo": "..."}.`;
 
@@ -182,7 +186,7 @@ export function garantirDemo(corpo: string): string {
   if (corpo.includes(MARCA_DEMO)) return corpo.replace(/[ \t]*\[DEMO\][ \t]*/g, '\n[DEMO]\n').replace(/\n{3,}/g, '\n\n').trim();
   const p = corpo.split(/\n{2,}/);
   // depois do segundo parágrafo (o problema e o custo), antes de quem escreve
-  p.splice(Math.min(2, p.length - 1), 0, `I already put together a demo of a new site for you:\n${MARCA_DEMO}`);
+  p.splice(Math.min(2, p.length - 1), 0, `I built a demo version of a new site for you:\n${MARCA_DEMO}\n\nIt's fully customizable: we can change anything and add all the information you need, from your own photos to services, prices and hours.`);
   return p.join('\n\n');
 }
 

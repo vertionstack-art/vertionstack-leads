@@ -7,9 +7,9 @@ import { buscarLead, type Lead } from './db';
 import { db } from './sql';
 import { ehEstrangeiro } from './pais';
 import { temperaturaDoLead, type Nivel } from './temperatura';
-import { demoValida, estaBloqueado, escreverEmail, fusoDoLead, proximaJanela } from './email-frio';
+import { demoValida, estaBloqueado, escreverEmail, fusoDoLead, MARCA_DEMO, proximaJanela } from './email-frio';
 import { tamanhoDigital, NOME_DO_PORTE } from './redes';
-import { comPreco, moedaValida, type Moeda } from './preco-email';
+import { comPreco, lerValor, moedaValida, type Moeda } from './preco-email';
 
 export interface CandidatoEmail {
   id: string;
@@ -163,4 +163,64 @@ export async function gerarEmail(conta: string, leadId: string): Promise<EmailNa
     returning id
   `;
   return (await umEmail(conta, r.id))!;
+}
+
+export interface MudancaEmail {
+  acao?: string;
+  assunto?: unknown;
+  corpo?: unknown;
+  demo?: unknown;
+  preco?: unknown;
+  moeda?: unknown;
+}
+
+/**
+ * Mexer num e-mail antes de ele sair: salvar o texto, aprovar (entra na fila
+ * de envio), voltar para rascunho ou pedir outro texto. Usado pela tela do
+ * site e pelo painel do PC (aba LANDING), com as mesmas regras.
+ */
+export async function mexerNoEmail(conta: string, id: string, c: MudancaEmail): Promise<{ ok: true; email: EmailNaFila } | { ok: false; erro: string; status: number }> {
+  const atual = await umEmail(conta, id);
+  if (!atual) return { ok: false, erro: 'E-mail não encontrado.', status: 404 };
+  if (['enviando', 'enviado'].includes(atual.status)) return { ok: false, erro: 'Este e-mail já saiu.', status: 409 };
+
+  const assunto = c.assunto === undefined ? null : String(c.assunto).replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+  const corpo = c.corpo === undefined ? null : String(c.corpo).replace(/\r/g, '').trim().slice(0, 4000);
+  if (assunto !== null && assunto.length < 2) return { ok: false, erro: 'Escreva o assunto.', status: 400 };
+  if (corpo !== null && corpo.length < 40) return { ok: false, erro: 'O texto ficou curto demais.', status: 400 };
+  // o link da demo: vazio apaga, preenchido tem de ser um endereço https completo
+  let demo: string | null | undefined = undefined;
+  if (c.demo !== undefined) {
+    demo = String(c.demo ?? '').trim() ? demoValida(c.demo) : null;
+    if (String(c.demo ?? '').trim() && !demo) return { ok: false, erro: 'O link da demo precisa ser um endereço completo, começando com https://', status: 400 };
+  }
+  // o valor do site: vazio apaga; a frase no texto quem põe é a tela
+  const preco = c.preco === undefined ? undefined : lerValor(c.preco);
+  const moeda = moedaValida(c.moeda);
+  if (assunto !== null || corpo !== null || demo !== undefined || preco !== undefined) {
+    await db()`
+      update emails_frios set
+        assunto = coalesce(${assunto}, assunto),
+        corpo = coalesce(${corpo}, corpo),
+        demo_url = case when ${demo !== undefined} then ${demo ?? null} else demo_url end,
+        preco = case when ${preco !== undefined} then ${preco ?? null}::numeric else preco end,
+        moeda = case when ${preco !== undefined} then ${preco ? moeda : null} else moeda end
+      where conta_id = ${conta} and id = ${id}
+    `;
+  }
+
+  if (c.acao === 'aprovar') {
+    // regra do Lucas: todo e-mail leva a demo
+    const [e] = await db()`select corpo, demo_url from emails_frios where conta_id = ${conta} and id = ${id}`;
+    if (!demoValida(e?.demo_url)) return { ok: false, erro: 'Cole o link da demo antes de aprovar: todo e-mail leva a demo.', status: 400 };
+    if (!String(e.corpo).includes(MARCA_DEMO) && !String(e.corpo).includes(String(e.demo_url))) {
+      return { ok: false, erro: `Escreva ${MARCA_DEMO} no texto, no lugar onde o link da demo deve aparecer.`, status: 400 };
+    }
+    await db()`update emails_frios set status = 'aprovado', aprovado_em = now(), erro = null where conta_id = ${conta} and id = ${id} and status in ('rascunho', 'erro')`;
+  } else if (c.acao === 'voltar') {
+    await db()`update emails_frios set status = 'rascunho', aprovado_em = null where conta_id = ${conta} and id = ${id} and status in ('aprovado', 'erro')`;
+  } else if (c.acao === 'regerar') {
+    return { ok: true, email: await gerarEmail(conta, atual.leadId) };
+  }
+  return { ok: true, email: (await umEmail(conta, id))! };
 }
