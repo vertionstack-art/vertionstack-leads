@@ -23,6 +23,7 @@ import {
   PISO_ABSOLUTO,
   moeda,
   montarProposta,
+  descontoValido,
   normalizarMarcacoes,
   tetoDoPorte,
   textoDaProposta,
@@ -50,6 +51,7 @@ export default function PropostaModal({
     porte?: Porte;
     formalizacao?: Formalizacao;
     desconto?: number;
+    descontoMensal?: boolean;
     ignorarTeto?: boolean;
     entradaManual?: number | null;
     mensalidadeManual?: number | null;
@@ -68,6 +70,8 @@ export default function PropostaModal({
    */
   const [marcacoes, setMarcacoes] = useState<Marcacoes>(normalizarMarcacoes(salvo?.marcacoes));
   const [desconto, setDesconto] = useState(salvo?.desconto || 0);
+  // proposta antiga com desconto foi salva descontando a mensalidade também; a nova começa só na venda
+  const [descontoMensal, setDescontoMensal] = useState<boolean>(salvo?.descontoMensal ?? Boolean(salvo?.desconto));
   const [ignorarTeto, setIgnorarTeto] = useState(salvo?.ignorarTeto || false);
   const [fechado, setFechado] = useState<boolean>(Boolean(salvo?.fechado));
   // null = usa o preço que o sistema calcula
@@ -123,8 +127,8 @@ export default function PropostaModal({
   }, [aoFechar]);
 
   const proposta = useMemo(
-    () => montarProposta({ marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual }),
-    [marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual],
+    () => montarProposta({ marcacoes, porte, formalizacao, desconto, descontoMensal, ignorarTeto, entradaManual, mensalidadeManual }),
+    [marcacoes, porte, formalizacao, desconto, descontoMensal, ignorarTeto, entradaManual, mensalidadeManual],
   );
 
   /*
@@ -172,7 +176,7 @@ export default function PropostaModal({
 
   async function salvar() {
     setGuardando(true);
-    await aoSalvar({ marcacoes, porte, formalizacao, desconto, ignorarTeto, entradaManual, mensalidadeManual, fechado });
+    await aoSalvar({ marcacoes, porte, formalizacao, desconto, descontoMensal, ignorarTeto, entradaManual, mensalidadeManual, fechado });
     setSalvouAlgumaVez(true);
     setGuardando(false);
   }
@@ -508,19 +512,44 @@ export default function PropostaModal({
                       type="range"
                       min={0}
                       max={50}
-                      step={5}
-                      value={desconto}
+                      step={1}
+                      value={Math.min(50, desconto)}
                       onChange={(e) => setDesconto(Number(e.target.value))}
+                      aria-label="Desconto em porcentagem"
                       className="flex-1 accent-roxo-600"
                     />
-                    <span
-                      className={`w-10 text-right text-[13px] font-semibold tabular-nums ${
-                        desconto >= 35 ? 'text-red-600' : desconto >= 20 ? 'text-amber-600' : 'text-zinc-700'
-                      }`}
-                    >
-                      {desconto}%
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        max={90}
+                        step={0.5}
+                        value={desconto || ''}
+                        placeholder="0"
+                        onChange={(e) => setDesconto(descontoValido(e.target.value.replace(',', '.')))}
+                        aria-label="Digite a porcentagem de desconto"
+                        className={`w-[68px] rounded-lg border border-zinc-200 px-2 py-1 text-right text-[13px] font-semibold tabular-nums outline-none focus:border-roxo-500 ${
+                          desconto >= 35 ? 'text-red-600' : desconto >= 20 ? 'text-amber-600' : 'text-zinc-700'
+                        }`}
+                      />
+                      <span className="text-[13px] font-semibold text-zinc-500">%</span>
                     </span>
                   </div>
+                  <label className="mt-3 flex cursor-pointer items-start gap-2 text-[12px] text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={descontoMensal}
+                      onChange={(e) => setDescontoMensal(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-roxo-600"
+                    />
+                    <span>
+                      <b className="font-semibold text-tinta">Desconto no valor mensal também?</b>
+                      <span className="block text-[11px] text-zinc-500">
+                        {descontoMensal ? 'O desconto vale para a venda e para a mensalidade.' : 'Só a venda tem desconto; a mensalidade fica cheia.'}
+                      </span>
+                    </span>
+                  </label>
                   <p className="mt-2 text-[11px] leading-snug text-zinc-500">
                     Piso de {moeda(PISO_ABSOLUTO)} e teto de {moeda(tetoDoPorte(porte))} para este porte.
                     O alvo é não sair abaixo de {moeda(ALVO_MINIMO)}.

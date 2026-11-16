@@ -26,6 +26,7 @@ interface Cfg {
   formalizacao?: Formalizacao;
   desconto?: number;
   ignorarTeto?: boolean;
+  descontoMensal?: boolean;
   entradaManual?: number | null;
   mensalidadeManual?: number | null;
   fechado?: boolean;
@@ -51,6 +52,7 @@ function valoresDe(l: Lead): { entrada: number; mensalidade: number } | null {
       porte: p.porte || 'micro',
       formalizacao: p.formalizacao || 'desconhecido',
       desconto: p.desconto,
+      descontoMensal: p.descontoMensal,
       ignorarTeto: p.ignorarTeto,
       entradaManual: p.entradaManual,
       mensalidadeManual: p.mensalidadeManual,

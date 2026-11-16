@@ -95,6 +95,7 @@ export default async function PaginaProposta({
     formalizacao?: Formalizacao;
     desconto?: number;
     ignorarTeto?: boolean;
+    descontoMensal?: boolean;
     entradaManual?: number | null;
     mensalidadeManual?: number | null;
     aceite?: { nome: string; em: string };
@@ -105,6 +106,7 @@ export default async function PaginaProposta({
     porte: cfg.porte || 'micro',
     formalizacao: cfg.formalizacao || 'desconhecido',
     desconto: cfg.desconto,
+    descontoMensal: cfg.descontoMensal,
     ignorarTeto: cfg.ignorarTeto,
     entradaManual: cfg.entradaManual,
     mensalidadeManual: cfg.mensalidadeManual,

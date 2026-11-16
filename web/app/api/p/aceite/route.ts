@@ -47,6 +47,7 @@ export async function POST(req: Request) {
     porte: (cfg.porte as Porte) || 'micro',
     formalizacao: (cfg.formalizacao as Formalizacao) || 'desconhecido',
     desconto: cfg.desconto as number | undefined,
+    descontoMensal: cfg.descontoMensal as boolean | undefined,
     ignorarTeto: cfg.ignorarTeto as boolean | undefined,
     entradaManual: cfg.entradaManual as number | null | undefined,
     mensalidadeManual: cfg.mensalidadeManual as number | null | undefined,

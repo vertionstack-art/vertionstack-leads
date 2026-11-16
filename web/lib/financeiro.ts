@@ -50,6 +50,7 @@ export interface CfgProposta {
   formalizacao?: Formalizacao;
   desconto?: number;
   ignorarTeto?: boolean;
+  descontoMensal?: boolean;
   entradaManual?: number | null;
   mensalidadeManual?: number | null;
   fechado?: boolean;
@@ -64,6 +65,7 @@ export function valores(cfg: CfgProposta | null): { entrada: number; mensalidade
       porte: cfg.porte || 'micro',
       formalizacao: cfg.formalizacao || 'desconhecido',
       desconto: cfg.desconto,
+      descontoMensal: cfg.descontoMensal,
       ignorarTeto: cfg.ignorarTeto,
       entradaManual: cfg.entradaManual,
       mensalidadeManual: cfg.mensalidadeManual,

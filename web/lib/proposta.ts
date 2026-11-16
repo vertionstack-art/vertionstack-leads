@@ -22,8 +22,13 @@ export interface ConfigProposta {
   marcacoes: Marcacoes;
   porte: Porte;
   formalizacao: Formalizacao;
-  /** desconto manual em % aplicado no fim */
+  /** desconto manual em % aplicado no fim (digitado livre, de 0 a 90) */
   desconto?: number;
+  /**
+   * O desconto vale também para a mensalidade? Ausente = sim, que é como
+   * as propostas antigas foram salvas (o desconto mexia nos dois valores).
+   */
+  descontoMensal?: boolean;
   /**
    * Solta o teto do porte. Serve para escopo grande de verdade — uma
    * landing somada a uma loja virtual custa mais mesmo, e aí o teto
@@ -133,6 +138,12 @@ export function normalizarMarcacoes(bruto: unknown): Marcacoes {
 
 // ------------------------------------------------------------- cálculo
 
+/** a % digitada, presa entre 0 e 90 (100% daria proposta de graça) */
+export function descontoValido(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.min(90, Math.round(n * 10) / 10) : 0;
+}
+
 export function montarProposta(cfg: ConfigProposta): Proposta {
   const fator = PORTES[cfg.porte].fator * FORMALIZACOES[cfg.formalizacao].fator;
   const avisos: string[] = [];
@@ -157,9 +168,10 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
   let entrada = baseUnica * fator;
   let mensalidade = baseMensal * fator;
 
-  if (cfg.desconto) {
-    entrada *= 1 - cfg.desconto / 100;
-    mensalidade *= 1 - cfg.desconto / 100;
+  const desconto = descontoValido(cfg.desconto);
+  if (desconto) {
+    entrada *= 1 - desconto / 100;
+    if (cfg.descontoMensal !== false) mensalidade *= 1 - desconto / 100;
   }
 
   const teto = tetoDoPorte(cfg.porte);
@@ -167,7 +179,7 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
   if (entrada > 0 && entrada < PISO_ABSOLUTO) {
     avisos.push(
       `Ficou abaixo do piso de ${moeda(PISO_ABSOLUTO)}; ajustei para o piso.` +
-        (cfg.desconto ? ' O desconto que você deu não cabe neste escopo.' : ''),
+        (desconto ? ' O desconto que você deu não cabe neste escopo.' : ''),
     );
     entrada = PISO_ABSOLUTO;
   } else if (entrada > 0 && entrada < ALVO_MINIMO) {
@@ -218,10 +230,10 @@ export function montarProposta(cfg: ConfigProposta): Proposta {
    * não dói; "você está deixando R$ 420 na mesa" dói — e é o número que
    * faz a pessoa pensar duas vezes antes de fechar por fechar.
    */
-  if (entradaManual === null && cfg.desconto && cfg.desconto >= 25 && entrada > 0) {
-    const cheio = arredondar(entrada / (1 - cfg.desconto / 100));
+  if (entradaManual === null && desconto >= 25 && entrada > 0) {
+    const cheio = arredondar(entrada / (1 - desconto / 100));
     avisos.push(
-      `Desconto de ${cfg.desconto}%: são ${moeda(cheio - entrada)} a menos do que a proposta cheia. ` +
+      `Desconto de ${String(desconto).replace('.', ',')}%: são ${moeda(cheio - entrada)} a menos do que a proposta cheia. ` +
         'Cobre alguma contrapartida — pagamento à vista, indicação, depoimento.',
     );
   }
