@@ -53,7 +53,7 @@ export function emailNormalizado(email: string): string {
 }
 
 function ipDe(h: Headers): string {
-  return (h.get('x-forwarded-for') || '').split(',')[0].trim() || h.get('x-real-ip') || '';
+  return (h.get('cf-connecting-ip') || '').trim() || (h.get('x-forwarded-for') || '').split(',')[0].trim() || h.get('x-real-ip') || '';
 }
 
 /** rastros de uma requisição: rede sempre que houver IP, aparelho quando a extensão manda */

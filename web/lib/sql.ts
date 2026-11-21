@@ -20,8 +20,11 @@ export const temBanco = Boolean(URL_BANCO);
 type Sql = ReturnType<typeof postgres>;
 const g = globalThis as unknown as { __vlSql?: Sql };
 
+// desde 21/11/2026 o banco pode estar no próprio PC (Docker, só 127.0.0.1): ali não há SSL nem precisa
+const BANCO_LOCAL = /@(127\.0\.0\.1|localhost)(:\d+)?\//.test(URL_BANCO);
+
 function criar(): Sql {
-  return postgres(URL_BANCO, { prepare: false, ssl: 'require', max: 5, idle_timeout: 20, connect_timeout: 15 });
+  return postgres(URL_BANCO, { prepare: false, ssl: BANCO_LOCAL ? false : 'require', max: 5, idle_timeout: 20, connect_timeout: 15 });
 }
 
 /** lança um erro claro em vez de um "cannot read property of null" perdido */
