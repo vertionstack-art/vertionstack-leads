@@ -22,7 +22,7 @@ export function Moldura({ titulo, subtitulo, children }: { titulo: string; subti
             na sua cidade.
           </h2>
           <p className="mt-3 max-w-[300px] text-[13.5px] leading-relaxed text-white/65">
-            Do Google Maps até a proposta e o site entregue, num lugar só. Teste grátis com 30 leads, sem cartão.
+            Do Google Maps até a proposta e o site entregue, num lugar só.
           </p>
           <svg aria-hidden viewBox="0 0 160 120" className="absolute -right-10 -top-6 -z-10 h-[170px] w-[220px] text-white/20" fill="none" stroke="currentColor" strokeWidth="1">
             <rect x="40" y="20" width="110" height="80" rx="14" transform="rotate(-12 95 60)" />
@@ -38,11 +38,6 @@ export function Moldura({ titulo, subtitulo, children }: { titulo: string; subti
           <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.03em]">{titulo}</h1>
           <p className="mt-2 text-[13.5px] font-medium text-zinc-500">{subtitulo}</p>
           {children}
-          <p className="mt-8 text-center text-[12px] font-medium text-zinc-500">
-            <a href="/termos" className="hover:text-tinta hover:underline">Termos de uso</a>
-            <span className="mx-2" aria-hidden>·</span>
-            <a href="/privacidade" className="hover:text-tinta hover:underline">Política de privacidade</a>
-          </p>
         </div>
       </div>
     </div>

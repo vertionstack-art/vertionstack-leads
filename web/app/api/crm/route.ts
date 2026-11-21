@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
 import { estourou } from '@/lib/limite';
-import { LIMITES } from '@/lib/planos';
 import {
   apagarFunil,
   candidatos,
@@ -44,7 +43,7 @@ export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome: quem, plano, userId } = s.sessao;
+  const { contaId, nome: quem, userId } = s.sessao;
   if (await estourou('crm:' + userId, 900, 60 * 60)) return erro('Muitas alterações seguidas. Espere um minuto.', 429);
 
   const c = (await req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -67,7 +66,7 @@ export async function POST(req: Request) {
     case 'criarFunil': {
       const nome = textoCurto(c.nome, 40);
       if (!nome) return erro('Dê um nome ao funil.');
-      const r = await criarFunil(contaId, nome, LIMITES[plano].funis);
+      const r = await criarFunil(contaId, nome);
       return 'erro' in r ? erro(r.erro, 403) : NextResponse.json({ ok: true, id: r.id });
     }
     case 'renomearFunil': {

@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { normalizarLead, salvarLeads } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { cotaDaConta } from '@/lib/conta';
 import { estourou } from '@/lib/limite';
 
 export const runtime = 'nodejs';
@@ -12,15 +11,14 @@ export const maxDuration = 60;
  * Importar leads de uma planilha (CSV). Quem chama é a página /importar, em
  * lotes de até 500 linhas já separadas em colunas.
  *
- * A planilha é da própria pessoa e não custa busca no Google, então NÃO gasta
- * a cota semanal de leads; respeita só o teto de leads guardados do plano.
+ * A planilha é da própria pessoa e não custa busca no Google; sem limite.
  * Comércio que já existe na lista é atualizado (só preenche o que faltava).
  */
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome, plano } = s.sessao;
+  const { contaId, nome } = s.sessao;
   if (await estourou('importar:' + contaId, 40, 60 * 60)) {
     return NextResponse.json({ ok: false, erro: 'Importações demais em pouco tempo. Espere alguns minutos.' }, { status: 429 });
   }
@@ -51,18 +49,15 @@ export async function POST(req: Request) {
   }
   const unicos = Array.from(porId.values());
 
-  const cota = await cotaDaConta(contaId, plano);
-  const vagas = cota.ilimitado ? undefined : Math.max(0, cota.tetoGuardados - cota.guardados);
   try {
-    const r = await salvarLeads(contaId, unicos, vagas);
+    const r = await salvarLeads(contaId, unicos);
     return NextResponse.json({
       ok: true,
       novos: r.novos,
       atualizados: r.atualizados,
       semNome: linhas.length - limpos.length,
       repetidosNoArquivo: limpos.length - unicos.length,
-      barradosPeloLimite: r.barradosPelaCota,
-      teto: cota.tetoGuardados,
+      barradosPeloLimite: 0,
     });
   } catch (e) {
     console.error('[importar]', e);

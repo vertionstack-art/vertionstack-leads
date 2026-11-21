@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Check, CreditCard, QrCode } from 'lucide-react';
-import { NOME_DO_PLANO, reais, type Plano } from '@/lib/planos';
+import { Check } from 'lucide-react';
 import FotoDePerfil from './foto';
 
 interface Perfil {
@@ -21,12 +20,8 @@ interface Perfil {
 interface Dados {
   email: string;
   papel: 'dono' | 'membro';
-  plano: Plano;
-  pagoAte: string | null;
   perfil: Perfil;
   equipe: string[];
-  pagamentos: { id: string; plano: 'basic' | 'pro'; forma: 'cartao' | 'pix'; valorCentavos: number; pagoEm: string; descricao: string | null }[];
-  cobranca: { forma: 'cartao' | 'pix' | null; temPortal: boolean; assinaturaAtiva: boolean; cancelaEm: string | null; pagamentoFalhou: boolean };
 }
 
 const campo =
@@ -42,8 +37,6 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
   const [p, setP] = useState<Perfil | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
-  const [confirmacao, setConfirmacao] = useState('');
-  const [excluindo, setExcluindo] = useState(false);
 
   useEffect(() => {
     fetch('/api/perfil', { cache: 'no-store' })
@@ -88,22 +81,6 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
       setAviso({ tipo: 'erro', texto: 'Falha de rede.' });
     } finally {
       setSalvando(false);
-    }
-  }
-
-  async function excluir() {
-    setExcluindo(true);
-    try {
-      const r = await fetch('/api/perfil', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmacao }) });
-      const d = await r.json();
-      if (d.ok) window.location.assign('/login');
-      else {
-        setAviso({ tipo: 'erro', texto: d.erro || 'Não consegui excluir.' });
-        setExcluindo(false);
-      }
-    } catch {
-      setAviso({ tipo: 'erro', texto: 'Falha de rede.' });
-      setExcluindo(false);
     }
   }
 
@@ -247,45 +224,6 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
         </button>
       </div>
 
-      {/* --------------------------------------------------- assinatura */}
-      <section className="rounded-[24px] border border-zinc-200 p-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-[19px] font-extrabold tracking-[-0.02em]">Assinatura</h2>
-            <p className="mt-1 text-[13px] text-zinc-600">
-              Plano <b className="text-tinta">{NOME_DO_PLANO[dados.plano]}</b>
-              {dados.pagoAte && dados.plano !== 'gratis' && dados.plano !== 'cortesia' && <> · válido até {data(dados.pagoAte)}</>}
-              {dados.cobranca.forma && <> · {dados.cobranca.forma === 'cartao' ? 'cartão, renova sozinho' : 'Pix, mês a mês'}</>}
-              {dados.cobranca.cancelaEm && <> · cancelada, termina em {data(dados.cobranca.cancelaEm)}</>}
-            </p>
-          </div>
-          <Link href="/planos" className="inline-flex min-h-[40px] items-center rounded-full bg-tinta px-5 text-[13px] font-bold text-white hover:bg-tinta-70">
-            {dados.plano === 'gratis' ? 'Ver planos' : 'Planos e assinatura'}
-          </Link>
-        </div>
-
-        <h3 className="mt-6 text-[13px] font-bold">Pagamentos</h3>
-        {dados.pagamentos.length ? (
-          <ul className="mt-2 divide-y divide-zinc-100">
-            {dados.pagamentos.map((x) => (
-              <li key={x.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-[13px]">
-                <span className="flex items-center gap-2.5">
-                  {x.forma === 'cartao' ? <CreditCard aria-hidden className="h-4 w-4 text-zinc-500" /> : <QrCode aria-hidden className="h-4 w-4 text-zinc-500" />}
-                  <span className="font-semibold">{NOME_DO_PLANO[x.plano]}</span>
-                  <span className="text-zinc-500">{x.descricao}</span>
-                </span>
-                <span className="flex items-center gap-4 tabular-nums">
-                  <span className="text-zinc-500">{data(x.pagoEm)}</span>
-                  <b>{reais(x.valorCentavos)}</b>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-1 text-[13px] text-zinc-500">Nenhum pagamento ainda.</p>
-        )}
-      </section>
-
       {/* ---------------- equipe: só aparece na conta que tem mais gente (cortesia) */}
       {dados.equipe.length > 1 && (
       <section className="rounded-[24px] border border-zinc-200 p-6">
@@ -301,28 +239,6 @@ export default function PainelPerfil({ fotoInicial }: { fotoInicial: string | nu
       </section>
       )}
 
-      {/* ------------------------------------------------- zona de perigo */}
-      <section className="rounded-[24px] bg-zinc-50 p-6">
-        <h2 className="text-[17px] font-extrabold">Excluir minha conta</h2>
-        <p className="mt-1 max-w-[620px] text-[13px] leading-relaxed text-zinc-600">
-          Apaga seus leads, propostas e o seu acesso, e cancela a assinatura no cartão. Não dá para desfazer. Para confirmar,
-          digite <b className="text-tinta">EXCLUIR</b>.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <label>
-            <span className="sr-only">Digite EXCLUIR para confirmar</span>
-            <input value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} className={`${campo} w-44`} />
-          </label>
-          <button
-            type="button"
-            onClick={excluir}
-            disabled={excluindo || confirmacao.trim().toUpperCase() !== 'EXCLUIR'}
-            className="min-h-[44px] rounded-full bg-red-700 px-5 text-[13.5px] font-bold text-white transition-colors hover:bg-red-800 disabled:bg-zinc-300"
-          >
-            {excluindo ? 'Excluindo…' : 'Excluir conta'}
-          </button>
-        </div>
-      </section>
     </form>
   );
 }

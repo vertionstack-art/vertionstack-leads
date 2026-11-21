@@ -4,13 +4,12 @@ import {
   salvarLeads,
   normalizarLead,
   apagarPorFiltro,
-  idsNovos,
   type Filtros,
   type Status,
 } from '@/lib/db';
 import type { WebsiteKind } from '@/lib/classify';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { cotaDaConta, cotaParaJson, devolverCota, equipeDaConta, reservarCota, type Plano } from '@/lib/conta';
+import { equipeDaConta } from '@/lib/conta';
 import { estourou } from '@/lib/limite';
 import { caminhoDaProposta } from '@/lib/token-proposta';
 
@@ -58,14 +57,13 @@ export function filtrosDaUrl(url: URL): Filtros {
 export async function POST(req: Request) {
   /*
    * O cadastro feito à mão, de um comércio que veio por indicação ou
-   * conversa. Gasta a mesma cota semanal da busca: senão o plano grátis
-   * teria uma porta sem limite. (A porta da extensão, com chave, saiu em
-   * 10/10/2026 junto com a extensão.)
+   * conversa. Sem cota desde 21/11/2026. (A porta da extensão, com chave,
+   * saiu em 10/10/2026 junto com a extensão.)
    */
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome: coletor, ilimitado, plano } = s.sessao;
+  const { contaId, nome: coletor } = s.sessao;
   const manual = true;
   if (await estourou(`manual:${contaId}`, 60, 60)) {
     return NextResponse.json({ ok: false, erro: 'Cadastros demais em pouco tempo. Espere um minuto.' }, { status: 429 });
@@ -94,34 +92,8 @@ export async function POST(req: Request) {
   const unicos = Array.from(new Map(limpos.map((l) => [l.id, l])).values());
 
   try {
-    const novos = await idsNovos(contaId, unicos.map((l) => l.id));
-    const concedidos = await reservarCota(contaId, novos.length, plano);
-    const r = await salvarLeads(contaId, unicos, concedidos);
-    // reservou mais do que gravou (outro envio gravou o mesmo comércio no meio)
-    if (!ilimitado) await devolverCota(contaId, concedidos - r.novos, plano);
-    const cota = await cotaDaConta(contaId, plano);
-
-    const estourouCota = r.barradosPelaCota > 0;
-    return NextResponse.json(
-      {
-        ok: !estourouCota || r.novos + r.atualizados > 0,
-        ...r,
-        ignorados: brutos.length - unicos.length,
-        coletor,
-        cota: cotaParaJson(cota),
-        motivo: estourouCota ? 'cota' : undefined,
-        erro: estourouCota
-          ? cota.guardados >= cota.tetoGuardados
-            ? `Sua conta chegou ao limite de ${cota.tetoGuardados} leads guardados do plano. Apague os que não servem ou mude de plano.`
-            : cota.testeNegado
-              ? `O teste grátis já foi usado em outra conta ${cota.testeNegado} (limite de 1 teste por pessoa). Assine um plano para coletar leads.`
-              : cota.teste
-                ? `Seu teste grátis acabou (limite de ${cota.limite} leads). Assine um plano para continuar coletando.`
-                : `Limite do seu plano: ${cota.limite} leads novos por semana. Veja os planos para coletar mais.`
-          : undefined,
-      },
-      { status: estourouCota && r.novos + r.atualizados === 0 ? 402 : 200 },
-    );
+    const r = await salvarLeads(contaId, unicos);
+    return NextResponse.json({ ok: true, ...r, ignorados: brutos.length - unicos.length, coletor });
   } catch (err) {
     console.error('[leads POST]', err);
     return NextResponse.json({ ok: false, erro: 'Falha ao gravar. Tente de novo.' }, { status: 500 });
@@ -133,20 +105,15 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, plano } = s.sessao;
+  const { contaId } = s.sessao;
 
   try {
-    const [pagina, equipe, cota] = await Promise.all([
-      listarLeads(contaId, filtrosDaUrl(new URL(req.url))),
-      equipeDaConta(contaId),
-      cotaDaConta(contaId, plano),
-    ]);
+    const [pagina, equipe] = await Promise.all([listarLeads(contaId, filtrosDaUrl(new URL(req.url))), equipeDaConta(contaId)]);
     return NextResponse.json({
       ok: true,
       ...pagina,
       leads: pagina.leads.map((l) => ({ ...l, linkProposta: caminhoDaProposta(contaId, l.id) })),
       equipe,
-      cota: cotaParaJson(cota),
     });
   } catch (err) {
     console.error('[leads GET]', err);

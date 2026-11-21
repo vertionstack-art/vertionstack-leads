@@ -1,24 +1,16 @@
 /**
- * Quem está usando a ferramenta, de que conta, em que plano, e quanto da
- * cota da semana ainda sobra.
+ * Quem está usando a ferramenta e de que conta.
  *
- * Duas portas levam a uma conta:
- *  - o navegador, pela sessão do Supabase Auth (cookie);
- *  - a extensão, pela chave que a pessoa gera em "Minha conta".
+ * Desde 21/11/2026 a ferramenta é só do Lucas: não há mais planos, cotas,
+ * teste grátis, cadastro nem pagamento. Só entra quem já tem conta (a dele);
+ * login novo que não tenha conta não ganha uma, cai fora.
  *
- * Nenhuma das duas aceita a conta vinda do cliente. O que chega do
- * navegador é só "quem eu sou"; a conta sai do banco a partir disso.
+ * A conta nunca vem do navegador: o que chega é só "quem eu sou" (cookie do
+ * login), e a conta sai do banco a partir disso.
  */
 
 import { db } from './sql';
 import { supabaseServidor } from './supabase-server';
-import { LIMITES, type Plano } from './planos';
-import { cookies } from 'next/headers';
-import { FORMATO_CODIGO, registrarIndicacao, tirarDoBonus } from './indicacao';
-import { avisarBoasVindas, avisarTeste } from './avisos';
-import { marcarTesteUsado, registrarSinais, sinaisDaPagina, testeJaUsadoPorOutra } from './teste';
-
-export type { Plano };
 
 export interface Sessao {
   userId: string;
@@ -30,119 +22,24 @@ export interface Sessao {
   contaId: string;
   contaNome: string;
   papel: 'dono' | 'membro';
-  plano: Plano;
-  /** só a cortesia (conta da Vertion) não tem teto */
-  ilimitado: boolean;
-  pagoAte: string | null;
   bloqueada: boolean;
-  admin: boolean;
-  /** o plano que a pessoa clicou na página de venda antes de criar a conta */
-  planoEscolhido: 'semanal' | 'basic' | 'pro' | null;
-}
-
-// ------------------------------------------------------------- admin
-
-/**
- * Quem cuida da ferramenta inteira (vê todos os assinantes, bloqueia IP,
- * roda a migração). Fica numa variável de ambiente, não no banco, para que
- * ninguém consiga se promover a administrador mexendo em dado.
- */
-export function ehAdminEmail(email: string): boolean {
-  const lista = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return lista.includes(email.trim().toLowerCase());
-}
-
-// ----------------------------------------------------------- plano
-
-export function planoEfetivo(plano: string, pagoAte: Date | string | null): { plano: Plano; ilimitado: boolean } {
-  if (plano === 'cortesia') return { plano: 'cortesia', ilimitado: true };
-  const emDia = Boolean(pagoAte && new Date(pagoAte).getTime() > Date.now());
-  if (emDia && plano === 'semanal') return { plano: 'semanal', ilimitado: false };
-  if (emDia && plano === 'basic') return { plano: 'basic', ilimitado: false };
-  // 'pago' é o nome antigo do pro
-  if (emDia && (plano === 'pro' || plano === 'pago')) return { plano: 'pro', ilimitado: false };
-  // mensalidade vencida cai para o grátis: continua usando, com o limite dele
-  return { plano: 'gratis', ilimitado: false };
-}
-
-// ---------------------------------------------------------- sessão
-
-/** primeiro acesso de alguém que acabou de se cadastrar: cria a conta grátis dele */
-async function criarContaPara(userId: string, nome: string, convite: string | null, email: string): Promise<void> {
-  const sql = db();
-  let nova: string | null = null;
-  await sql.begin(async (tx) => {
-    const ja = await tx`select 1 from membros where user_id = ${userId}`;
-    if (ja.length) return;
-    const [c] = await tx`insert into contas (nome) values (${nome}) returning id`;
-    await tx`insert into membros (conta_id, user_id, nome, papel) values (${c.id}, ${userId}, ${nome}, 'dono')`;
-    nova = c.id as string;
-  });
-  if (nova) await avisarBoasVindas(nova, email, nome);
-  // chegou por um link de convite: anota quem indicou (lib/indicacao)
-  if (nova && convite) {
-    try {
-      await registrarIndicacao(nova, convite);
-    } catch (e) {
-      console.error('[convite]', e);
-    }
-  }
-}
-
-/** o convite vem do cadastro (dados do usuário) ou do cookie que o link de convite deixou */
-async function conviteDe(meta: Record<string, unknown> | undefined): Promise<string | null> {
-  const doCadastro = typeof meta?.convite === 'string' ? meta.convite : '';
-  const doCookie = (await cookies()).get('vl_convite')?.value || '';
-  const c = (doCadastro || doCookie).trim().toLowerCase();
-  return FORMATO_CODIGO.test(c) ? c : null;
-}
-
-function planoEscolhidoDe(meta: Record<string, unknown> | undefined): Sessao['planoEscolhido'] {
-  const p = meta?.plano_escolhido;
-  return p === 'semanal' || p === 'basic' || p === 'pro' ? p : null;
-}
-
-function nomeDe(email: string, meta: Record<string, unknown> | undefined): string {
-  const doCadastro = typeof meta?.nome === 'string' ? meta.nome : typeof meta?.full_name === 'string' ? meta.full_name : '';
-  const base = (doCadastro || email.split('@')[0] || 'você').trim();
-  return base.split(/\s+/)[0].toLowerCase().slice(0, 40);
 }
 
 export async function sessaoAtual(): Promise<Sessao | null> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return null;
   const supabase = await supabaseServidor();
-  // getUser confere o token com o Supabase; getSession só leria o cookie
+  // getUser confere o token com o servidor de login; getSession só leria o cookie
   const { data } = await supabase.auth.getUser();
   const user = data.user;
   if (!user || !user.email) return null;
 
-  const sql = db();
-  let linhas = await sql`
-    select m.conta_id, m.nome, m.artigo, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
+  const linhas = await db()`
+    select m.conta_id, m.nome, m.artigo, m.papel, c.nome as conta_nome, c.bloqueada
     from membros m join contas c on c.id = m.conta_id
     where m.user_id = ${user.id}
   `;
-  if (!linhas.length) {
-    await criarContaPara(user.id, nomeDe(user.email, user.user_metadata), await conviteDe(user.user_metadata), user.email);
-    linhas = await sql`
-      select m.conta_id, m.nome, m.artigo, m.papel, c.nome as conta_nome, c.plano, c.pago_ate, c.bloqueada
-      from membros m join contas c on c.id = m.conta_id
-      where m.user_id = ${user.id}
-    `;
-  }
+  if (!linhas.length) return null;
   const r = linhas[0];
-  const ef = planoEfetivo(r.plano, r.pago_ate);
-  // no Free, cada acesso deixa o rastro do navegador, da rede e do e-mail (ver lib/teste)
-  if (ef.plano === 'gratis') {
-    try {
-      await registrarSinais(r.conta_id, await sinaisDaPagina(user.email));
-    } catch (e) {
-      console.error('[sinais]', e);
-    }
-  }
   return {
     userId: user.id,
     email: user.email,
@@ -151,12 +48,7 @@ export async function sessaoAtual(): Promise<Sessao | null> {
     contaId: r.conta_id,
     contaNome: r.conta_nome,
     papel: r.papel,
-    plano: ef.plano,
-    ilimitado: ef.ilimitado,
-    pagoAte: r.pago_ate ? new Date(r.pago_ate).toISOString() : null,
     bloqueada: r.bloqueada,
-    admin: ehAdminEmail(user.email),
-    planoEscolhido: planoEscolhidoDe(user.user_metadata),
   };
 }
 
@@ -164,179 +56,6 @@ export async function sessaoAtual(): Promise<Sessao | null> {
 export async function equipeDaConta(conta: string): Promise<string[]> {
   const r = await db()`select nome from membros where conta_id = ${conta} order by nome`;
   return r.map((x) => x.nome as string);
-}
-
-// ------------------------------------------------------- cota grátis
-
-/** a segunda-feira da semana atual, no horário de Brasília (AAAA-MM-DD) */
-export function semanaAtual(agora = new Date()): string {
-  const brasilia = new Date(agora.getTime() - 3 * 3600 * 1000);
-  const diaDaSemana = (brasilia.getUTCDay() + 6) % 7; // segunda = 0
-  const segunda = new Date(Date.UTC(brasilia.getUTCFullYear(), brasilia.getUTCMonth(), brasilia.getUTCDate() - diaDaSemana));
-  return segunda.toISOString().slice(0, 10);
-}
-
-export interface Cota {
-  plano: Plano;
-  ilimitado: boolean;
-  /** leads novos nesta semana */
-  usados: number;
-  /** teto semanal do plano */
-  limite: number;
-  restantes: number;
-  /** leads guardados na conta agora, e o teto do plano */
-  guardados: number;
-  tetoGuardados: number;
-  /** quando a cota volta: a próxima segunda, 00h de Brasília */
-  renovaEm: string;
-  /** Free: a cota é o teste grátis, um total que não renova */
-  teste: boolean;
-  /** o teste foi negado porque outra conta já usou neste computador, navegador, internet ou e-mail */
-  testeNegado: string | null;
-  /** leads de bônus por indicação: gastos só depois da cota do plano (lib/indicacao) */
-  bonus: number;
-}
-
-export async function cotaDaConta(conta: string, plano: Plano): Promise<Cota> {
-  const semana = semanaAtual();
-  const sql = db();
-  const teste = plano === 'gratis';
-  const [r, g, c] = await Promise.all([
-    sql`select novos from uso_semanal where conta_id = ${conta} and semana = ${semana}`,
-    sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta`,
-    sql`select teste_usados, teste_negado, leads_bonus from contas where id = ${conta}`,
-  ]);
-  const bonus = Number(c[0]?.leads_bonus) || 0;
-  const testeNegado = teste ? ((c[0]?.teste_negado as string) ?? null) : null;
-  const usados = teste ? ((c[0]?.teste_usados as number) ?? 0) : r.length ? (r[0].novos as number) : 0;
-  const guardados = g[0].n as number;
-  const lim = LIMITES[plano];
-  const ilimitado = plano === 'cortesia';
-  const proxima = new Date(semana + 'T03:00:00Z');
-  proxima.setUTCDate(proxima.getUTCDate() + 7);
-  return {
-    plano,
-    ilimitado,
-    usados,
-    limite: lim.semana,
-    restantes: ilimitado
-      ? Infinity
-      : Math.max(0, Math.min((testeNegado ? 0 : Math.max(0, lim.semana - usados)) + bonus, lim.guardados - guardados)),
-    guardados,
-    tetoGuardados: lim.guardados,
-    renovaEm: proxima.toISOString(),
-    teste,
-    testeNegado,
-    bonus,
-  };
-}
-
-/** a cota em formato que vai para o navegador (Infinity não existe em JSON) */
-export function cotaParaJson(c: Cota) {
-  return { ...c, restantes: c.ilimitado ? null : c.restantes };
-}
-
-/**
- * Reserva até `pedidos` vagas e devolve quantas conseguiu: o que sobra da
- * semana, sem passar do teto de leads guardados do plano. Na cortesia só
- * conta (para o admin enxergar uso) e devolve tudo.
- *
- * Feito numa instrução só, com trava na linha, para duas abas da extensão
- * mandando ao mesmo tempo não passarem as duas pelo mesmo resto de cota.
- */
-export async function reservarCota(conta: string, pedidos: number, plano: Plano): Promise<number> {
-  if (pedidos <= 0) return 0;
-  const semana = semanaAtual();
-  const sql = db();
-  await sql`insert into uso_semanal (conta_id, semana, novos) values (${conta}, ${semana}, 0) on conflict do nothing`;
-  if (plano === 'cortesia') {
-    await sql`update uso_semanal set novos = novos + ${pedidos} where conta_id = ${conta} and semana = ${semana}`;
-    return pedidos;
-  }
-  const lim = LIMITES[plano];
-  const g = await sql`select count(*)::int as n from leads where conta_id = ${conta} and not so_proposta`;
-  const cabem = Math.max(0, Math.min(pedidos, lim.guardados - (g[0].n as number)));
-  if (!cabem) return 0;
-  let concedidos = plano === 'gratis' ? await reservarTeste(conta, cabem, lim.semana, semana) : await reservarSemana(conta, cabem, lim.semana, semana);
-  // a cota do plano acabou: o que falta sai do bônus de indicação
-  if (concedidos < cabem) concedidos += await tirarDoBonus(conta, cabem - concedidos);
-  return concedidos;
-}
-
-async function reservarSemana(conta: string, cabem: number, teto: number, semana: string): Promise<number> {
-  const sql = db();
-  const lim = { semana: teto };
-  const r = await sql`
-    with antes as (
-      select novos from uso_semanal where conta_id = ${conta} and semana = ${semana} for update
-    )
-    update uso_semanal u
-       set novos = least(${lim.semana}, u.novos + ${cabem})
-      from antes
-     where u.conta_id = ${conta} and u.semana = ${semana}
-    returning u.novos - antes.novos as concedidos
-  `;
-  return r.length ? Math.max(0, r[0].concedidos as number) : 0;
-}
-
-/**
- * O teste grátis: um total por conta, sem renovar. A primeira vez que a conta
- * vai puxar lead, confere se outra conta já usou o teste no mesmo computador,
- * navegador, internet ou e-mail; se usou, nega o teste desta (ver lib/teste).
- */
-async function reservarTeste(conta: string, pedidos: number, total: number, semana: string): Promise<number> {
-  const sql = db();
-  const [c] = await sql`select teste_usados, teste_negado from contas where id = ${conta}`;
-  if (!c || c.teste_negado) return 0;
-  if (c.teste_usados === 0) {
-    const motivo = await testeJaUsadoPorOutra(conta);
-    if (motivo) {
-      await sql`update contas set teste_negado = ${motivo} where id = ${conta}`;
-      return 0;
-    }
-  }
-  const r = await sql`
-    with antes as (select teste_usados from contas where id = ${conta} for update)
-    update contas c set teste_usados = least(${total}, c.teste_usados + ${pedidos})
-      from antes where c.id = ${conta}
-    returning c.teste_usados - antes.teste_usados as concedidos, c.teste_usados as usados
-  `;
-  const concedidos = r.length ? Math.max(0, r[0].concedidos as number) : 0;
-  if (concedidos > 0) {
-    await sql`update uso_semanal set novos = novos + ${concedidos} where conta_id = ${conta} and semana = ${semana}`;
-    await marcarTesteUsado(conta);
-    // e-mail de "restam poucos" e de "acabou" (lib/avisos), uma vez cada
-    await avisarTeste(conta, Number(r[0].usados) || 0, total);
-  }
-  return concedidos;
-}
-
-/**
- * Confere o teste antes de gastar com o Google: conta nova que divide
- * computador, navegador, internet ou e-mail com outra que já usou o teste
- * fica negada aqui, antes da primeira chamada paga. Devolve o motivo ou null.
- */
-export async function conferirTeste(conta: string): Promise<string | null> {
-  const sql = db();
-  const [c] = await sql`select teste_usados, teste_negado from contas where id = ${conta}`;
-  if (!c) return 'conta';
-  if (c.teste_negado) return c.teste_negado as string;
-  if (c.teste_usados > 0) return null;
-  const motivo = await testeJaUsadoPorOutra(conta);
-  if (motivo) await sql`update contas set teste_negado = ${motivo} where id = ${conta}`;
-  return motivo;
-}
-
-/** devolve vagas reservadas que acabaram não sendo usadas (lead que já existia, por exemplo) */
-export async function devolverCota(conta: string, quantos: number, plano: Plano): Promise<void> {
-  if (quantos <= 0) return;
-  if (plano === 'gratis') {
-    await db()`update contas set teste_usados = greatest(0, teste_usados - ${quantos}) where id = ${conta}`;
-  }
-  await db()`
-    update uso_semanal set novos = greatest(0, novos - ${quantos})
-    where conta_id = ${conta} and semana = ${semanaAtual()}
-  `;
 }
 
 /** a conta que recebeu os leads de antes das contas existirem (links antigos de proposta) */

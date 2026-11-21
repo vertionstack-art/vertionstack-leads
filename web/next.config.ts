@@ -30,8 +30,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // a página de venda (o endereço principal) é a única que pode aparecer no Google
-        source: '/:path+',
+        // ferramenta só do Lucas desde 21/11/2026: nada aparece no Google
+        source: '/:path*',
         headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
       },
       {

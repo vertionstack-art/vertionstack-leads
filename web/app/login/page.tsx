@@ -59,9 +59,8 @@ function Formulario() {
         {enviando ? 'Entrando…' : 'Entrar'}
       </button>
 
-      <div className="mt-5 flex flex-wrap justify-between gap-2 text-[13px] font-semibold">
+      <div className="mt-5 text-[13px] font-semibold">
         <Link href="/esqueci" className="text-zinc-600 underline underline-offset-2 hover:text-tinta">Esqueci minha senha</Link>
-        <Link href="/cadastro" className="text-roxo-700 underline underline-offset-2 hover:text-roxo-800">Criar conta grátis</Link>
       </div>
     </form>
   );

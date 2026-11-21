@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import { sessaoAtual } from '@/lib/conta';
-import { quadro } from '@/lib/crm';
-import { LIMITES } from '@/lib/planos';
+import { FUNIS_MAXIMO, quadro } from '@/lib/crm';
 import QuadroCrm from './quadro';
 import Casca from '@/app/casca';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
@@ -24,7 +23,7 @@ export default async function PaginaCrm({ searchParams }: { searchParams: Promis
       titulo={<>CRM</>}
       subtitulo={<>Arraste os cards entre as etapas. A situação do lead no painel e no Financeiro muda junto.</>}
     >
-        <QuadroCrm inicial={inicial} tetoFunis={LIMITES[sessao.plano].funis} />
+        <QuadroCrm inicial={inicial} tetoFunis={FUNIS_MAXIMO} />
     </Casca>
   );
 }

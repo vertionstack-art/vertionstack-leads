@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import { cotaDaConta, cotaParaJson, sessaoAtual } from '@/lib/conta';
-import { buscaLigada, buscasDaConta, chamadasDeHoje, GRATIS_POR_MES, resumoDeBuscas, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
-import { LIMITES } from '@/lib/planos';
+import { sessaoAtual } from '@/lib/conta';
+import { buscaLigada, chamadasDeHoje, GRATIS_POR_MES, resumoDeBuscas, tetoDiario, tetoMensal, usoDoMes } from '@/lib/google-places';
 import BuscaGoogle from './busca';
 import EscolhaOferta from './oferta';
 import { db } from '@/lib/sql';
@@ -15,33 +14,20 @@ export const dynamic = 'force-dynamic';
 export default async function PaginaBuscar() {
   const sessao = await sessaoAtual();
   if (!sessao) redirect('/login');
-  const [cota, usadas] = await Promise.all([
-    cotaDaConta(sessao.contaId, sessao.plano),
-    buscasDaConta(sessao.contaId, sessao.plano, sessao.pagoAte),
-  ]);
   const resumoBuscas = await resumoDeBuscas(sessao.contaId);
-  /*
-   * O que ainda dá para buscar. Quem tem plano vê o que resta do plano. A
-   * conta da Vertion (sem limite) e o administrador veem a trava da
-   * ferramenta inteira, que é o que protege a conta do Google: os outros
-   * usuários não veem esse número, que soma o uso de todo mundo.
-   */
-  const verTrava = sessao.plano === 'cortesia' || sessao.admin;
-  const trava = verTrava
-    ? {
-        hoje: await chamadasDeHoje(),
-        tetoDia: tetoDiario(),
-        mes: (await usoDoMes()).chamadas,
-        tetoMes: tetoMensal(),
-        gratisGoogle: GRATIS_POR_MES,
-      }
-    : null;
+  // a trava da ferramenta (lib/google-places): o que segura a conta do Google dentro da faixa grátis
+  const trava = {
+    hoje: await chamadasDeHoje(),
+    tetoDia: tetoDiario(),
+    mes: (await usoDoMes()).chamadas,
+    tetoMes: tetoMensal(),
+    gratisGoogle: GRATIS_POR_MES,
+  };
   const [c] = await db()`
     select oferta, oferta_texto, oferta_publico, empresa_nome,
       (oferta = 'sites' and cardinality(oferta_publico) = 0 and oferta_texto is null) as nova
     from contas where id = ${sessao.contaId}
   `;
-  const periodo = sessao.plano === 'gratis' ? 'do teste' : sessao.plano === 'semanal' ? 'destes 7 dias' : 'do mês';
 
   return (
     <Casca
@@ -63,8 +49,6 @@ export default async function PaginaBuscar() {
         />
         <BuscaGoogle
           ligada={buscaLigada()}
-          cotaInicial={cotaParaJson(cota)}
-          buscasIniciais={{ usadas, limite: LIMITES[sessao.plano].buscas, periodo, ilimitado: sessao.plano === 'cortesia' }}
           resumoInicial={resumoBuscas}
           trava={trava}
         />

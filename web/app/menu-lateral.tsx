@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Crown, FileText, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
+  FileText, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -17,7 +17,7 @@ import Logo from './logo';
  * com o cadastro aberto (/?cadastrar=1).
  */
 
-export type Tela = 'painel' | 'buscar' | 'conversas' | 'crm' | 'propostas' | 'financeiro' | 'planos' | 'mapa' | 'importar' | 'perfil' | null;
+export type Tela = 'painel' | 'buscar' | 'conversas' | 'crm' | 'propostas' | 'financeiro' | 'mapa' | 'importar' | 'perfil' | null;
 
 export interface ItemExtra {
   rotulo: string;
@@ -146,9 +146,6 @@ export default function MenuLateral({
           </Item>
           <Item rotulo="Cadastrar lead" href={aoCadastrar ? undefined : '/?cadastrar=1'} onClick={aoCadastrar}>
             <Plus className={i} strokeWidth={1.8} />
-          </Item>
-          <Item rotulo="Planos" ativo={ativo === 'planos'} href="/planos">
-            <Crown className={i} strokeWidth={1.8} />
           </Item>
           <Item rotulo="Mapa dos leads" ativo={ativo === 'mapa'} href="/mapa">
             <IconeMapa className={i} strokeWidth={1.8} />

@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle, Bell, Check, ChevronDown, Download, Map as IconeMapa, Smartphone, Upload, Flame, LogOut, MapPin,
-  Crown, Kanban, MessageCircle, MessagesSquare, Radar, Wallet, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
+  Kanban, MessageCircle, MessagesSquare, Radar, Wallet, RefreshCw, Search, ShieldCheck, Snowflake, Sun, Trash2, UserRound,
 } from 'lucide-react';
 import type { Lead, Status } from '@/lib/db';
-import type { AvisoVencimento } from '@/lib/pagamento';
 import { numeroWhatsapp } from '@/lib/telefone';
 import SeloProposta, { aceiteDa } from './selo-proposta';
 import PromptModal, { type Variante } from './prompt-modal';
@@ -17,12 +16,9 @@ import PropostaModal from './proposta-modal';
 import CadastroModal from './cadastro-modal';
 import LeadCard from './lead-card';
 import type { WebsiteKind } from '@/lib/classify';
-import { NOME_DO_PLANO, type Plano } from '@/lib/planos';
 import MenuLateral from './menu-lateral';
 import FichaLead from './ficha-lead';
 import InstalarApp from './instalar-app';
-import PrimeirosPassos from './primeiros-passos';
-import type { Passo } from '@/lib/passos';
 
 // --------------------------------------------------------- constantes
 
@@ -187,192 +183,22 @@ function Acao({
   );
 }
 
-/**
- * Quem clicou num plano na página de venda e criou a conta: o lembrete de que
- * escolheu aquele plano, com o botão direto. Fecha e não volta (por navegador).
- */
-function AvisoPlanoEscolhido({ plano }: { plano: 'semanal' | 'basic' | 'pro' }) {
-  const [fechado, setFechado] = useState(true);
-  useEffect(() => {
-    try {
-      setFechado(localStorage.getItem('vl_aviso_plano') === plano);
-    } catch {
-      setFechado(false);
-    }
-  }, [plano]);
-  if (fechado) return null;
-  const nome = NOME_DO_PLANO[plano];
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white px-5 py-3.5 text-[13.5px] font-semibold ring-1 ring-inset ring-zinc-300">
-      <span>
-        Você escolheu o <b>{nome}</b> na página de venda. Teste à vontade; quando quiser, ele está a um clique.
-      </span>
-      <span className="flex items-center gap-2">
-        <a href={`/planos?plano=${plano}`} className="inline-flex min-h-[38px] items-center rounded-full bg-tinta px-4 text-[13px] font-bold text-white hover:bg-tinta-70">
-          Assinar o {nome}
-        </a>
-        <button
-          type="button"
-          onClick={() => {
-            setFechado(true);
-            try { localStorage.setItem('vl_aviso_plano', plano); } catch { /* sem armazenamento: só some agora */ }
-          }}
-          className="rounded-full px-3 py-2 text-[12.5px] font-bold text-zinc-500 hover:bg-zinc-100 hover:text-tinta"
-        >
-          Agora não
-        </button>
-      </span>
-    </div>
-  );
-}
-
 // ------------------------------------------------------------- tela
-
-export interface CotaResumo {
-  usados: number;
-  limite: number;
-  ilimitado: boolean;
-  renovaEm: string;
-  teste?: boolean;
-  testeNegado?: string | null;
-  /** leads de bônus por indicação, gastos depois da cota do plano */
-  bonus?: number;
-}
-
-/**
- * O aviso do teste grátis: quanto falta, e depois o pedido para assinar. Os
- * leads, o CRM e as propostas continuam acessíveis; só a coleta para.
- */
-function AvisoTeste({ usados, limite, negado, bonus = 0 }: { usados: number; limite: number; negado: string | null; bonus?: number }) {
-  // com bônus de indicação a coleta continua, mesmo com o teste no fim
-  const acabou = bonus <= 0 && (Boolean(negado) || usados >= limite);
-  return (
-    <div
-      role={acabou ? 'alert' : undefined}
-      className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 text-[13px] leading-relaxed ${
-        acabou ? 'bg-tinta text-white' : 'bg-zinc-100 text-tinta'
-      }`}
-    >
-      <span className="max-w-[640px]">
-        {negado ? (
-          <>
-            <b className="text-[14.5px]">O teste grátis já foi usado em outra conta {negado}.</b>
-            <br />
-            Para coletar leads, assine um plano. Se isso é um engano, fale com o suporte.
-          </>
-        ) : acabou ? (
-          <>
-            <b className="text-[14.5px]">Seu teste grátis acabou.</b>
-            <br />
-            Você usou os {limite} leads do teste. Seus leads, o CRM e as propostas continuam aqui; para coletar novos,
-            assine um plano.
-          </>
-        ) : (
-          <>
-            <b>Teste grátis:</b> {negado ? 'já usado em outra conta.' : <>{Math.min(usados, limite)} de {limite} leads usados. {limite - usados === 1 ? 'Resta 1.' : limite - usados > 1 ? `Restam ${limite - usados}.` : ''}</>}
-            {bonus > 0 && <> Você tem mais <b className="tabular-nums">{bonus} leads de bônus</b> por indicação.</>}
-          </>
-        )}
-      </span>
-      <a
-        href="/planos"
-        className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full px-5 text-[13px] font-bold transition-colors ${
-          acabou ? 'bg-ceu text-tinta hover:bg-white' : 'bg-tinta text-white hover:bg-tinta-70'
-        }`}
-      >
-        {acabou ? 'Assinar um plano' : 'Ver planos'}
-      </a>
-    </div>
-  );
-}
-
-const NOME_PLANO_PAGO: Record<AvisoVencimento['plano'], string> = { semanal: '7 dias', basic: 'Basic', pro: 'Pro' };
-
-/**
- * O aviso de vencimento do topo: o Pix e o plano de 7 dias não renovam
- * sozinhos, então avisa antes; e avisa cartão recusado, assinatura cancelada
- * perto do fim e plano que acabou de vencer.
- */
-function AvisoDeVencimento({ aviso }: { aviso: AvisoVencimento }) {
-  const nome = NOME_PLANO_PAGO[aviso.plano];
-  const dia = new Date(aviso.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  const quando = aviso.dias <= 0 ? '' : aviso.dias === 1 ? 'amanhã' : `em ${aviso.dias} dias`;
-  const urgente = aviso.tipo === 'venceu' || aviso.tipo === 'cartao' || aviso.dias <= 1;
-  const titulo =
-    aviso.tipo === 'venceu'
-      ? `Seu plano ${nome} venceu em ${dia}.`
-      : aviso.tipo === 'cartao'
-        ? 'O cartão foi recusado na renovação.'
-        : aviso.tipo === 'cancelada'
-          ? `Sua assinatura ${nome} termina ${quando} (${dia}).`
-          : `Seu plano ${nome} vence ${quando} (${dia}).`;
-  const texto =
-    aviso.tipo === 'venceu'
-      ? 'Seus leads, o CRM e as propostas continuam aqui. Renove para voltar a buscar leads novos.'
-      : aviso.tipo === 'cartao'
-        ? `Atualize o cartão antes de ${dia} para não perder o plano.`
-        : aviso.tipo === 'cancelada'
-          ? 'Depois disso a busca de leads novos para. Reative quando quiser.'
-          : aviso.plano === 'semanal'
-            ? 'O plano de 7 dias não renova sozinho. Para continuar, pague mais 7 dias ou assine um plano mensal.'
-            : 'O pagamento por Pix não renova sozinho. Para não parar, pague mais um mês ou passe para o cartão.';
-  return (
-    <div
-      role={urgente ? 'alert' : 'status'}
-      className={`flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4 text-[13px] leading-relaxed ${
-        urgente ? 'bg-tinta text-white' : 'bg-manteiga text-amber-950 ring-1 ring-inset ring-amber-200'
-      }`}
-    >
-      <span className="max-w-[640px]">
-        <b className="text-[14.5px]">{titulo}</b>
-        <br />
-        {texto}
-      </span>
-      <a
-        href="/planos"
-        className={`inline-flex min-h-[40px] shrink-0 items-center rounded-full px-5 text-[13px] font-bold transition-colors ${
-          urgente ? 'bg-ceu text-tinta hover:bg-white' : 'bg-tinta text-white hover:bg-tinta-70'
-        }`}
-      >
-        {aviso.tipo === 'cartao' ? 'Atualizar cartão' : aviso.tipo === 'cancelada' ? 'Reativar' : 'Renovar'}
-      </a>
-    </div>
-  );
-}
 
 export default function Painel({
   usuario,
   foto,
-  plano,
-  cota: cotaInicial,
-  vencimento = null,
-  passos = null,
   lembretesHoje = 0,
-  planoEscolhido = null,
   conversas = false,
 }: {
   /** a conversa guiada do WhatsApp aparece no menu (por enquanto só a conta da Vertion) */
   conversas?: boolean;
-  /** o plano clicado na página de venda, enquanto a conta ainda está no teste */
-  planoEscolhido?: 'semanal' | 'basic' | 'pro' | null;
-  /** guia de primeiros passos; null quando já foi feito ou escondido */
-  passos?: Passo[] | null;
   /** lembretes do CRM que vencem hoje ou já passaram */
   lembretesHoje?: number;
-  /** aviso de plano vencendo ou vencido (lib/pagamento) */
-  vencimento?: AvisoVencimento | null;
   usuario: string;
   foto?: string | null;
-  plano: Plano;
-  bloqueada?: boolean;
-  cota: CotaResumo;
 }) {
-  // A central de administração de propósito não tem link aqui: quem usa
-  // chega por endereço direto. A proteção continua sendo o servidor, que
-  // só responde ao dono — esconder o botão não protegeria nada sozinho.
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [cota, setCota] = useState<CotaResumo>(cotaInicial);
-  const renovaTexto = new Date(cota.renovaEm).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
   const [total, setTotal] = useState(0);
   const [resumo, setResumo] = useState<Record<string, number>>({});
   const [cidades, setCidades] = useState<string[]>([]);
@@ -451,7 +277,6 @@ export default function Painel({
       setCategorias(d.categorias);
       if (d.origens) setOrigens(d.origens);
       if (d.equipe) setEquipe(d.equipe);
-      if (d.cota) setCota(d.cota);
     } catch (e) {
       setErro(String((e as Error).message));
     } finally {
@@ -758,9 +583,6 @@ export default function Painel({
                   <a href="/crm" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Kanban aria-hidden className="h-4 w-4 text-zinc-500" /> CRM
                   </a>
-                  <a href="/planos" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
-                    <Crown aria-hidden className="h-4 w-4 text-zinc-500" /> Planos
-                  </a>
                   <a href="/financeiro" className="flex min-h-[40px] items-center gap-2.5 rounded-xl px-3 text-[13px] font-semibold hover:bg-zinc-100">
                     <Wallet aria-hidden className="h-4 w-4 text-zinc-500" /> Financeiro
                   </a>
@@ -784,12 +606,8 @@ export default function Painel({
             </div>
           </header>
 
-          {passos && <PrimeirosPassos passos={passos} />}
-
           {/* ------------------------------------------------- avisos */}
           <div className="mt-6 space-y-3 empty:hidden">
-            {vencimento && <AvisoDeVencimento aviso={vencimento} />}
-            {planoEscolhido && <AvisoPlanoEscolhido plano={planoEscolhido} />}
             {lembretesHoje > 0 && (
               <a
                 href="/crm#para-hoje"
@@ -801,36 +619,6 @@ export default function Painel({
                 </span>
                 <span className="font-bold underline underline-offset-2">Ver no CRM</span>
               </a>
-            )}
-            {!cota.ilimitado && cota.teste && vencimento?.tipo !== 'venceu' && (
-              <AvisoTeste usados={cota.usados} limite={cota.limite} negado={cota.testeNegado ?? null} bonus={cota.bonus ?? 0} />
-            )}
-            {!cota.ilimitado && !cota.teste && (
-              <div
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-3.5 text-[13px] leading-relaxed ${
-                  cota.usados >= cota.limite ? 'bg-zinc-100 text-tinta ring-2 ring-inset ring-tinta' : 'bg-zinc-100 text-tinta'
-                }`}
-              >
-                <span>
-                  {cota.usados >= cota.limite ? (
-                    <>
-                      <b>Você usou os {cota.limite} leads novos desta semana do plano {NOME_DO_PLANO[plano]}.</b> A cota volta{' '}
-                      {renovaTexto}.{(cota.bonus ?? 0) > 0 ? <> Até lá, a coleta usa os seus <b className="tabular-nums">{cota.bonus} leads de bônus</b>.</> : ' Para coletar mais, veja os planos.'}
-                    </>
-                  ) : (
-                    <>
-                      <b>Plano {NOME_DO_PLANO[plano]}:</b> {cota.usados} de {cota.limite} leads novos usados nesta semana. Renova{' '}
-                      {renovaTexto}.{(cota.bonus ?? 0) > 0 && <> E mais <b className="tabular-nums">{cota.bonus} de bônus</b> por indicação.</>}
-                    </>
-                  )}
-                </span>
-                <a
-                  href="/planos"
-                  className="inline-flex min-h-[38px] shrink-0 items-center rounded-full bg-tinta px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-tinta-70"
-                >
-                  Ver planos
-                </a>
-              </div>
             )}
             {erro && (
               <div role="alert" className="rounded-2xl bg-rosa px-5 py-3.5 text-[13px] font-medium text-red-950">{erro}</div>

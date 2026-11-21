@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { conferirTeste, cotaDaConta, cotaParaJson, devolverCota, reservarCota } from '@/lib/conta';
 import { idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
 import {
-  anotarBusca, buscaLigada, buscarPagina, buscasDaConta, buscasDosTestesNoMes, chamadasDeHoje, chaveDaPergunta, contarChamada,
-  ErroGoogle, memoriaDaBusca, reservaDosTestes, somarLeads, tetoDiario, tetoMensal, usoDoMes,
+  anotarBusca, buscaLigada, buscarPagina, chamadasDeHoje, chaveDaPergunta, contarChamada,
+  ErroGoogle, memoriaDaBusca, somarLeads, tetoDiario, tetoMensal, usoDoMes,
 } from '@/lib/google-places';
 import { estourou } from '@/lib/limite';
-import { LIMITES } from '@/lib/planos';
-import { usarBuscaBonus } from '@/lib/indicacao';
 import { DETALHE_ENCURTADOR, verificarSite } from '@/lib/verificar-site';
 import { ehEncurtador } from '@/lib/classify';
 import { avaliarSite, NOTA_SITE_FRACO, type AvaliacaoSite } from '@/lib/nota-site';
@@ -44,14 +41,14 @@ function texto(v: unknown, max: number): string {
  * de parar funcionar de verdade.
  *
  * Só os comércios sem site próprio (ou com site fraco, nota até 6) são
- * guardados e contam na cota: quem já tem site bom não é lead, e a pessoa
- * não paga cota por ele.
+ * guardados: quem já tem site bom não é lead. Sem cota por conta desde
+ * 21/11/2026 (a ferramenta é só do Lucas); valem só as travas do Google.
  */
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome: quem, plano, userId } = s.sessao;
+  const { contaId, nome: quem, userId } = s.sessao;
 
   if (!buscaLigada()) return erro('A busca pelo Google ainda não foi ligada.', 503);
   if (await estourou('busca:' + userId, 240, 60 * 60)) return erro('Muitas buscas seguidas. Espere alguns minutos.', 429);
@@ -76,23 +73,6 @@ export async function POST(req: Request) {
   const oferta: Oferta = OFERTAS.some((o) => o.id === cfgOferta?.oferta) ? (cfgOferta.oferta as Oferta) : 'sites';
   if (nicho.length < 2 || local.length < 2) return erro('Diga o nicho e a cidade.', 400);
 
-  // nada de gastar com o Google se a pessoa não pode guardar lead nenhum
-  let cota = await cotaDaConta(contaId, plano);
-  if (cota.teste) {
-    const negado = await conferirTeste(contaId);
-    if (negado) {
-      cota = await cotaDaConta(contaId, plano);
-      return erro(`O teste grátis já foi usado em outra conta ${negado}. Assine um plano para buscar leads.`, 402, { cota: cotaParaJson(cota), fim: true });
-    }
-  }
-  if (!cota.ilimitado && cota.restantes <= 0) {
-    const msg = cota.teste
-      ? `Seu teste grátis de ${cota.limite} leads acabou. Assine um plano para continuar buscando.`
-      : cota.guardados >= cota.tetoGuardados
-        ? `Sua conta chegou ao limite de ${cota.tetoGuardados} leads guardados do plano.`
-        : `Você usou os ${cota.limite} leads novos desta semana. A cota renova na segunda.`;
-    return erro(msg, 402, { cota: cotaParaJson(cota), fim: true });
-  }
   if ((await usoDoMes()).chamadas >= tetoMensal()) {
     return erro('A busca pelo Google chegou ao limite deste mês. Volta a funcionar no dia 1º.', 503, { fim: true });
   }
@@ -123,7 +103,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
       descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 },
-      cota: cotaParaJson(cota), fim: false,
+      fim: false,
     });
   }
   if (!pagina) {
@@ -131,35 +111,13 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true, jaFeita: true, comercios: 0, comSite: 0, jaTinha: 0, novos: 0, comWhatsappLink: 0, proxima: null,
         descartados: { empresa_grande: 0, site_proprio: 0, sem_contato: 0, sem_whatsapp: 0, fora_do_perfil: 0, sem_email: 0, pouco_movimento: 0 },
-        cota: cotaParaJson(cota), fim: false,
+        fim: false,
       });
     }
     if (memoria?.proxima) {
       token = memoria.proxima;
       retomada = true;
     }
-  }
-
-  /*
-   * O teto de buscas do plano: é a busca no Google que custa, então cada
-   * plano tem a sua cota, e o teste grátis ainda divide uma reserva do mês
-   * para nunca tirar busca de quem paga (lib/planos).
-   */
-  const limiteBuscas = LIMITES[plano].buscas;
-  const usadas = await buscasDaConta(contaId, plano, s.sessao.pagoAte);
-  // a cota de buscas acabou, mas há busca de bônus por indicação: gasta uma e segue
-  const buscaDoBonus = usadas >= limiteBuscas && (await usarBuscaBonus(contaId));
-  if (usadas >= limiteBuscas && !buscaDoBonus) {
-    const msg =
-      plano === 'gratis'
-        ? `Você usou as ${limiteBuscas} buscas do teste grátis. Assine o plano de 7 dias para continuar buscando.`
-        : plano === 'semanal'
-          ? `Você usou as ${limiteBuscas} buscas destes 7 dias. Para buscar mais, assine o Basic ou o Pro.`
-          : `Você usou as ${limiteBuscas} buscas do mês. Elas voltam no dia 1º${plano === 'basic' ? ', ou passe para o Pro' : ''}.`;
-    return erro(msg, 402, { cota: cotaParaJson(cota), fim: true, buscas: { usadas, limite: limiteBuscas } });
-  }
-  if (plano === 'gratis' && !buscaDoBonus && (await buscasDosTestesNoMes()) >= reservaDosTestes()) {
-    return erro('Os testes grátis deste mês esgotaram. Assine o plano de 7 dias ou volte no dia 1º.', 402, { cota: cotaParaJson(cota), fim: true });
   }
 
   let resultado;
@@ -304,13 +262,9 @@ export async function POST(req: Request) {
       return [{ ...pronto, isLead: true, concorrente: pronto.concorrente ?? concorrente }];
     });
 
-    const limite = cota.ilimitado ? quero : Math.min(quero, cota.restantes);
-    const novos = aprovados.slice(0, limite);
-    const concedidos = await reservarCota(contaId, novos.length, plano);
-    const r = await salvarLeads(contaId, [...existentes, ...novos], concedidos);
-    if (!cota.ilimitado) await devolverCota(contaId, concedidos - r.novos, plano);
+    const novos = aprovados.slice(0, quero);
+    const r = await salvarLeads(contaId, [...existentes, ...novos]);
     await somarLeads(contaId, r.novos);
-    cota = await cotaDaConta(contaId, plano);
 
     return NextResponse.json({
       ok: true,
@@ -319,7 +273,6 @@ export async function POST(req: Request) {
       sitesQuebrados,
       sitesFracos,
       retomada,
-      buscas: { usadas: usadas + 1, limite: limiteBuscas },
       jaTinha: existentes.length,
       descartados,
       comWhatsappLink: novos.filter((l) => l.whatsappFonte === 'link').length,
@@ -327,8 +280,7 @@ export async function POST(req: Request) {
       traduzido: pais && nichoGoogle !== nicho ? nichoGoogle : null,
       novos: r.novos,
       proxima: resultado.proxima,
-      cota: cotaParaJson(cota),
-      fim: !cota.ilimitado && cota.restantes <= 0,
+      fim: false,
     });
   } catch (e) {
     console.error('[busca salvar]', e);

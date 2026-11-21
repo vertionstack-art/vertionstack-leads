@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { buscarLead, idsNovos, normalizarLead, salvarLeads } from '@/lib/db';
 import { exigirSessao, origemConfere, recusarOrigem } from '@/lib/auth';
-import { cotaDaConta, cotaParaJson, devolverCota, reservarCota } from '@/lib/conta';
 import { estourou } from '@/lib/limite';
 import { db } from '@/lib/sql';
 import { definirLembrete, registrarEvento } from '@/lib/eventos';
@@ -19,13 +18,13 @@ const texto = (v: unknown, max: number) => {
  * Cadastro de um lead à mão: um comércio ou uma pessoa que quer um projeto.
  * Além dos dados de contato, guarda o que ele quer (site, sistema,
  * automação...) e a ideia que contou, e, se veio uma data, marca a reunião
- * como lembrete. Gasta a mesma cota semanal da busca, como o cadastro antigo.
+ * como lembrete.
  */
 export async function POST(req: Request) {
   if (!origemConfere(req)) return recusarOrigem();
   const s = await exigirSessao();
   if (s.erro) return s.erro;
-  const { contaId, nome: quem, ilimitado, plano } = s.sessao;
+  const { contaId, nome: quem } = s.sessao;
   if (await estourou(`manual:${contaId}`, 60, 60)) {
     return NextResponse.json({ ok: false, erro: 'Cadastros demais em pouco tempo. Espere um minuto.' }, { status: 429 });
   }
@@ -60,16 +59,8 @@ export async function POST(req: Request) {
 
   const novo = (await idsNovos(contaId, [lead.id])).length > 0;
   if (!novo) return NextResponse.json({ ok: false, erro: 'Esse lead já está cadastrado.' }, { status: 409 });
-  const concedidos = await reservarCota(contaId, 1, plano);
-  const r = await salvarLeads(contaId, [lead], concedidos);
-  if (!ilimitado) await devolverCota(contaId, concedidos - r.novos, plano);
-  if (!r.novos) {
-    const cota = await cotaDaConta(contaId, plano);
-    return NextResponse.json(
-      { ok: false, erro: 'Seu plano chegou ao limite de leads desta semana. Veja os planos para cadastrar mais.', cota: cotaParaJson(cota) },
-      { status: 402 },
-    );
-  }
+  const r = await salvarLeads(contaId, [lead]);
+  if (!r.novos) return NextResponse.json({ ok: false, erro: 'Não consegui guardar o lead. Tente de novo.' }, { status: 500 });
 
   const interesse = interessesValidos(c.interesse);
   const ideia = texto(c.ideia, 3000);

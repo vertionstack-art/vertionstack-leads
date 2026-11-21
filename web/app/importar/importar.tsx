@@ -72,7 +72,7 @@ interface Resultado {
   barrados: number;
 }
 
-export default function Importar({ vagas }: { vagas: number | null }) {
+export default function Importar() {
   const [arquivo, setArquivo] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<string[][]>([]);
   const [mapa, setMapa] = useState<Campo[]>([]);
@@ -185,7 +185,6 @@ export default function Importar({ vagas }: { vagas: number | null }) {
         <h2 className="text-[17px] font-extrabold">1. Escolha o arquivo</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-zinc-600">
           Planilha em CSV, com a primeira linha de cabeçalho (Nome, Telefone, Cidade…). Só o nome é obrigatório.
-          {vagas !== null && <> Cabem mais <b className="tabular-nums text-tinta">{vagas.toLocaleString('pt-BR')}</b> leads na sua conta.</>}
         </p>
         <input ref={input} type="file" accept=".csv,text/csv,.txt" className="sr-only" onChange={(e) => escolher(e.target.files?.[0])} />
         <button

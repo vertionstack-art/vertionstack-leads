@@ -1,28 +1,23 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { cotaDaConta, sessaoAtual } from '@/lib/conta';
+import { sessaoAtual } from '@/lib/conta';
 import { estaBloqueado, ipDaRequisicao, registrarAcesso } from '@/lib/acessos';
 import Painel from './painel';
-import Inicio from './inicio';
 import { lerFoto } from '@/lib/perfil';
-import { avisoDeVencimento } from '@/lib/pagamento';
-import { primeirosPassos } from '@/lib/passos';
 import { quantosLembretesHoje } from '@/lib/eventos';
 import { podeUsarConversa } from '@/lib/conversa-contexto';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Vertion Leads: ache comércios sem site e venda o site para eles',
-  description:
-    'Busca comércios no Google da sua cidade e entrega só quem precisa de site, com temperatura, motivo para abordar, WhatsApp, proposta e CRM. Teste grátis com 30 leads, sem cartão.',
+  title: 'Vertion Leads',
 };
 
 export default async function Home() {
   const sessao = await sessaoAtual();
-  // quem não está logado vê a página de venda; quem está, o painel
-  if (!sessao) return <Inicio />;
+  // desde 21/11/2026 não há página de venda: sem login, vai para a tela de entrar
+  if (!sessao) redirect('/login');
 
   /*
    * Registrar só o login deixava de fora justamente o caso comum: quem já
@@ -34,25 +29,8 @@ export default async function Home() {
   if (await estaBloqueado(ipDaRequisicao(cabecalhos))) redirect('/login');
   await registrarAcesso(cabecalhos, 'painel', 'ok', sessao.email, 15);
 
-  const cota = await cotaDaConta(sessao.contaId, sessao.plano);
   const foto = await lerFoto(sessao.contaId, sessao.userId);
-  const vencimento = sessao.plano === 'cortesia' ? null : await avisoDeVencimento(sessao.contaId);
-  // uma por vez: consultas em paralelo prendem conexões no pooler do Supabase
-  const passos = await primeirosPassos(sessao.contaId);
   const lembretesHoje = await quantosLembretesHoje(sessao.contaId);
 
-  return (
-    <Painel
-      conversas={podeUsarConversa(sessao.email)}
-      usuario={sessao.nome}
-      foto={foto}
-      vencimento={vencimento}
-      passos={passos}
-      planoEscolhido={sessao.plano === 'gratis' ? sessao.planoEscolhido : null}
-      lembretesHoje={lembretesHoje}
-      plano={sessao.plano}
-      bloqueada={sessao.bloqueada}
-      cota={{ usados: cota.usados, limite: cota.limite, ilimitado: cota.ilimitado, renovaEm: cota.renovaEm, teste: cota.teste, testeNegado: cota.testeNegado, bonus: cota.bonus }}
-    />
-  );
+  return <Painel conversas={podeUsarConversa(sessao.email)} usuario={sessao.nome} foto={foto} lembretesHoje={lembretesHoje} />;
 }

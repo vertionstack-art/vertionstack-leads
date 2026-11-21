@@ -10,14 +10,6 @@ const NICHOS_PADRAO = [
   'Hamburgueria', 'Cafeteria', 'Padaria', 'Salão de beleza', 'Ótica', 'Pet shop', 'Clínica odontológica', 'Agência de viagens',
 ];
 
-interface CotaJson {
-  ilimitado: boolean;
-  usados: number;
-  limite: number;
-  restantes: number | null;
-  teste?: boolean;
-  testeNegado?: string | null;
-}
 
 interface Linha {
   chave: string;
@@ -73,38 +65,25 @@ function lerPrefs(modo: Modo): Prefs {
   }
 }
 
-interface Buscas {
-  usadas: number;
-  limite: number;
-  periodo: string;
-  ilimitado: boolean;
-}
-
 export default function BuscaGoogle({
   ligada,
-  cotaInicial,
-  buscasIniciais,
   resumoInicial,
   trava: travaInicial,
 }: {
   ligada: boolean;
-  cotaInicial: CotaJson;
-  buscasIniciais: Buscas;
   /** buscas feitas hoje, na semana, no mês e desde o começo (lib/google-places) */
   resumoInicial: ResumoBuscas;
-  /** a trava da ferramenta inteira (só para a conta da Vertion e o administrador) */
+  /** a trava da ferramenta inteira (950/mês e 300/dia, abaixo da faixa grátis do Google) */
   trava: Trava | null;
 }) {
   const [resumo, setResumo] = useState<ResumoBuscas>(resumoInicial);
   const [trava, setTrava] = useState<Trava | null>(travaInicial);
-  const [cota, setCota] = useState<CotaJson>(cotaInicial);
-  const [buscas, setBuscas] = useState<Buscas>(buscasIniciais);
   const [nichos, setNichos] = useState<Set<string>>(new Set());
   const [extras, setExtras] = useState<string[]>([]);
   const [novoNicho, setNovoNicho] = useState('');
   const [cidade, setCidade] = useState('');
   const [bairros, setBairros] = useState('');
-  const max = cota.ilimitado ? 500 : Math.min(200, cota.restantes ?? 0);
+  const max = 500;
   const [quero, setQuero] = useState(Math.min(30, max) || 1);
   const [soComWhatsapp, setSoComWhatsapp] = useState(true);
   const [modo, setModo] = useState<Modo>('brasil');
@@ -182,7 +161,6 @@ export default function BuscaGoogle({
     }),
     { comercios: 0, comSite: 0, jaTinha: 0, novos: 0, descartados: 0, confirmados: 0, fracos: 0 },
   );
-  const semCota = !cota.ilimitado && (cota.restantes ?? 0) <= 0;
 
   async function iniciar() {
     if (!nichos.size || (!paisInteiro && cidade.trim().length < 2)) {
@@ -219,14 +197,12 @@ export default function BuscaGoogle({
             setAviso({ texto: 'Falha de rede. Confira a internet e clique em Buscar de novo.' });
             break fora;
           }
-          if (r.cota) setCota(r.cota);
           // cada resposta boa que não foi pulada é uma chamada ao Google a mais no contador
           if (r.ok && !r.jaFeita) {
             const novos = Number(r.novos) || 0;
             setResumo((x) => ({ ...x, hoje: x.hoje + 1, semana: x.semana + 1, mes: x.mes + 1, total: x.total + 1, leadsMes: x.leadsMes + novos, leadsTotal: x.leadsTotal + novos }));
             setTrava((x) => (x ? { ...x, hoje: x.hoje + 1, mes: x.mes + 1 } : x));
           }
-          if (r.buscas) setBuscas((b) => ({ ...b, usadas: r.buscas.usadas, limite: r.buscas.limite }));
           if (!r.ok) {
             setAviso({ texto: r.erro || 'A busca falhou.', fim: r.fim });
             if (r.fim || !r.erro) break fora;
@@ -253,7 +229,7 @@ export default function BuscaGoogle({
     setTerminou(true);
   }
 
-  const quadro = <QuadroBuscas resumo={resumo} buscas={buscas} trava={trava} />;
+  const quadro = <QuadroBuscas resumo={resumo} trava={trava} />;
 
   if (!ligada) {
     return (
@@ -451,17 +427,7 @@ export default function BuscaGoogle({
               className="w-28 rounded-full bg-zinc-100 px-4 py-2.5 text-[15px] font-bold tabular-nums outline-none focus:ring-2 focus:ring-tinta"
             />
             <p className="text-[12.5px] text-zinc-500">
-              {cota.ilimitado
-                ? `Sua conta não tem limite. Buscas no Google este mês: ${resumo.mes}.`
-                : cota.teste
-                  ? `Restam ${cota.restantes ?? 0} do seu teste grátis.`
-                  : `Restam ${cota.restantes ?? 0} nesta semana.`}
-              {!buscas.ilimitado && (
-                <>
-                  <br />
-                  Buscas no Google {buscas.periodo}: <b className="text-tinta">{Math.min(buscas.usadas, buscas.limite)} de {buscas.limite}</b>
-                </>
-              )}
+              {`Buscas no Google este mês: ${resumo.mes}.`}
             </p>
           </div>
           {exterior ? (
@@ -496,7 +462,7 @@ export default function BuscaGoogle({
             <span>
               <span className="block text-[13px] font-bold">Só com WhatsApp</span>
               <span className="block text-[12px] leading-relaxed text-zinc-600">
-                Quem só tem telefone fixo e nenhum link com WhatsApp fica de fora e não gasta sua cota.
+                Quem só tem telefone fixo e nenhum link com WhatsApp fica de fora.
               </span>
             </span>
           </label>
@@ -522,9 +488,6 @@ export default function BuscaGoogle({
         {aviso && (
           <p role="alert" className={`rounded-2xl px-4 py-3 text-[13px] font-semibold ${aviso.fim ? 'bg-tinta text-white' : 'bg-zinc-100'}`}>
             {aviso.texto}
-            {aviso.fim && (
-              <a href="/planos" className="ml-2 underline underline-offset-2">Ver planos</a>
-            )}
           </p>
         )}
 
@@ -540,7 +503,6 @@ export default function BuscaGoogle({
           ) : (
             <button
               type="submit"
-              disabled={semCota}
               className="inline-flex min-h-[48px] items-center gap-2 rounded-full bg-tinta px-6 text-[14px] font-extrabold text-white hover:bg-tinta-70 disabled:opacity-40"
             >
               <Play aria-hidden className="h-4 w-4" fill="currentColor" /> Buscar
@@ -551,11 +513,6 @@ export default function BuscaGoogle({
               {perguntas} {perguntas === 1 ? 'busca' : 'buscas'} ({nichos.size} {nichos.size === 1 ? 'nicho' : 'nichos'} × {locais.length}{' '}
               {locais.length === 1 ? 'lugar' : 'lugares'}), até juntar {quero} {quero === 1 ? 'lead' : 'leads'}.
             </p>
-          )}
-          {semCota && !rodando && (
-            <a href="/planos" className="text-[13px] font-bold underline underline-offset-2">
-              {cota.teste ? 'Seu teste acabou: ver planos' : 'Cota da semana usada: ver planos'}
-            </a>
           )}
         </div>
       </form>
@@ -692,7 +649,7 @@ function Restam({ rotulo, usadas, teto, nota }: { rotulo: string; usadas: number
 }
 
 /** "Suas buscas no Google": hoje, 7 dias, mês e desde o começo, com os leads que renderam, e o que ainda resta */
-function QuadroBuscas({ resumo, buscas, trava }: { resumo: ResumoBuscas; buscas: Buscas; trava: Trava | null }) {
+function QuadroBuscas({ resumo, trava }: { resumo: ResumoBuscas; trava: Trava | null }) {
   const blocos = [
     { rotulo: 'Hoje', valor: resumo.hoje, detalhe: null, fundo: 'bg-ceu' },
     { rotulo: 'Últimos 7 dias', valor: resumo.semana, detalhe: null, fundo: 'bg-manteiga' },
@@ -716,14 +673,11 @@ function QuadroBuscas({ resumo, buscas, trava }: { resumo: ResumoBuscas; buscas:
           </div>
         ))}
       </div>
-      {(trava || !buscas.ilimitado) && (
+      {trava && (
         <div className="mt-3 rounded-[22px] bg-zinc-100 px-5 py-4">
           <p className="text-[14px] font-extrabold">Ainda dá para buscar</p>
           <div className="mt-3 flex flex-col gap-4 md:flex-row md:gap-8">
-            {!buscas.ilimitado && (
-              <Restam rotulo={`No seu plano (${buscas.periodo})`} usadas={buscas.usadas} teto={buscas.limite} nota="O limite de buscas do seu plano." />
-            )}
-            {trava && (
+            {(
               <>
                 <Restam
                   rotulo="Hoje, na ferramenta inteira"
