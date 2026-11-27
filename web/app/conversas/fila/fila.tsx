@@ -21,7 +21,7 @@ import { partesDaMensagem } from '@/lib/partes';
 const ROTULO_NIVEL: Record<Nivel, string> = { quente: 'Quente', morno: 'Morno', frio: 'Frio' };
 const GUARDA = 'vl-fila-v2';
 
-type Estado = 'espera' | 'gerando' | 'pronto' | 'erro' | 'enviando' | 'enviada';
+type Estado = 'espera' | 'gerando' | 'pronto' | 'erro' | 'enviando' | 'enviada' | 'descartada';
 
 interface Rascunho {
   estado: Estado;
@@ -35,12 +35,36 @@ interface Rascunho {
 
 const NOVO: Rascunho = { estado: 'espera', texto: '', erro: null, resposta: null, avisos: [], variacao: null, anteriores: [] };
 
-async function chamar(url: string, body: unknown) {
-  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+/** erro com o código HTTP da resposta (0 = nem chegou ao servidor) */
+class ErroChamada extends Error {
+  constructor(msg: string, public status: number) {
+    super(msg);
+  }
+}
+
+async function chamar(url: string, body: unknown, metodo: 'POST' | 'PATCH' = 'POST') {
+  let r: Response;
+  try {
+    r = await fetch(url, { method: metodo, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  } catch {
+    throw new ErroChamada('Sem conexão com o servidor. Confira a internet e tente de novo.', 0);
+  }
   const j = await r.json().catch(() => ({ ok: false }));
-  if (!j.ok) throw new Error(j.erro || 'Não deu certo. Tente de novo.');
+  if (!j.ok) throw new ErroChamada(j.erro || 'Não deu certo. Tente de novo.', r.status);
   return j;
 }
+
+/*
+ * Falha que não é culpa do lead: o limite do dia, envios seguidos demais,
+ * texto vazio ou com [colchetes], WhatsApp desconectado ou sem internet.
+ * Nesses casos o lead continua na fila. Qualquer outra falha no envio
+ * (número recusado pelo WhatsApp, erro no meio do envio, servidor que caiu)
+ * descarta o lead: ele sai da fila e não volta mais (pedido do Lucas, 26/11).
+ */
+const falhaGeral = (e: unknown) => {
+  const st = e instanceof ErroChamada ? e.status : 0;
+  return st === 0 || st === 400 || st === 401 || st === 403 || st === 404 || st === 429 || st === 503;
+};
 
 const base = (id: string) => `/api/conversa/${encodeURIComponent(id)}`;
 
@@ -97,7 +121,7 @@ export default function Fila({
   useEffect(() => {
     if (!carregou.current) return;
     try {
-      const pendentes = marcados.filter((id) => rascunhos[id]?.estado !== 'enviada');
+      const pendentes = marcados.filter((id) => rascunhos[id]?.estado !== 'enviada' && rascunhos[id]?.estado !== 'descartada');
       const textos: Record<string, string> = {};
       for (const id of pendentes) if (rascunhos[id]?.texto) textos[id] = rascunhos[id].texto;
       localStorage.setItem(GUARDA, JSON.stringify({ marcados: pendentes, textos }));
@@ -114,8 +138,9 @@ export default function Fila({
       : null;
 
   const mudar = (id: string, p: Partial<Rascunho>) => setRascunhos((r) => ({ ...r, [id]: { ...NOVO, ...r[id], ...p } }));
-  const ativos = marcados.filter((id) => rascunhos[id]?.estado !== 'enviada');
+  const ativos = marcados.filter((id) => rascunhos[id]?.estado !== 'enviada' && rascunhos[id]?.estado !== 'descartada');
   const enviados = marcados.filter((id) => rascunhos[id]?.estado === 'enviada');
+  const descartados = marcados.filter((id) => rascunhos[id]?.estado === 'descartada');
   const disponiveis = itens.filter((i) => !marcados.includes(i.id));
   const semTexto = ativos.filter((id) => !rascunhos[id]?.texto && rascunhos[id]?.estado !== 'gerando');
   const prontos = ativos.filter((id) => rascunhos[id]?.estado === 'pronto' && rascunhos[id]?.texto.trim());
@@ -209,8 +234,18 @@ export default function Fila({
       mudar(id, { estado: 'enviada' });
     } catch (e) {
       const msg = (e as Error).message;
-      mudar(id, { estado: 'pronto', erro: msg });
-      if (/limite/i.test(msg)) setHoje(limite);
+      if (falhaGeral(e)) {
+        mudar(id, { estado: 'pronto', erro: msg });
+        if (/limite/i.test(msg)) setHoje(limite);
+        return;
+      }
+      // não foi: o lead sai da fila de vez (status "descartado")
+      try {
+        await chamar(`/api/leads/${encodeURIComponent(id)}`, { status: 'descartado' }, 'PATCH');
+        mudar(id, { estado: 'descartada', erro: msg });
+      } catch {
+        mudar(id, { estado: 'pronto', erro: `${msg} Também não consegui descartar o lead; tente de novo.` });
+      }
     }
   }
 
@@ -412,6 +447,21 @@ export default function Fila({
             ))}
           </ul>
           <p className="mt-2 text-[12px] font-semibold text-emerald-900">Quem responder cai direto no robô.</p>
+        </section>
+      )}
+
+      {/* não foram enviadas: descartados, não voltam para a fila */}
+      {descartados.length > 0 && (
+        <section className="rounded-[24px] bg-zinc-100 px-5 py-4">
+          <p className="text-[13px] font-extrabold text-zinc-800">Não enviadas, descartadas</p>
+          <ul className="mt-2 flex flex-wrap gap-1.5">
+            {descartados.map((id) => (
+              <li key={id} title={rascunhos[id]?.erro || undefined} className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[12.5px] font-bold text-zinc-700">
+                <X aria-hidden className="h-3.5 w-3.5" /> {porId.get(id)?.nome}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[12px] font-semibold text-zinc-600">A mensagem não saiu, então o lead foi para Descartado e não aparece mais aqui.</p>
         </section>
       )}
 
