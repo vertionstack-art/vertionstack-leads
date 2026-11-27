@@ -288,6 +288,16 @@ export default function TreinoRobo({
           </button>
         </Secao>
 
+        <Secao titulo="Avisos no WhatsApp" descricao="Para quem não está no PC: cada vez que o robô te chamar, o mesmo aviso chega por WhatsApp.">
+          <div>
+            <label className={rotulo} htmlFor="t-avisar">Avisar também no WhatsApp de</label>
+            <textarea id="t-avisar" value={cfg.avisarNumeros} onChange={txt('avisarNumeros')} rows={2} maxLength={200} className={caixa} placeholder="Um celular por linha, com DDD. Ex.: 21 99999-9999" />
+            <p className={dica}>
+              Até 3 números. Chega quando o cliente quer a prévia, a proposta, negociar o valor, precisa de alguém ou pede para não receber mais mensagens, com o link da conversa. Sai pelo WhatsApp da Vertion, e esses números nunca recebem resposta do robô.
+            </p>
+          </div>
+        </Secao>
+
         <Secao titulo="Regras" descricao="O que ele nunca deve fazer e quando ele responde.">
           <div>
             <label className={rotulo} htmlFor="t-proib">Nunca falar ou prometer</label>

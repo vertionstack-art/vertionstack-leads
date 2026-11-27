@@ -6,6 +6,8 @@
  * no servidor.
  */
 
+import { numeroWhatsapp } from './telefone';
+
 export type Formalidade = 'descontraido' | 'equilibrado' | 'formal';
 export type Emojis = 'nunca' | 'pouco' | 'avontade';
 
@@ -49,6 +51,12 @@ export interface ConfigRobo {
   horaInicio: number;
   horaFim: number;
   exemplos: Exemplo[];
+  /**
+   * WhatsApps (um por linha, até 3) que recebem cada aviso do robô: cliente
+   * quer a prévia, a proposta, negociar, precisa de alguém ou pediu para parar.
+   * Para o sócio que não está no PC onde o painel toca o alerta.
+   */
+  avisarNumeros: string;
 }
 
 export const CONFIG_PADRAO: ConfigRobo = {
@@ -71,6 +79,7 @@ export const CONFIG_PADRAO: ConfigRobo = {
   horaInicio: 8,
   horaFim: 21,
   exemplos: [],
+  avisarNumeros: '',
 };
 
 export const MAX_PERGUNTAS = 30;
@@ -114,7 +123,17 @@ export function normalizarConfig(bruto: unknown): ConfigRobo {
       .map((x) => ({ cliente: texto((x as Exemplo)?.cliente, 600).trim(), errado: texto((x as Exemplo)?.errado, 800).trim(), certo: texto((x as Exemplo)?.certo, 800).trim() }))
       .filter((x) => x.certo)
       .slice(-MAX_EXEMPLOS),
+    avisarNumeros: texto(b.avisarNumeros, 200),
   };
+}
+
+/** os celulares que recebem os avisos, já no formato do WhatsApp (55 + DDD + número); no máximo 3 */
+export function numerosParaAvisar(c: ConfigRobo): string[] {
+  const n = c.avisarNumeros
+    .split(/[\n,;]+/)
+    .map((x) => numeroWhatsapp(x))
+    .filter((x): x is string => Boolean(x));
+  return [...new Set(n)].slice(0, 3);
 }
 
 /** os links do portfólio que o robô pode mandar */

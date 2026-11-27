@@ -25,13 +25,13 @@ import { buscarLead, atualizarLead, type Lead } from './db';
 import { registrarEvento } from './eventos';
 import { registrarMensagem, mensagensDaConversa, passosFeitos, marcarPasso } from './conversa';
 import { dadosDoLead } from './conversa-contexto';
-import { enviarTexto, evolutionLigada, marcarComoLida } from './evolution';
+import { enviarTexto, evolutionLigada, marcarComoLida, variantesDoNumero } from './evolution';
 import { numeroWhatsapp } from './telefone';
 import { valores, type CfgProposta } from './financeiro';
 import { rotuloDoInteresse } from './interesses';
 import { ErroIa, cabecaLigada } from './cabeca';
 import { ajustarParaAutomatica, decidir, linksPermitidos, mensagensSeguras, montarInstrucoes, montarPedido, type Decisao, type FalaParaIa, type LeadParaIa } from './robo-cerebro';
-import { normalizarConfig, type ConfigRobo } from './robo-config';
+import { normalizarConfig, numerosParaAvisar, type ConfigRobo } from './robo-config';
 import type { Aguardando, AvisoRobo, EstadoRobo } from './robo-tipos';
 import { ehAutomatica, segundosDepois } from './automatica';
 import { fichaDoLead } from './copiloto-dados';
@@ -158,6 +158,44 @@ async function avisar(conta: string, lead: string, tipo: string, texto: string):
   // um aviso aberto por conversa: o novo substitui o anterior
   await sql()`update robo_avisos set resolvido_em = now() where conta_id = ${conta} and lead_id = ${lead} and resolvido_em is null`;
   await sql()`insert into robo_avisos (conta_id, lead_id, tipo, texto) values (${conta}, ${lead}, ${tipo}, ${texto.slice(0, 300)})`;
+  await avisarNoWhatsapp(conta, lead, tipo, texto).catch((e) => console.error('[robo] aviso no WhatsApp', e instanceof Error ? e.message : e));
+}
+
+const SITE = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://leads.vertionstack.com').replace(/\/$/, '');
+
+const CHAMADA_DO_AVISO: Record<string, string> = {
+  previa: 'quer ver a prévia do site',
+  proposta: 'quer receber a proposta',
+  preco: 'quer negociar o valor',
+  humano: 'precisa de alguém da equipe',
+  encerrou: 'pediu para NÃO receber mais mensagens',
+};
+
+/**
+ * O mesmo aviso do painel, mandado pelo WhatsApp da Vertion para os números
+ * de "Avisar também no WhatsApp" (treino do robô): o sócio fica sabendo sem
+ * estar no PC. Falhar aqui nunca atrapalha a conversa com o cliente.
+ */
+async function avisarNoWhatsapp(conta: string, lead: string, tipo: string, texto: string): Promise<void> {
+  if (!evolutionLigada()) return;
+  const [c] = await sql()`select robo_config from contas where id = ${conta}`;
+  const numeros = numerosParaAvisar(normalizarConfig(c?.robo_config));
+  if (!numeros.length) return;
+  const [l] = await sql()`select name, city from leads where conta_id = ${conta} and id = ${lead}`;
+  const nome = String(l?.name || 'Um lead');
+  const msg = [
+    `🔔 *Vertion Leads*`,
+    `*${nome}*${l?.city ? ` (${l.city})` : ''} ${CHAMADA_DO_AVISO[tipo] || 'precisa de você'}.`,
+    texto ? `\n${texto.replace(/\s+/g, ' ').trim().slice(0, 300)}` : '',
+    `\nAbrir a conversa: ${SITE}/conversa/${encodeURIComponent(lead)}`,
+  ].filter(Boolean).join('\n');
+  for (const n of numeros) {
+    try {
+      await enviarTexto(n, msg);
+    } catch (e) {
+      console.error('[robo] aviso para', n.slice(-4), e instanceof Error ? e.message : e);
+    }
+  }
 }
 
 /** "Resolvi eu mesmo": o robô para de esperar e volta a responder */
@@ -189,6 +227,12 @@ export async function treinoDoRobo(conta: string): Promise<Treino> {
 
 export async function salvarTreino(conta: string, cfg: ConfigRobo): Promise<void> {
   await sql()`update contas set robo_config = ${sql().json(JSON.parse(JSON.stringify(cfg)))} where id = ${conta}`;
+  // quem recebe os avisos é da equipe: nunca vira lead nem recebe resposta do robô se escrever para o número da Vertion
+  for (const n of numerosParaAvisar(cfg)) {
+    for (const f of variantesDoNumero(n)) {
+      await sql()`insert into zap_ignorados (conta_id, numero) values (${conta}, ${f}) on conflict do nothing`;
+    }
+  }
 }
 
 /** mensagens que o dono escreveu de verdade pela ferramenta: o robô copia o jeito */

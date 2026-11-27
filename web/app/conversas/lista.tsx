@@ -2,14 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Hourglass, MessageCircleReply, Search, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, Hourglass, MessageCircleReply, MessagesSquare, Search, Sparkles, Users } from 'lucide-react';
 import { CLASSE_NIVEL, type Nivel } from '@/lib/temperatura';
 import { ehAutomatica } from '@/lib/automatica';
 
 /**
- * A lista das conversas. Os quatro blocos de cima são filtros: quem respondeu
- * e espera você (o mais importante, fica primeiro), quem você chamou e ainda
- * não respondeu, quem ainda nem foi chamado, e todos.
+ * A lista das conversas. Os blocos de cima são filtros: quem respondeu e
+ * espera você (o mais importante, fica primeiro), quem você chamou e ainda
+ * não respondeu, todas as conversas que você já começou (pela ferramenta ou
+ * pelo WhatsApp do celular), quem ainda nem foi chamado, e todos.
  */
 
 export interface ItemConversa {
@@ -22,13 +23,15 @@ export interface ItemConversa {
   pontos: number;
   temWhatsapp: boolean;
   mensagens: number;
+  /** já houve primeiro contato: mensagem gravada, status além de "novo" ou WhatsApp aberto pelo painel */
+  iniciada: boolean;
   ultimaEm: string | null;
   ultimoAutor: 'eu' | 'cliente' | null;
   ultimoTexto: string | null;
   passos: number;
 }
 
-type Filtro = 'responderam' | 'esperando' | 'novos' | 'todos';
+type Filtro = 'responderam' | 'esperando' | 'iniciadas' | 'novos' | 'todos';
 
 const ROTULO_NIVEL: Record<Nivel, string> = { quente: 'Quente', morno: 'Morno', frio: 'Frio' };
 const ROTULO_STATUS: Record<string, string> = {
@@ -47,16 +50,19 @@ function haQuanto(iso: string): string {
   return dias === 1 ? 'ontem' : `há ${dias} dias`;
 }
 
-function filtroDo(i: ItemConversa): Exclude<Filtro, 'todos'> {
-  if (!i.mensagens) return 'novos';
+function filtroDo(i: ItemConversa): Exclude<Filtro, 'todos' | 'iniciadas'> {
+  if (!i.mensagens) return i.iniciada ? 'esperando' : 'novos';
   // resposta automática do WhatsApp Business não é o cliente respondendo
   return i.ultimoAutor === 'cliente' && !ehAutomatica(i.ultimoTexto || '') ? 'responderam' : 'esperando';
 }
 
 export default function ListaConversas({ itens, totalPassos }: { itens: ItemConversa[]; totalPassos: number }) {
   const conta = useMemo(() => {
-    const c = { responderam: 0, esperando: 0, novos: 0, todos: itens.length };
-    for (const i of itens) c[filtroDo(i)]++;
+    const c = { responderam: 0, esperando: 0, iniciadas: 0, novos: 0, todos: itens.length };
+    for (const i of itens) {
+      c[filtroDo(i)]++;
+      if (i.iniciada) c.iniciadas++;
+    }
     return c;
   }, [itens]);
   const [filtro, setFiltro] = useState<Filtro>(conta.responderam ? 'responderam' : conta.esperando ? 'esperando' : 'novos');
@@ -66,7 +72,7 @@ export default function ListaConversas({ itens, totalPassos }: { itens: ItemConv
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return itens
-      .filter((i) => filtro === 'todos' || filtroDo(i) === filtro)
+      .filter((i) => filtro === 'todos' || (filtro === 'iniciadas' ? i.iniciada : filtroDo(i) === filtro))
       .filter((i) => !nivel || i.temperatura === nivel)
       .filter((i) => !q || [i.nome, i.ramo, i.cidade].some((x) => x?.toLowerCase().includes(q)))
       .sort((a, b) => {
@@ -81,13 +87,14 @@ export default function ListaConversas({ itens, totalPassos }: { itens: ItemConv
   const blocos: { id: Filtro; titulo: string; detalhe: string; fundo: string; Icone: typeof Users }[] = [
     { id: 'responderam', titulo: 'Responderam', detalhe: 'esperando você', fundo: 'bg-rosa', Icone: MessageCircleReply },
     { id: 'esperando', titulo: 'Aguardando', detalhe: 'você chamou, falta responder', fundo: 'bg-manteiga', Icone: Hourglass },
+    { id: 'iniciadas', titulo: 'Iniciadas', detalhe: 'todas que você já começou', fundo: 'bg-menta', Icone: MessagesSquare },
     { id: 'novos', titulo: 'Para começar', detalhe: 'ainda sem conversa', fundo: 'bg-ceu', Icone: Sparkles },
     { id: 'todos', titulo: 'Todos', detalhe: 'todos os leads', fundo: 'bg-lavanda', Icone: Users },
   ];
 
   return (
     <div className="mt-8">
-      <div role="tablist" aria-label="Filtrar conversas" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div role="tablist" aria-label="Filtrar conversas" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {blocos.map(({ id, titulo, detalhe, fundo, Icone }) => {
           const sel = filtro === id;
           return (
@@ -190,7 +197,11 @@ export default function ListaConversas({ itens, totalPassos }: { itens: ItemConv
                       </span>
                     ) : (
                       <span className="block text-[12.5px] font-semibold text-zinc-500">
-                        {i.temWhatsapp ? 'Ainda não começou' : 'Sem WhatsApp (telefone fixo)'}
+                        {i.iniciada
+                          ? `Você chamou pelo WhatsApp do celular${i.ultimaEm ? ` · ${haQuanto(i.ultimaEm)}` : ''}`
+                          : i.temWhatsapp
+                            ? 'Ainda não começou'
+                            : 'Sem WhatsApp (telefone fixo)'}
                       </span>
                     )}
                   </span>

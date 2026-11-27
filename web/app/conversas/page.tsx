@@ -54,7 +54,9 @@ export default async function PaginaConversas() {
       pontos: t.pontos,
       temWhatsapp: Boolean(lead.whatsapp || (lead.telefoneTipo !== 'fixo' && numeroWhatsapp(lead.phone))),
       mensagens: c?.mensagens || 0,
-      ultimaEm: c?.ultimaEm || null,
+      // chamou pelo WhatsApp do celular (botão do painel/ficha): não há mensagem gravada, mas a conversa começou
+      iniciada: Boolean(c?.mensagens) || lead.status !== 'novo' || Boolean(lead.contatadoEm),
+      ultimaEm: c?.ultimaEm || lead.contatadoEm || null,
       ultimoAutor: c?.ultimoAutor || null,
       ultimoTexto: c?.ultimoTexto || null,
       passos: c?.passos || 0,

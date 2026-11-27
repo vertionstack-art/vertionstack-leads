@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  FileText, Kanban, LayoutGrid, LogOut, Map as IconeMapa, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet,
+  FileText, Kanban, LayoutGrid, LogOut, Map as IconeMapa, Menu as IconeMais, MessagesSquare, Plus, Radar, Upload, UserRound, Wallet, X,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -107,8 +107,27 @@ export default function MenuLateral({
     ...(verConversas ? [{ tela: 'conversas' as const, rotulo: 'Comercial', href: '/conversas', Icone: MessagesSquare }] : []),
     { tela: 'crm' as const, rotulo: 'CRM', href: '/crm', Icone: Kanban },
     ...(verConversas ? [] : [{ tela: 'financeiro' as const, rotulo: 'Financeiro', href: '/financeiro', Icone: Wallet }]),
-    { tela: 'perfil' as const, rotulo: 'Perfil', href: '/perfil', Icone: UserRound },
   ];
+  /*
+   * No celular a doca só cabe cinco botões; o resto (propostas, financeiro,
+   * cadastrar, mapa, importar, perfil, sair) mora na gaveta do "Mais".
+   */
+  const [maisAberto, setMaisAberto] = useState(false);
+  useEffect(() => {
+    if (!maisAberto) return;
+    const fechar = (e: KeyboardEvent) => e.key === 'Escape' && setMaisAberto(false);
+    window.addEventListener('keydown', fechar);
+    return () => window.removeEventListener('keydown', fechar);
+  }, [maisAberto]);
+  const gaveta: { tela: Tela; rotulo: string; href?: string; onClick?: () => void; Icone: typeof Wallet }[] = [
+    { tela: 'propostas', rotulo: 'Propostas', href: '/propostas', Icone: FileText },
+    ...(verConversas || !doca.some((d) => d.tela === 'financeiro') ? [{ tela: 'financeiro' as const, rotulo: 'Financeiro', href: '/financeiro', Icone: Wallet }] : []),
+    { tela: null, rotulo: 'Cadastrar lead', href: aoCadastrar ? undefined : '/?cadastrar=1', onClick: aoCadastrar, Icone: Plus },
+    { tela: 'mapa', rotulo: 'Mapa dos leads', href: '/mapa', Icone: IconeMapa },
+    { tela: 'importar', rotulo: 'Importar planilha', href: '/importar', Icone: Upload },
+    { tela: 'perfil', rotulo: 'Meu perfil', href: '/perfil', Icone: UserRound },
+  ];
+  const maisAtivo = gaveta.some((g) => g.tela && g.tela === ativo);
 
   return (
     <>
@@ -191,7 +210,58 @@ export default function MenuLateral({
             </Link>
           );
         })}
+        <button
+          type="button"
+          onClick={() => setMaisAberto(true)}
+          aria-expanded={maisAberto}
+          aria-haspopup="dialog"
+          className={`flex min-h-[52px] min-w-[60px] flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[10.5px] font-bold ${
+            maisAtivo ? 'bg-white text-tinta' : 'text-white/70 active:text-white'
+          }`}
+        >
+          <IconeMais className="h-5 w-5" strokeWidth={1.8} />
+          Mais
+        </button>
       </nav>
+
+      {/* ------------------------------------------- gaveta do "Mais" (celular) */}
+      {maisAberto && (
+        <div className="fixed inset-0 z-[2000] md:hidden" role="dialog" aria-modal="true" aria-label="Mais opções">
+          <button type="button" aria-label="Fechar" onClick={() => setMaisAberto(false)} className="absolute inset-0 bg-tinta/40" />
+          <div className="absolute inset-x-3 bottom-3 rounded-[24px] bg-tinta p-3 pb-2 shadow-[0_18px_50px_rgba(11,11,15,0.35)]">
+            <div className="mb-1 flex items-center justify-between px-2 pt-1">
+              <span className="text-[13px] font-extrabold text-white">Mais</span>
+              <button type="button" onClick={() => setMaisAberto(false)} aria-label="Fechar" className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 active:bg-white/10">
+                <X className="h-5 w-5" strokeWidth={1.8} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[...gaveta, ...extras.map((x) => ({ tela: null as Tela, rotulo: x.rotulo, href: x.href, onClick: x.onClick, Icone: null, icone: x.icone }))].map((g) => {
+                const atual = Boolean(g.tela) && g.tela === ativo;
+                const classe = `flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl px-1 text-center text-[11.5px] font-bold leading-tight ${
+                  atual ? 'bg-white text-tinta' : 'bg-white/[0.06] text-white/85 active:bg-white/15'
+                }`;
+                const icone = 'Icone' in g && g.Icone ? <g.Icone className="h-5 w-5" strokeWidth={1.8} /> : (g as { icone?: React.ReactNode }).icone;
+                return g.href ? (
+                  <Link key={g.rotulo} href={g.href} onClick={() => setMaisAberto(false)} className={classe} aria-current={atual ? 'page' : undefined}>
+                    {icone}
+                    {g.rotulo}
+                  </Link>
+                ) : (
+                  <button key={g.rotulo} type="button" onClick={() => { setMaisAberto(false); g.onClick?.(); }} className={classe}>
+                    {icone}
+                    {g.rotulo}
+                  </button>
+                );
+              })}
+              <button type="button" onClick={() => { setMaisAberto(false); sair(); }} className="flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl bg-white/[0.06] px-1 text-[11.5px] font-bold text-white/85 active:bg-white/15">
+                <LogOut className="h-5 w-5" strokeWidth={1.8} />
+                Sair
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
